@@ -42,7 +42,7 @@ function OrderPreviewModal({ open, onClose, items, channel }) {
       width={760}
       footer={[
         <Button key="close" onClick={onClose}>關閉</Button>,
-        <Button key="submit" type="primary" icon={<SendOutlined />}>確認送出預訂</Button>,
+        <Button key="submit" type="primary" icon={<SendOutlined />}>確認送出B2B訂單</Button>,
       ]}
     >
       <Descriptions bordered size="small" column={2} style={{ marginBottom: 16 }}>

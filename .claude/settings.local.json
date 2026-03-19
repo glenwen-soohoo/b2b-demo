@@ -1,0 +1,11 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npm run:*)",
+      "Bash(cd:*)",
+      "Bash(xargs grep:*)",
+      "Bash(grep -r GoX /d/GreenBox/fruit_web/HuashanCRM --include=*.js --include=*.html --include=*.cs)",
+      "Bash(grep -iE \"\\\\.\\(html|js|jsx|cshtml\\)$\")"
+    ]
+  }
+}

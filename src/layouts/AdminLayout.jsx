@@ -3,24 +3,28 @@ import { Layout, Menu, Button, Typography } from 'antd'
 import {
   ShoppingCartOutlined, TeamOutlined, AppstoreOutlined,
   BarChartOutlined, ArrowLeftOutlined, FileTextOutlined,
+  AccountBookOutlined, InboxOutlined,
 } from '@ant-design/icons'
 
 const { Header, Sider, Content } = Layout
 const { Text } = Typography
 
 const MENU_ITEMS = [
-  { key: 'orders',    icon: <ShoppingCartOutlined />, label: '預訂 & 結算' },
-  { key: 'products',  icon: <AppstoreOutlined />,     label: '商品管理' },
-  { key: 'channels',  icon: <TeamOutlined />,          label: '通路名單' },
-  { key: 'templates', icon: <FileTextOutlined />,      label: '品項表模板' },
-  { key: 'analytics', icon: <BarChartOutlined />,      label: '損益分析' },
+  { key: 'orders',      icon: <ShoppingCartOutlined />, label: 'B2B訂單管理' },
+  { key: 'settlements', icon: <AccountBookOutlined />,  label: '結算管理' },
+  { type: 'divider' },
+  { key: 'warehouse',   icon: <InboxOutlined />,        label: '倉庫出貨管理' },
+  { type: 'divider' },
+  { key: 'products',    icon: <AppstoreOutlined />,     label: '商品管理' },
+  { key: 'templates',   icon: <FileTextOutlined />,     label: '品項表模板' },
+  { key: 'channels',    icon: <TeamOutlined />,         label: '通路名單' },
+  { key: 'analytics',   icon: <BarChartOutlined />,     label: '損益分析' },
 ]
 
 export default function AdminLayout() {
   const nav = useNavigate()
   const loc = useLocation()
 
-  // /admin/orders → 'orders'
   const current = loc.pathname.split('/')[2] ?? 'orders'
 
   return (

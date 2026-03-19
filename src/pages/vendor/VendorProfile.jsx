@@ -35,7 +35,7 @@ function AddressModal({ open, onClose, onSave, initial }) {
         <Form.Item label="收件地址" name="address" rules={[{ required: true }]}>
           <Input />
         </Form.Item>
-        <Form.Item label="營業時間" name="hours">
+        <Form.Item label="可收貨時間" name="hours">
           <Input placeholder="例：週一至週五 09:00-17:00" />
         </Form.Item>
       </Form>
@@ -98,7 +98,7 @@ export default function VendorProfile() {
     { title: '收件人',   dataIndex: 'recipient', width: 140 },
     { title: '電話',     dataIndex: 'phone', width: 130 },
     { title: '地址',     dataIndex: 'address', ellipsis: true },
-    { title: '營業時間', dataIndex: 'hours', ellipsis: true },
+    { title: '可收貨時間', dataIndex: 'hours', ellipsis: true },
     {
       title: '操作', width: 100, align: 'center',
       render: (_, r) => (
@@ -154,11 +154,11 @@ export default function VendorProfile() {
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px 24px' }}>
             {[
               { label: '通路名稱', value: info.name },
-              { label: '公司抬頭', value: info.title },
-              { label: '統一編號', value: info.taxId },
-              { label: '聯繫信箱', value: info.email },
+              { label: '聯絡信箱', value: info.email },
               { label: '聯繫窗口', value: info.contact },
               { label: '聯繫電話', value: info.contactPhone },
+              { label: '公司抬頭', value: info.title },
+              { label: '統一編號', value: info.taxId },
             ].map(f => (
               <div key={f.label}>
                 <div style={{ fontSize: 12, color: '#999', marginBottom: 2 }}>{f.label}</div>

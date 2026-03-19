@@ -1,17 +1,17 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Card, Form, Select, Button, Typography, Alert, Divider } from 'antd'
-import { LoginOutlined, ArrowLeftOutlined, LockOutlined } from '@ant-design/icons'
+import { Card, Form, Input, Button, Typography, Alert } from 'antd'
+import { LoginOutlined, InfoCircleOutlined } from '@ant-design/icons'
 import { channels } from '../../data/fakeData'
 import { useVendor } from '../../context/VendorContext'
 
 const { Title, Text } = Typography
 
-// Demo 用的假帳密（通路 id → 密碼）
-const DEMO_PASSWORDS = {
-  c001: 'bb1234',
-  c002: 'gf5678',
-  c003: 'hr9012',
+// 帳號對應 channelId
+const ACCOUNTS = {
+  babeboss:    { channelId: 'c001', password: 'bb1234' },
+  greenfarm:   { channelId: 'c002', password: 'gf5678' },
+  healthroot:  { channelId: 'c003', password: 'hr9012' },
 }
 
 export default function VendorLogin() {
@@ -20,13 +20,14 @@ export default function VendorLogin() {
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
 
-  const onFinish = ({ channelId, password }) => {
+  const onFinish = ({ account, password }) => {
     setLoading(true)
     setTimeout(() => {
-      if (DEMO_PASSWORDS[channelId] === password) {
-        const ch = channels.find(c => c.id === channelId)
+      const matched = ACCOUNTS[account?.trim().toLowerCase()]
+      if (matched && matched.password === password) {
+        const ch = channels.find(c => c.id === matched.channelId)
         login(ch)
-        nav('/vendor/order')
+        nav('/order')
       } else {
         setError('帳號或密碼錯誤，請再試一次')
         setLoading(false)
@@ -40,11 +41,12 @@ export default function VendorLogin() {
       background: 'linear-gradient(135deg, #f6ffed 0%, #e8f5e9 100%)',
       display: 'flex', alignItems: 'center', justifyContent: 'center',
     }}>
-      <Card style={{ width: 420, borderRadius: 16, boxShadow: '0 8px 32px rgba(0,0,0,0.1)' }}>
+      {/* 主登入卡片 */}
+      <Card style={{ width: 400, borderRadius: 16, boxShadow: '0 8px 32px rgba(0,0,0,0.1)' }}>
         <div style={{ textAlign: 'center', marginBottom: 28 }}>
-          <div style={{ fontSize: 40, marginBottom: 8 }}>🏪</div>
-          <Title level={3} style={{ marginBottom: 4 }}>廠商採購系統</Title>
-          <Text type="secondary">請選擇通路並輸入密碼登入</Text>
+          <img src="https://greenboxcdn.azureedge.net/images/greenbox-logo-mark.png" alt="logo" style={{ height: 56, marginBottom: 8 }} />
+          <Title level={3} style={{ marginBottom: 4 }}>廠商採購登入</Title>
+          <Text type="secondary">無毒農通路系統</Text>
         </div>
 
         {error && (
@@ -52,26 +54,14 @@ export default function VendorLogin() {
         )}
 
         <Form layout="vertical" onFinish={onFinish} onValuesChange={() => setError('')}>
-          <Form.Item label="合作通路" name="channelId"
-            rules={[{ required: true, message: '請選擇通路' }]}>
-            <Select
-              placeholder="請選擇您的通路"
-              options={channels.map(c => ({ value: c.id, label: c.name }))}
-              size="large"
-            />
+          <Form.Item label="帳號" name="account"
+            rules={[{ required: true, message: '請輸入帳號' }]}>
+            <Input size="large" placeholder="輸入帳號" autoComplete="username" />
           </Form.Item>
 
-          <Form.Item label="登入密碼" name="password"
+          <Form.Item label="密碼" name="password"
             rules={[{ required: true, message: '請輸入密碼' }]}>
-            <input
-              type="password"
-              placeholder="輸入密碼"
-              style={{
-                width: '100%', height: 40, padding: '0 12px',
-                border: '1px solid #d9d9d9', borderRadius: 6,
-                fontSize: 14, outline: 'none',
-              }}
-            />
+            <Input.Password size="large" placeholder="輸入密碼" autoComplete="current-password" />
           </Form.Item>
 
           <Button type="primary" htmlType="submit" block size="large"
@@ -82,18 +72,33 @@ export default function VendorLogin() {
           </Button>
         </Form>
 
-        <Divider plain><Text type="secondary" style={{ fontSize: 12 }}>Demo 測試帳號</Text></Divider>
-        <div style={{ background: '#f6ffed', borderRadius: 8, padding: 12, fontSize: 12, color: '#555' }}>
-          <div>🏪 貝比波士有限公司 → <Text code>bb1234</Text></div>
-          <div style={{ marginTop: 4 }}>🏪 綠色小農超市 → <Text code>gf5678</Text></div>
-          <div style={{ marginTop: 4 }}>🏪 好自然健康館 → <Text code>hr9012</Text></div>
-        </div>
+      </Card>
 
-        <div style={{ textAlign: 'center', marginTop: 16 }}>
-          <Button type="link" icon={<ArrowLeftOutlined />} onClick={() => nav('/')}>
-            返回入口
-          </Button>
+      {/* 右下角 Demo 說明卡片 */}
+      <Card
+        size="small"
+        style={{
+          position: 'fixed', bottom: 24, right: 24,
+          width: 280, borderRadius: 12,
+          boxShadow: '0 4px 20px rgba(0,0,0,0.12)',
+          border: '1px solid #b7eb8f',
+          background: '#f6ffed',
+        }}
+        title={
+          <span style={{ fontSize: 12, color: '#389e0d' }}>
+            <InfoCircleOutlined style={{ marginRight: 6 }} />
+            Demo 測試帳號
+          </span>
+        }
+      >
+        <div style={{ fontSize: 12, color: '#555', lineHeight: 2 }}>
+          <div><Text code>babeboss</Text> / <Text code>bb1234</Text> — 貝比波士</div>
+          <div><Text code>greenfarm</Text> / <Text code>gf5678</Text> — 綠色小農</div>
+          <div><Text code>healthroot</Text> / <Text code>hr9012</Text> — 好自然健康館</div>
         </div>
+        <Text type="secondary" style={{ fontSize: 11, display: 'block', marginTop: 8 }}>
+          正式上線後此區塊將移除，改接後端認證
+        </Text>
       </Card>
     </div>
   )

@@ -14,7 +14,7 @@ export default function ChannelDetail({ channel, open, onClose }) {
     { title: '收件人', dataIndex: 'recipient', width: 150 },
     { title: '電話', dataIndex: 'phone', width: 120 },
     { title: '地址', dataIndex: 'address' },
-    { title: '營業時間', dataIndex: 'hours', width: 200 },
+    { title: '可收貨時間', dataIndex: 'hours', width: 200 },
   ];
 
   return (
