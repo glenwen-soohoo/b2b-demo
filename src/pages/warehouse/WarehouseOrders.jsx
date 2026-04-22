@@ -19,7 +19,7 @@ export default function WarehouseOrders() {
   const [notifData,     setNotifData]     = useState(null)
   const [pendingConfirm, setPendingConfirm] = useState(null)
 
-  const pendingList = orderList.filter(o => o.status === 'pending_warehouse')
+  const pendingList = orderList.filter(o => o.status === 'arrived')
 
   const openDrawer = (order) => {
     setSelected(order)
@@ -62,7 +62,7 @@ export default function WarehouseOrders() {
       id:            selected.id,
       adjustedItems,
       backendOrderId,
-      warehouseNote: warehouseNote || null,
+      warehouse_note: warehouseNote || null,
       log: { time: now, action: logMsg },
       diffs,
     })
@@ -79,7 +79,7 @@ export default function WarehouseOrders() {
 
   const handleNotifConfirm = () => {
     if (!pendingConfirm) return
-    const { id, adjustedItems, backendOrderId, warehouseNote, log } = pendingConfirm
+    const { id, adjustedItems, backendOrderId, warehouse_note, log } = pendingConfirm
 
     setOrderList(prev => prev.map(o => {
       if (o.id !== id) return o
@@ -88,7 +88,7 @@ export default function WarehouseOrders() {
         status: 'ordered',
         adjustedItems,
         backendOrderId,
-        warehouseNote,
+        warehouse_note,
         logs: [...o.logs, log],
       }
     }))
@@ -174,9 +174,9 @@ export default function WarehouseOrders() {
               <Descriptions.Item label="出貨地址" span={2}>{selected.shippingAddress}</Descriptions.Item>
             </Descriptions>
 
-            {selected.salesNote && (
+            {selected.shipping_note && (
               <Alert type="info" showIcon style={{ marginBottom: 12 }}
-                message={`業務備註：${selected.salesNote}`}
+                message={`出貨備註：${selected.shipping_note}`}
               />
             )}
 

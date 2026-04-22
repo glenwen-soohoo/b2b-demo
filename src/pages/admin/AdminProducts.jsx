@@ -2,41 +2,44 @@ import { useMemo, useState } from 'react'
 import {
   Table, Tag, Typography, Card, Row, Col, Statistic, Select, Space,
   Badge, Button, Modal, Form, Input, InputNumber, Popconfirm, message,
-  Switch, Segmented,
+  Switch, Segmented, Divider,
 } from 'antd'
 import { PlusOutlined, EditOutlined, DeleteOutlined } from '@ant-design/icons'
-import { products as initialProducts } from '../../data/fakeData'
+import { products as initialProducts, categories as initCategories } from '../../data/fakeData'
+import Barcode from '../../components/Barcode'
 
 const { Title, Text } = Typography
 
-const CATEGORY_OPTIONS = [
-  { value: 'frozen',  label: '❄️ 冷凍商品' },
-  { value: 'ambient', label: '🌿 常溫商品' },
-]
+const TEMP_LABEL  = { frozen: '❄️ 冷凍', ambient: '🌿 常溫' }
+const TEMP_STYLE  = {
+  frozen:  { bg: '#e6f4ff', border: '#91caff', icon: '❄️' },
+  ambient: { bg: '#f6ffed', border: '#b7eb8f', icon: '🌿' },
+}
 
-const SUB_CATEGORY_OPTIONS = {
-  frozen: [
-    '4-6個月-小寶', '7-9個月-中寶', '10-12個月-大寶',
-    '一歲以上-燉飯', '高湯', '魚塊海鮮', '烏龍麵',
-  ],
-  ambient: [
-    '常溫粥-單入', '常溫粥-組合', '常溫燉飯', '常溫拌醬', '細麵米餅', '凍乾',
-  ],
+// 將商品對應到大分類（與前台、模板共用邏輯）
+function getProductCatId(product, cats) {
+  for (const cat of cats) {
+    if (cat.subCategories.some(s => s.name === product.subCategory)) return cat.id
+  }
+  return cats.find(c => c.temperature === product.category)?.id ?? cats[0]?.id
 }
 
 const STOCK_MODE_OPTIONS = [
   { value: 'unlimited',    label: '不限數量' },
-  { value: 'limited',      label: '限定數量' },
   { value: 'out_of_stock', label: '缺貨' },
+  { value: 'limited',      label: '限定數量' },
 ]
 
-function ProductModal({ open, onClose, onSave, initial }) {
-  const [form] = Form.useForm()
-  const [category, setCategory] = useState(initial?.category ?? 'frozen')
+function ProductModal({ open, onClose, onSave, initial, categories }) {
+  const [form]       = Form.useForm()
+  const [catId, setCatId] = useState(initial?.mainCategoryId ?? categories[0]?.id ?? '')
+
+  const currentCat = categories.find(c => c.id === catId)
 
   const handleOk = () => {
     form.validateFields().then(values => {
-      onSave({ ...initial, ...values })
+      const cat = categories.find(c => c.id === values.mainCategoryId)
+      onSave({ ...initial, ...values, category: cat?.temperature ?? 'frozen' })
       onClose()
     })
   }
@@ -51,54 +54,112 @@ function ProductModal({ open, onClose, onSave, initial }) {
       cancelText="取消"
       width={600}
       destroyOnClose
-      afterOpenChange={open => {
-        if (open) {
+      afterOpenChange={isOpen => {
+        if (isOpen) {
+          const defaultCatId = initial?.mainCategoryId
+            ?? (initial?.id ? getProductCatId(initial, categories) : null)
+            ?? categories[0]?.id
           form.setFieldsValue({
             stockMode: 'unlimited',
             isListed: true,
             thumbnailUrl: '',
             ...initial,
+            mainCategoryId: defaultCatId,
           })
-          setCategory(initial?.category ?? 'frozen')
+          setCatId(defaultCatId)
         }
       }}
     >
       <Form form={form} layout="vertical" style={{ marginTop: 8 }}>
-        <Row gutter={12}>
-          <Col span={16}>
-            <Form.Item label="商品名稱" name="name" rules={[{ required: true }]}>
-              <Input placeholder="例：中寶-玉米雞肉粥" />
+        {/* === 基本資訊（含商品分類） === */}
+        <Row gutter={16} align="bottom">
+          <Col flex="96px">
+            <Form.Item
+              shouldUpdate={(p, c) => p.ezposId !== c.ezposId || p.thumbnailUrl !== c.thumbnailUrl}
+              style={{ marginBottom: 24 }}
+            >
+              {({ getFieldValue }) => {
+                const url = getFieldValue('thumbnailUrl')
+                const ezposId = getFieldValue('ezposId')
+                if (url) {
+                  return <img src={url} alt="" style={{ width: 80, height: 80, objectFit: 'cover', borderRadius: 6, border: '1px solid #f0f0f0', display: 'block' }} />
+                }
+                return (
+                  <div style={{
+                    width: 80, height: 80, background: '#fafafa', border: '1px dashed #d9d9d9',
+                    borderRadius: 6, display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    color: '#bfbfbf', fontSize: 11, textAlign: 'center', padding: 4, lineHeight: 1.3,
+                    whiteSpace: 'pre-line',
+                  }}>
+                    {ezposId ? '依規格 ID\n自動帶入' : '無圖'}
+                  </div>
+                )
+              }}
             </Form.Item>
           </Col>
-          <Col span={8}>
-            <Form.Item label="規格備註" name="spec">
-              <Input placeholder="例：新品、200g" />
+          <Col flex="auto">
+            <Row gutter={12}>
+              <Col span={16}>
+                <Form.Item label="商品名稱" name="name" rules={[{ required: true }]}>
+                  <Input placeholder="例：中寶-玉米雞肉粥" />
+                </Form.Item>
+              </Col>
+              <Col span={8}>
+                <Form.Item label="規格備註" name="spec">
+                  <Input placeholder="例：新品、200g" />
+                </Form.Item>
+              </Col>
+            </Row>
+          </Col>
+        </Row>
+
+        <Row gutter={12}>
+          <Col span={12}>
+            <Form.Item label="產品規格 ID" name="ezposId" rules={[{ required: true, message: '請輸入產品規格 ID' }]}>
+              <Input placeholder="例：159476" />
+            </Form.Item>
+          </Col>
+          <Col span={12}>
+            <Form.Item label="前台展示頁面 ID" name="frontend_product_id">
+              <Input placeholder="例：163522" />
             </Form.Item>
           </Col>
         </Row>
+
         <Row gutter={12}>
           <Col span={12}>
-            <Form.Item label="分類" name="category" rules={[{ required: true }]}>
-              <Select options={CATEGORY_OPTIONS} onChange={v => { setCategory(v); form.setFieldValue('subCategory', undefined) }} />
+            <Form.Item label="大分類" name="mainCategoryId" rules={[{ required: true }]}>
+              <Select
+                options={categories.map(c => ({
+                  value: c.id,
+                  label: `${TEMP_LABEL[c.temperature] ?? ''} ${c.name}`,
+                }))}
+                onChange={v => { setCatId(v); form.setFieldValue('subCategory', undefined) }}
+              />
             </Form.Item>
           </Col>
           <Col span={12}>
             <Form.Item label="子分類" name="subCategory" rules={[{ required: true }]}>
               <Select
-                options={(SUB_CATEGORY_OPTIONS[category] ?? []).map(v => ({ value: v, label: v }))}
-                placeholder="請先選分類"
+                options={(currentCat?.subCategories ?? []).map(s => ({ value: s.name, label: s.name }))}
+                placeholder={catId ? '請選擇子分類' : '請先選大分類'}
+                disabled={!catId}
               />
             </Form.Item>
           </Col>
         </Row>
+
+        <Divider style={{ margin: '4px 0 12px' }} />
+
+        {/* === 售價與庫存 === */}
         <Row gutter={12}>
           <Col span={8}>
             <Form.Item label="單位" name="unit" rules={[{ required: true }]}>
-              <Input placeholder="包/罐/盒" />
+              <Input placeholder="包 / 罐 / 盒" />
             </Form.Item>
           </Col>
           <Col span={8}>
-            <Form.Item label="B2B採購價" name="b2bPrice" rules={[{ required: true }]}>
+            <Form.Item label="B2B 採購價" name="b2bPrice" rules={[{ required: true }]}>
               <InputNumber prefix="$" min={0} style={{ width: '100%' }} />
             </Form.Item>
           </Col>
@@ -108,75 +169,112 @@ function ProductModal({ open, onClose, onSave, initial }) {
             </Form.Item>
           </Col>
         </Row>
-        <Row gutter={12}>
-          <Col span={12}>
-            <Form.Item label="產品規格 ID" name="ezposId">
-              <Input placeholder="例：159476" />
-            </Form.Item>
-          </Col>
-          <Col span={12}>
-            <Form.Item label="縮圖 URL" name="thumbnailUrl">
-              <Input placeholder="https://..." />
-            </Form.Item>
-          </Col>
-        </Row>
-        <Row gutter={12}>
-          <Col span={8}>
+        <Row gutter={12} align="bottom">
+          <Col flex="100px">
             <Form.Item label="上下架" name="isListed" valuePropName="checked">
               <Switch checkedChildren="上架" unCheckedChildren="下架" />
             </Form.Item>
           </Col>
-          <Col span={16}>
+          <Col flex="auto">
             <Form.Item label="庫存模式" name="stockMode">
-              <Select options={STOCK_MODE_OPTIONS} />
+              <Segmented block options={STOCK_MODE_OPTIONS} />
+            </Form.Item>
+          </Col>
+          <Col flex="0 0 auto">
+            <Form.Item
+              label="庫存上限"
+              shouldUpdate={(prev, cur) => prev.stockMode !== cur.stockMode}
+            >
+              {({ getFieldValue }) => {
+                const isLimited = getFieldValue('stockMode') === 'limited'
+                return (
+                  <Form.Item
+                    name="stockLimit"
+                    noStyle
+                    rules={isLimited ? [{ required: true, message: '請填寫庫存上限' }] : []}
+                  >
+                    <InputNumber
+                      min={1}
+                      style={{ width: 110 }}
+                      placeholder="例：100"
+                      disabled={!isLimited}
+                    />
+                  </Form.Item>
+                )
+              }}
             </Form.Item>
           </Col>
         </Row>
-        <Form.Item noStyle shouldUpdate={(prev, cur) => prev.stockMode !== cur.stockMode}>
-          {({ getFieldValue }) =>
-            getFieldValue('stockMode') === 'limited' ? (
-              <Form.Item label="庫存上限" name="stockLimit" rules={[{ required: true, message: '請填寫庫存上限' }]}>
-                <InputNumber min={1} style={{ width: 160 }} placeholder="例：100" />
-              </Form.Item>
-            ) : null
-          }
+
+        <Divider style={{ margin: '4px 0 12px' }} />
+
+        {/* === 國際條碼 === */}
+        <Row gutter={12} align="middle">
+          <Col span={10}>
+            <Form.Item label="EAN-13" name="barcode_ean13" style={{ marginBottom: 0 }}>
+              <Input placeholder="12 或 13 碼" maxLength={13} />
+            </Form.Item>
+          </Col>
+          <Col span={14}>
+            <Form.Item shouldUpdate={(p, c) => p.barcode_ean13 !== c.barcode_ean13} style={{ marginBottom: 0 }}>
+              {({ getFieldValue }) => (
+                <div style={{
+                  padding: 8, background: '#fff', border: '1px solid #f0f0f0',
+                  borderRadius: 6, display: 'flex', justifyContent: 'center', alignItems: 'center',
+                  minHeight: 80,
+                }}>
+                  <Barcode value={getFieldValue('barcode_ean13')} height={48} moduleWidth={1.6} />
+                </div>
+              )}
+            </Form.Item>
+          </Col>
+        </Row>
+
+        <Divider style={{ margin: '16px 0 12px' }} />
+
+        {/* === 備註 === */}
+        <Form.Item label="備註說明" name="remark" style={{ marginBottom: 0 }}>
+          <Input.TextArea rows={2} placeholder="選填，內部備註（通路端不可見）" />
         </Form.Item>
-        <Row gutter={12}>
-          <Col span={12}>
-            <Form.Item label="國際條碼（EAN）" name="ean">
-              <Input placeholder="例：4711234567890" />
-            </Form.Item>
-          </Col>
-          <Col span={12}>
-            <Form.Item label="備註說明" name="remark">
-              <Input placeholder="選填，內部備注" />
-            </Form.Item>
-          </Col>
-        </Row>
       </Form>
     </Modal>
   )
 }
 
 export default function AdminProducts() {
-  const [productList, setProductList] = useState(initialProducts)
+  const [productList,    setProductList]    = useState(initialProducts)
+  const [categories]                        = useState(initCategories)
   const [categoryFilter, setCategoryFilter] = useState('')
-  const [editing, setEditing] = useState(null)
-  const [modalOpen, setModalOpen] = useState(false)
+  const [editing,        setEditing]        = useState(null)
+  const [modalOpen,      setModalOpen]      = useState(false)
 
-  const filtered = productList.filter(p => !categoryFilter || p.category === categoryFilter)
+  const filtered = useMemo(() =>
+    productList.filter(p =>
+      !categoryFilter || getProductCatId(p, categories) === categoryFilter
+    ),
+  [productList, categoryFilter, categories])
 
   const grouped = useMemo(() => {
     const map = {}
     filtered.forEach(p => {
-      const key = `${p.category}__${p.subCategory}`
-      if (!map[key]) map[key] = { category: p.category, subCategory: p.subCategory, items: [] }
+      const catId  = getProductCatId(p, categories)
+      const mainCat = categories.find(c => c.id === catId) ?? categories[0]
+      const key = `${catId}__${p.subCategory}`
+      if (!map[key]) map[key] = {
+        mainCatId: catId, mainCatName: mainCat.name,
+        temperature: mainCat.temperature, subCategory: p.subCategory, items: [],
+      }
       map[key].items.push(p)
     })
-    return Object.values(map)
-  }, [filtered])
+    // 依大分類順序排列
+    return Object.values(map).sort((a, b) => {
+      const ai = categories.findIndex(c => c.id === a.mainCatId)
+      const bi = categories.findIndex(c => c.id === b.mainCatId)
+      return ai - bi
+    })
+  }, [filtered, categories])
 
-  const openAdd  = () => { setEditing({ category: 'frozen' }); setModalOpen(true) }
+  const openAdd  = () => { setEditing(null); setModalOpen(true) }
   const openEdit = (p) => { setEditing(p); setModalOpen(true) }
   const closeModal = () => { setModalOpen(false); setEditing(null) }
 
@@ -227,7 +325,12 @@ export default function AdminProducts() {
     { title: '項次 ID', dataIndex: 'id', width: 70,
       render: v => <Text code style={{ fontSize: 11 }}>{v}</Text> },
     { title: '商品名稱', dataIndex: 'name',
-      render: (v, r) => <Space>{v}{r.spec && <Tag style={{ fontSize: 11 }}>{r.spec}</Tag>}</Space> },
+      render: (v, r) => (
+        <Space direction="vertical" size={0}>
+          {r.spec && <Tag style={{ fontSize: 11 }}>{r.spec}</Tag>}
+          <span>{v}</span>
+        </Space>
+      )},
     { title: '單位', dataIndex: 'unit', width: 55 },
     { title: 'B2B採購價', dataIndex: 'b2bPrice', width: 95, render: v => `$${v}` },
     { title: '成本', dataIndex: 'cost', width: 75,
@@ -307,30 +410,41 @@ export default function AdminProducts() {
       </Row>
 
       <Space style={{ marginBottom: 12 }}>
-        <Select value={categoryFilter} onChange={setCategoryFilter} style={{ width: 150 }}
-          options={[{ value: '', label: '全部分類' }, ...CATEGORY_OPTIONS]} />
+        <Select value={categoryFilter} onChange={setCategoryFilter} style={{ width: 160 }}
+          options={[
+            { value: '', label: '全部分類' },
+            ...categories.map(c => ({
+              value: c.id,
+              label: `${TEMP_STYLE[c.temperature]?.icon ?? ''} ${c.name}`,
+            })),
+          ]}
+        />
       </Space>
 
-      {grouped.map(g => (
-        <div key={`${g.category}__${g.subCategory}`} style={{ marginBottom: 16 }}>
+      {grouped.map(g => {
+        const ts = TEMP_STYLE[g.temperature] ?? TEMP_STYLE.frozen
+        return (
+        <div key={`${g.mainCatId}__${g.subCategory}`} style={{ marginBottom: 16 }}>
           <div style={{
-            background: g.category === 'frozen' ? '#e6f4ff' : '#f6ffed',
-            border: `1px solid ${g.category === 'frozen' ? '#91caff' : '#b7eb8f'}`,
+            background: ts.bg, border: `1px solid ${ts.border}`,
             borderRadius: 4, padding: '4px 12px', fontWeight: 600, marginBottom: 6,
           }}>
-            {g.category === 'frozen' ? '❄️' : '🌿'} {g.subCategory}
+            {ts.icon} <span style={{ color: '#888', fontWeight: 400, fontSize: 12, marginRight: 4 }}>{g.mainCatName} ›</span>
+            {g.subCategory}
             <Tag style={{ marginLeft: 8, fontWeight: 400 }}>{g.items.length} 項</Tag>
           </div>
           <Table dataSource={g.items} columns={columns} rowKey="id" size="small" pagination={false}
             rowClassName={r => r.isListed === false ? 'row-unlisted' : ''} />
         </div>
-      ))}
+        )
+      })}
 
       <ProductModal
         open={modalOpen}
         onClose={closeModal}
         onSave={handleSave}
         initial={editing}
+        categories={categories}
       />
 
       <style>{`

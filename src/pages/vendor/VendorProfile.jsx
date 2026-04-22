@@ -1,13 +1,19 @@
 import { useState } from 'react'
 import {
-  Card, Form, Input, Button, Typography, Divider, Space, Tag,
-  Table, message, Popconfirm, Modal,
+  Card, Form, Input, Button, Typography, Divider, Space,
+  Table, message, Popconfirm, Modal, Descriptions,
 } from 'antd'
 import {
   EditOutlined, SaveOutlined, PlusOutlined,
   DeleteOutlined, EnvironmentOutlined,
 } from '@ant-design/icons'
 import { useVendor } from '../../context/VendorContext'
+
+const INVOICE_MODE_LABEL = {
+  per_order:         '訂單單筆開票',
+  monthly_per_store: '門市分開月結',
+  monthly_combined:  '整合月結',
+}
 
 const { Title, Text } = Typography
 
@@ -34,9 +40,6 @@ function AddressModal({ open, onClose, onSave, initial }) {
         </Form.Item>
         <Form.Item label="收件地址" name="address" rules={[{ required: true }]}>
           <Input />
-        </Form.Item>
-        <Form.Item label="可收貨時間" name="hours">
-          <Input placeholder="例：週一至週五 09:00-17:00" />
         </Form.Item>
       </Form>
     </Modal>
@@ -98,7 +101,6 @@ export default function VendorProfile() {
     { title: '收件人',   dataIndex: 'recipient', width: 140 },
     { title: '電話',     dataIndex: 'phone', width: 130 },
     { title: '地址',     dataIndex: 'address', ellipsis: true },
-    { title: '可收貨時間', dataIndex: 'hours', ellipsis: true },
     {
       title: '操作', width: 100, align: 'center',
       render: (_, r) => (
@@ -148,9 +150,26 @@ export default function VendorProfile() {
               <Form.Item label="聯繫電話" name="contactPhone">
                 <Input />
               </Form.Item>
+              <Form.Item label="常用匯款末五碼（選填）" name="default_bank_last5">
+                <Input placeholder="5碼" maxLength={5} />
+              </Form.Item>
             </div>
+            <Form.Item
+              label="預設下單備註"
+              name="default_vendor_note"
+              tooltip="未來下單時會自動帶入此備註到「備註」欄，送出前可依當次情況修改"
+              style={{ marginBottom: 0 }}
+            >
+              <Input.TextArea
+                rows={3}
+                placeholder="例：收貨時若包裝破損請先拍照告知；逢週三早上倉庫收件時段為 9:00–12:00"
+                maxLength={500}
+                showCount
+              />
+            </Form.Item>
           </Form>
         ) : (
+          <>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px 24px' }}>
             {[
               { label: '通路名稱', value: info.name },
@@ -159,6 +178,7 @@ export default function VendorProfile() {
               { label: '聯繫電話', value: info.contactPhone },
               { label: '公司抬頭', value: info.title },
               { label: '統一編號', value: info.taxId },
+              { label: '常用匯款末五碼', value: info.default_bank_last5 || null },
             ].map(f => (
               <div key={f.label}>
                 <div style={{ fontSize: 12, color: '#999', marginBottom: 2 }}>{f.label}</div>
@@ -166,6 +186,22 @@ export default function VendorProfile() {
               </div>
             ))}
           </div>
+          <Divider style={{ margin: '14px 0' }} />
+          <div>
+            <div style={{ fontSize: 12, color: '#999', marginBottom: 4 }}>
+              預設下單備註
+              <Text type="secondary" style={{ fontSize: 11, marginLeft: 6 }}>
+                （未來下單時會自動帶入備註欄位，送出前可依當次情況修改）
+              </Text>
+            </div>
+            <div style={{
+              fontSize: 13, whiteSpace: 'pre-line',
+              minHeight: 20, color: info.default_vendor_note ? '#262626' : '#bfbfbf',
+            }}>
+              {info.default_vendor_note || '尚未設定，點「編輯資料」可新增。'}
+            </div>
+          </div>
+          </>
         )}
       </Card>
 
@@ -174,14 +210,18 @@ export default function VendorProfile() {
         size="small"
         style={{ marginBottom: 20, background: '#fffbe6', border: '1px solid #ffe58f' }}
       >
-        <div style={{ fontSize: 12, color: '#ad8b00', marginBottom: 8, fontWeight: 600 }}>
+        <div style={{ fontSize: 12, color: '#ad8b00', marginBottom: 10, fontWeight: 600 }}>
           結算資訊（如需修改請聯繫業務窗口）
         </div>
-        <Space split={<Divider type="vertical" />} wrap>
+        {/* 第一行：結算日 + 匯款帳號 */}
+        <Space split={<Divider type="vertical" />} wrap style={{ marginBottom: 8 }}>
           <Text>結算日：每月 <strong>{info.settlementDay}</strong> 日</Text>
-          <Text>月結方式：{info.settlementMethod}</Text>
           <Text>匯款帳號：<Text code>00709001170</Text>（兆豐銀行）</Text>
         </Space>
+        {/* 第二行：發票模式 */}
+        <div>
+          <Text>發票模式：{INVOICE_MODE_LABEL[info.invoice_mode] ?? '—'}</Text>
+        </div>
       </Card>
 
       {/* 收件地址 */}

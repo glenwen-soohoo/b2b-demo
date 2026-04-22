@@ -1,145 +1,281 @@
 import { useState, useMemo } from 'react'
 import {
-  Table, Button, Typography, Tag, Space, Drawer, Form, Input,
-  Tabs, Checkbox, Divider, Popconfirm, message, Badge, Alert, Modal, Select,
-  Row, Col, Statistic, Card,
+  Table, Button, Typography, Tag, Space, Drawer, Form, Input, InputNumber,
+  Divider, Popconfirm, message, Badge, Alert, Modal, Checkbox, Dropdown,
 } from 'antd'
 import {
   PlusOutlined, EditOutlined, DeleteOutlined,
-  FileTextOutlined, TeamOutlined, AppstoreOutlined,
+  FileTextOutlined, HolderOutlined, DownOutlined,
 } from '@ant-design/icons'
-import { products, templates as initTemplates, channels as initChannels } from '../../data/fakeData'
+import { products, templates as initTemplates, channels as initChannels, categories, systemSettings } from '../../data/fakeData'
+import { exportQuotationPdf } from '../../utils/exportQuotationPdf'
+import { exportBlankOrder } from '../../utils/exportBlankOrder'
 
 const { Title, Text } = Typography
 
-// ── 商品依 category → subCategory 分組 ─────────────────
-function groupProducts(prods) {
+const TEMP_ICON = { frozen: '❄️', ambient: '🌿' }
+
+// 將商品對應到大分類：先比對子分類名稱，找不到則 fallback 溫層
+function getProductCatId(product) {
+  for (const cat of categories) {
+    if (cat.subCategories.some(s => s.name === product.subCategory)) return cat.id
+  }
+  return categories.find(c => c.temperature === product.category)?.id ?? categories[0].id
+}
+
+// 商品依子分類分組
+function groupBySubCat(prods) {
   const map = {}
   prods.forEach(p => {
-    const k = p.subCategory
-    if (!map[k]) map[k] = []
-    map[k].push(p)
+    if (!map[p.subCategory]) map[p.subCategory] = []
+    map[p.subCategory].push(p)
   })
   return map
 }
 
-const frozenProds  = products.filter(p => p.category === 'frozen')
-const ambientProds = products.filter(p => p.category === 'ambient')
-
-// ── 商品勾選面板 ─────────────────────────────────────────
-function ProductPicker({ value = [], onChange }) {
-  const toggle = (id) => {
-    onChange(value.includes(id) ? value.filter(x => x !== id) : [...value, id])
+// 取得所有子分類，依 categories 順序排列
+function getOrderedSubCats() {
+  const result = []
+  for (const cat of categories) {
+    for (const sub of cat.subCategories) {
+      result.push({ subCatName: sub.name, catName: cat.name, temperature: cat.temperature })
+    }
   }
-  const toggleGroup = (ids) => {
-    const allIn = ids.every(id => value.includes(id))
-    if (allIn) onChange(value.filter(id => !ids.includes(id)))
-    else       onChange([...new Set([...value, ...ids])])
+  // 補上 products 裡有但 categories 沒列到的 subCategory
+  const known = new Set(result.map(r => r.subCatName))
+  for (const p of products) {
+    if (!known.has(p.subCategory)) {
+      result.push({ subCatName: p.subCategory, catName: '', temperature: p.category })
+      known.add(p.subCategory)
+    }
   }
+  return result
+}
 
-  function Section({ prods }) {
-    const grouped = groupProducts(prods)
+const ORDERED_SUBCATS = getOrderedSubCats()
+
+// 依子分類順序分組
+function groupByOrderedSubCat(prods) {
+  const map = {}
+  prods.forEach(p => {
+    if (!map[p.subCategory]) map[p.subCategory] = []
+    map[p.subCategory].push(p)
+  })
+  return ORDERED_SUBCATS
+    .filter(s => map[s.subCatName]?.length)
+    .map(s => ({ ...s, items: map[s.subCatName] }))
+}
+
+// ── 左欄：已選品項（子分類固定順序，組內可拖曳，可改價）──
+function SelectedPanel({ orderedIds, priceOverrides, onRemove, onReorder, onPriceChange }) {
+  const [dragId,     setDragId]     = useState(null)
+  const [dragOverId, setDragOverId] = useState(null)
+
+  const selectedProducts = orderedIds.map(id => products.find(p => p.id === id)).filter(Boolean)
+  const groups = groupByOrderedSubCat(selectedProducts)
+
+  if (groups.length === 0) {
     return (
-      <>
-        {Object.entries(grouped).map(([subCat, items]) => {
-          const ids    = items.map(p => p.id)
-          const allIn  = ids.every(id => value.includes(id))
-          const someIn = ids.some(id => value.includes(id))
-          return (
-            <div key={subCat} style={{ marginBottom: 16 }}>
-              <div style={{
-                display: 'flex', alignItems: 'center', gap: 8,
-                background: '#fafafa', padding: '4px 10px',
-                borderRadius: 4, marginBottom: 6, border: '1px solid #f0f0f0',
-              }}>
-                <Checkbox
-                  checked={allIn}
-                  indeterminate={someIn && !allIn}
-                  onChange={() => toggleGroup(ids)}
-                />
-                <Text strong style={{ fontSize: 13 }}>{subCat}</Text>
-                <Tag style={{ marginLeft: 'auto' }}>
-                  {ids.filter(id => value.includes(id)).length} / {ids.length}
-                </Tag>
-              </div>
-              <div style={{ paddingLeft: 8, display: 'flex', flexWrap: 'wrap', gap: '4px 0' }}>
-                {items.map(p => (
-                  <div key={p.id} style={{ width: '50%' }}>
-                    <Checkbox
-                      checked={value.includes(p.id)}
-                      onChange={() => toggle(p.id)}
-                    >
-                      <span style={{ fontSize: 13 }}>{p.name}</span>
-                      {p.spec && <Tag style={{ fontSize: 11, marginLeft: 4 }}>{p.spec}</Tag>}
-                    </Checkbox>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )
-        })}
-      </>
+      <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#bbb', fontSize: 13 }}>
+        從右側點擊商品加入
+      </div>
     )
   }
 
-  const frozenCount  = frozenProds.filter(p => value.includes(p.id)).length
-  const ambientCount = ambientProds.filter(p => value.includes(p.id)).length
+  const handleDrop = (targetId) => {
+    if (!dragId || dragId === targetId) { setDragId(null); setDragOverId(null); return }
+    // 只允許同子分類內移動
+    const dragProd   = products.find(p => p.id === dragId)
+    const targetProd = products.find(p => p.id === targetId)
+    if (dragProd?.subCategory !== targetProd?.subCategory) { setDragId(null); setDragOverId(null); return }
+    const next      = [...orderedIds]
+    const fromIdx   = next.indexOf(dragId)
+    const toIdx     = next.indexOf(targetId)
+    next.splice(fromIdx, 1)
+    next.splice(toIdx, 0, dragId)
+    onReorder(next)
+    setDragId(null); setDragOverId(null)
+  }
 
-  const selectAll   = () => onChange(products.map(p => p.id))
-  const clearAll    = () => onChange([])
-  const selectFrozen  = () => onChange([...new Set([...value, ...frozenProds.map(p => p.id)])])
-  const selectAmbient = () => onChange([...new Set([...value, ...ambientProds.map(p => p.id)])])
-
+  let lastCatName = null
   return (
-    <div>
-      <div style={{ marginBottom: 12, display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
-        <Text type="secondary" style={{ fontSize: 12 }}>快速選取：</Text>
-        <Button size="small" onClick={selectAll}>全選</Button>
-        <Button size="small" onClick={clearAll}>清除</Button>
-        <Button size="small" onClick={selectFrozen}>全選冷凍</Button>
-        <Button size="small" onClick={selectAmbient}>全選常溫</Button>
-        <Text style={{ marginLeft: 'auto', fontSize: 13, color: '#1677ff' }}>
-          已選 <strong>{value.length}</strong> / {products.length} 項
-        </Text>
+    <div style={{ flex: 1, overflowY: 'auto' }}>
+      {groups.map(({ subCatName, catName, temperature, items }) => {
+        const showCatHeader = catName && catName !== lastCatName
+        lastCatName = catName
+        return (
+          <div key={subCatName}>
+            {showCatHeader && (
+              <div style={{
+                padding: '5px 8px', fontSize: 12, fontWeight: 700, color: '#fff',
+                background: temperature === 'frozen' ? '#1677ff' : '#52c41a',
+                letterSpacing: 1,
+              }}>
+                {TEMP_ICON[temperature]} {catName}
+              </div>
+            )}
+            <div style={{
+              padding: '3px 8px 3px 16px', fontSize: 11, fontWeight: 600, color: '#666',
+              background: temperature === 'frozen' ? '#e6f7ff' : '#f6ffed',
+              borderBottom: '1px solid #f0f0f0',
+              display: 'flex', justifyContent: 'space-between',
+            }}>
+              <span>{subCatName}</span>
+              <span style={{ color: '#aaa', fontWeight: 400 }}>{items.length} 項</span>
+            </div>
+            {items.map(p => (
+              <div
+                key={p.id}
+                draggable
+                onDragStart={() => setDragId(p.id)}
+                onDragOver={e => { e.preventDefault(); setDragOverId(p.id) }}
+                onDrop={() => handleDrop(p.id)}
+                onDragEnd={() => { setDragId(null); setDragOverId(null) }}
+                style={{
+                  display: 'flex', alignItems: 'center', gap: 6,
+                  padding: '5px 8px',
+                  background: dragOverId === p.id ? '#e6f4ff' : '#fff',
+                  borderBottom: '1px solid #f5f5f5',
+                  opacity: dragId === p.id ? 0.4 : 1,
+                }}
+              >
+                <HolderOutlined style={{ color: '#ccc', cursor: 'grab', flexShrink: 0 }} />
+                <div style={{ flex: 1, minWidth: 0, fontSize: 12, lineHeight: 1.4 }}>
+                  {p.spec && <div><Tag style={{ fontSize: 10, padding: '0 4px', lineHeight: '16px' }}>{p.spec}</Tag></div>}
+                  <div style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p.name}</div>
+                </div>
+                <Text type="secondary" style={{ fontSize: 11, flexShrink: 0, whiteSpace: 'nowrap' }}>
+                  預設 ${p.b2bPrice}
+                </Text>
+                <InputNumber
+                  size="small" min={0} prefix="$"
+                  value={priceOverrides[p.id] ?? p.b2bPrice}
+                  onChange={v => onPriceChange(p.id, v ?? p.b2bPrice)}
+                  style={{ width: 90, flexShrink: 0 }}
+                />
+                <Button
+                  type="text" size="small" danger
+                  style={{ flexShrink: 0, padding: '0 4px' }}
+                  onClick={() => onRemove(p.id)}
+                >×</Button>
+              </div>
+            ))}
+          </div>
+        )
+      })}
+    </div>
+  )
+}
+
+// ── 右欄：未選品項（點擊加入）──
+function UnselectedPanel({ selectedIds, onAdd }) {
+  const unselected = products.filter(p => !selectedIds.includes(p.id))
+  const groups = groupByOrderedSubCat(unselected)
+
+  if (groups.length === 0) {
+    return (
+      <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#bbb', fontSize: 13 }}>
+        所有商品已全數選入
       </div>
-      <Tabs
-        size="small"
-        items={[
-          {
-            key: 'frozen',
-            label: `❄️ 冷凍（${frozenCount}/${frozenProds.length}）`,
-            children: <Section prods={frozenProds} />,
-          },
-          {
-            key: 'ambient',
-            label: `🌿 常溫（${ambientCount}/${ambientProds.length}）`,
-            children: <Section prods={ambientProds} />,
-          },
-        ]}
-      />
+    )
+  }
+
+  let lastCatName = null
+  return (
+    <div style={{ flex: 1, overflowY: 'auto' }}>
+      {groups.map(({ subCatName, catName, temperature, items }) => {
+        const showCatHeader = catName && catName !== lastCatName
+        lastCatName = catName
+        return (
+          <div key={subCatName}>
+            {showCatHeader && (
+              <div style={{
+                padding: '5px 8px', fontSize: 12, fontWeight: 700, color: '#fff',
+                background: temperature === 'frozen' ? '#1677ff' : '#52c41a',
+                letterSpacing: 1,
+              }}>
+                {TEMP_ICON[temperature]} {catName}
+              </div>
+            )}
+            <div style={{
+              padding: '3px 8px 3px 16px', fontSize: 11, fontWeight: 600, color: '#666',
+              background: temperature === 'frozen' ? '#e6f7ff' : '#f6ffed',
+              borderBottom: '1px solid #f0f0f0',
+              display: 'flex', justifyContent: 'space-between',
+            }}>
+              <span>{subCatName}</span>
+              <span style={{ color: '#aaa', fontWeight: 400 }}>{items.length} 項</span>
+            </div>
+            {items.map(p => (
+              <div
+                key={p.id}
+                onClick={() => onAdd(p.id)}
+                style={{
+                  display: 'flex', alignItems: 'center', gap: 6,
+                  padding: '5px 8px',
+                  background: '#fff',
+                  borderBottom: '1px solid #f5f5f5',
+                  cursor: 'pointer',
+                }}
+                onMouseEnter={e => e.currentTarget.style.background = '#f0f9ff'}
+                onMouseLeave={e => e.currentTarget.style.background = '#fff'}
+              >
+                <div style={{ flex: 1, minWidth: 0, fontSize: 12, lineHeight: 1.4 }}>
+                  {p.spec && <div><Tag style={{ fontSize: 10, padding: '0 4px', lineHeight: '16px' }}>{p.spec}</Tag></div>}
+                  <div style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', color: '#595959' }}>{p.name}</div>
+                </div>
+                <span style={{ color: '#1677ff', fontSize: 16, flexShrink: 0 }}>+</span>
+              </div>
+            ))}
+          </div>
+        )
+      })}
     </div>
   )
 }
 
 // ── 模板編輯 Drawer ──────────────────────────────────────
-function TemplateDrawer({ open, onClose, onSave, initial }) {
-  const [form]        = Form.useForm()
-  const [selectedIds, setSelectedIds] = useState([])
+function TemplateDrawer({ open, onClose, onSave, initial, channelList }) {
+  const [form]           = Form.useForm()
+  const [orderedIds,     setOrderedIds]     = useState([])
+  const [priceOverrides, setPriceOverrides] = useState({})
+  const [assignedIds,    setAssignedIds]    = useState([])
+
+  const handleAdd = (id) => {
+    setOrderedIds(prev => prev.includes(id) ? prev : [...prev, id])
+  }
+
+  const handleRemove = (id) => {
+    setOrderedIds(prev => prev.filter(x => x !== id))
+  }
 
   const handleOpen = (visible) => {
     if (visible) {
-      form.setFieldsValue({ name: initial?.name ?? '' })
-      setSelectedIds(initial?.productIds ?? [])
+      form.setFieldsValue({ name: initial?.name ?? '', remark: initial?.remark ?? '' })
+      // 新增模板時預設全部商品都加入（依子分類順序）；編輯既有模板則維持原本清單
+      const defaultAllIds = ORDERED_SUBCATS
+        .flatMap(s => products.filter(p => p.subCategory === s.subCatName).map(p => p.id))
+      // 補上 ORDERED_SUBCATS 沒涵蓋到的商品
+      const missing = products.filter(p => !defaultAllIds.includes(p.id)).map(p => p.id)
+      const allIds = [...defaultAllIds, ...missing]
+      setOrderedIds(initial?.id ? (initial.productIds ?? []) : allIds)
+      setPriceOverrides(initial?.productPrices ?? {})
+      setAssignedIds(channelList.filter(c => c.templateId === initial?.id).map(c => c.id))
     }
   }
 
   const handleSave = () => {
-    form.validateFields().then(({ name }) => {
-      if (selectedIds.length === 0) {
-        message.warning('請至少勾選一項商品')
+    form.validateFields().then(({ name, remark }) => {
+      if (orderedIds.length === 0) {
+        message.warning('請至少選入一項商品')
         return
       }
-      onSave({ ...initial, name, productIds: selectedIds })
+      onSave({
+        ...initial, name, remark: remark || null,
+        productIds: orderedIds,
+        productPrices: priceOverrides,
+        assignedIds,
+      })
       onClose()
     })
   }
@@ -149,66 +285,83 @@ function TemplateDrawer({ open, onClose, onSave, initial }) {
       open={open}
       onClose={onClose}
       title={initial?.id ? '編輯模板' : '新增模板'}
-      width={720}
+      width={960}
       afterOpenChange={handleOpen}
+      styles={{ body: { display: 'flex', flexDirection: 'column', padding: 0, overflow: 'hidden' } }}
       extra={
-        <Space>
-          <Button onClick={onClose}>取消</Button>
-          <Button type="primary" onClick={handleSave}>儲存模板</Button>
-        </Space>
+        <Button onClick={onClose}>取消</Button>
       }
-      footer={null}
+      footer={
+        <div style={{ display: 'flex', justifyContent: 'flex-end', padding: '12px 0 0' }}>
+          <Space>
+            <Button onClick={onClose}>取消</Button>
+            <Button type="primary" size="large" onClick={handleSave}>儲存模板</Button>
+          </Space>
+        </div>
+      }
     >
-      <Form form={form} layout="vertical">
-        <Form.Item label="模板名稱" name="name" rules={[{ required: true, message: '請輸入模板名稱' }]}>
-          <Input placeholder="例：冷凍通路標準模板" style={{ maxWidth: 360 }} />
-        </Form.Item>
-      </Form>
+      {/* 基本資訊 */}
+      <div style={{ padding: '16px 24px 0', flexShrink: 0 }}>
+        <div style={{ display: 'flex', gap: 24, alignItems: 'flex-start', flexWrap: 'wrap' }}>
+          <Form form={form} layout="inline" style={{ flex: 1 }}>
+            <Form.Item label="模板名稱" name="name" rules={[{ required: true, message: '請輸入模板名稱' }]} style={{ marginBottom: 8 }}>
+              <Input placeholder="例：冷凍通路標準模板" style={{ width: 220 }} />
+            </Form.Item>
+            <Form.Item label="備註" name="remark" style={{ marginBottom: 8 }}>
+              <Input placeholder="選填" style={{ width: 200 }} />
+            </Form.Item>
+          </Form>
+          <div style={{ flexShrink: 0 }}>
+            <div style={{ fontSize: 12, color: '#555', marginBottom: 6, fontWeight: 600 }}>套用通路</div>
+            <Checkbox.Group
+              value={assignedIds}
+              onChange={setAssignedIds}
+              style={{ display: 'flex', flexWrap: 'wrap', gap: '4px 16px' }}
+            >
+              {channelList.map(c => (
+                <Checkbox key={c.id} value={c.id}>
+                  <span style={{ fontSize: 13 }}>{c.name}</span>
+                </Checkbox>
+              ))}
+            </Checkbox.Group>
+          </div>
+        </div>
+        <Divider style={{ margin: '10px 0 0' }} />
+      </div>
 
-      <Divider orientation="left" plain>商品清單設定</Divider>
-      <ProductPicker value={selectedIds} onChange={setSelectedIds} />
+      {/* 左右雙欄 */}
+      <div style={{ flex: 1, display: 'flex', overflow: 'hidden' }}>
+        {/* 左欄：已選（2/3） */}
+        <div style={{ flex: 2, display: 'flex', flexDirection: 'column', borderRight: '1px solid #f0f0f0', overflow: 'hidden' }}>
+          <div style={{ padding: '8px 12px', background: '#f6ffed', borderBottom: '1px solid #f0f0f0', flexShrink: 0, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <Text strong style={{ fontSize: 13 }}>已選品項</Text>
+            <Space size={4}>
+              <Text style={{ fontSize: 12, color: '#1677ff' }}>{orderedIds.length} 項</Text>
+              <Text type="secondary" style={{ fontSize: 11 }}>｜拖曳可調整組內順序，改順序不可跨組</Text>
+            </Space>
+          </div>
+          <SelectedPanel
+            orderedIds={orderedIds}
+            priceOverrides={priceOverrides}
+            onRemove={handleRemove}
+            onReorder={setOrderedIds}
+            onPriceChange={(id, v) => setPriceOverrides(prev => ({ ...prev, [id]: v }))}
+          />
+        </div>
+
+        {/* 右欄：未選（1/3） */}
+        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+          <div style={{ padding: '8px 12px', background: '#fafafa', borderBottom: '1px solid #f0f0f0', flexShrink: 0, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <Text strong style={{ fontSize: 13 }}>未選品項</Text>
+            <Text style={{ fontSize: 12, color: '#888' }}>{products.length - orderedIds.length} 項｜點擊加入</Text>
+          </div>
+          <UnselectedPanel selectedIds={orderedIds} onAdd={handleAdd} />
+        </div>
+      </div>
     </Drawer>
   )
 }
 
-// ── 指派通路 Modal ───────────────────────────────────────
-function AssignModal({ open, onClose, template, channelList, onAssign }) {
-  const [selected, setSelected] = useState([])
-
-  const handleOpen = (vis) => {
-    if (vis) {
-      setSelected(channelList.filter(c => c.templateId === template?.id).map(c => c.id))
-    }
-  }
-
-  return (
-    <Modal
-      open={open} onCancel={onClose}
-      title={<Space><TeamOutlined />指派通路 — {template?.name}</Space>}
-      okText="儲存" cancelText="取消"
-      afterOpenChange={handleOpen}
-      onOk={() => { onAssign(template?.id, selected); onClose() }}
-    >
-      <Text type="secondary" style={{ display: 'block', marginBottom: 12 }}>
-        選擇要套用此模板的通路（可多選）
-      </Text>
-      <Checkbox.Group
-        value={selected}
-        onChange={setSelected}
-        style={{ display: 'flex', flexDirection: 'column', gap: 8 }}
-      >
-        {channelList.map(c => (
-          <Checkbox key={c.id} value={c.id}>
-            <Space>
-              {c.name}
-              {c.templateId === template?.id && <Tag color="blue">目前套用</Tag>}
-            </Space>
-          </Checkbox>
-        ))}
-      </Checkbox.Group>
-    </Modal>
-  )
-}
 
 // ── 主頁面 ───────────────────────────────────────────────
 export default function AdminTemplates() {
@@ -216,19 +369,23 @@ export default function AdminTemplates() {
   const [channelList,  setChannelList]  = useState(initChannels)
   const [drawerOpen,   setDrawerOpen]   = useState(false)
   const [editing,      setEditing]      = useState(null)
-  const [assigning,    setAssigning]    = useState(null)
 
   const openAdd  = ()  => { setEditing(null); setDrawerOpen(true) }
   const openEdit = (t) => { setEditing(t);    setDrawerOpen(true) }
 
-  const handleSave = (values) => {
+  const handleSave = ({ assignedIds, ...values }) => {
+    const templateId = values.id ?? `t${Date.now()}`
     if (values.id) {
       setTemplateList(prev => prev.map(t => t.id === values.id ? { ...t, ...values } : t))
-      message.success('模板已更新')
     } else {
-      setTemplateList(prev => [...prev, { ...values, id: `t${Date.now()}` }])
-      message.success('模板已建立')
+      setTemplateList(prev => [...prev, { ...values, id: templateId }])
     }
+    // 同步通路指派
+    setChannelList(prev => prev.map(c => ({
+      ...c,
+      templateId: assignedIds.includes(c.id) ? templateId : (c.templateId === templateId ? undefined : c.templateId),
+    })))
+    message.success(values.id ? '模板已更新' : '模板已建立')
   }
 
   const handleDelete = (id) => {
@@ -241,14 +398,6 @@ export default function AdminTemplates() {
     message.success('模板已刪除')
   }
 
-  const handleAssign = (templateId, channelIds) => {
-    setChannelList(prev => prev.map(c => ({
-      ...c,
-      templateId: channelIds.includes(c.id) ? templateId : c.templateId,
-    })))
-    message.success('通路指派已更新')
-  }
-
   const columns = [
     {
       title: '模板名稱', dataIndex: 'name',
@@ -259,6 +408,10 @@ export default function AdminTemplates() {
           {r.id === 't001' && <Tag color="blue">預設</Tag>}
         </Space>
       ),
+    },
+    {
+      title: '備註', dataIndex: 'remark',
+      render: v => v ? <Text type="secondary" style={{ fontSize: 12 }}>{v}</Text> : <Text type="secondary">—</Text>,
     },
     {
       title: '商品數量', dataIndex: 'productIds', width: 100, align: 'center',
@@ -283,23 +436,93 @@ export default function AdminTemplates() {
       },
     },
     {
-      title: '操作', width: 160, align: 'center',
-      render: (_, r) => (
-        <Space size={4}>
-          <Button size="small" icon={<TeamOutlined />}
-            onClick={() => setAssigning(r)}>指派通路</Button>
-          <Button size="small" icon={<EditOutlined />}
-            onClick={() => openEdit(r)}>編輯</Button>
-          <Popconfirm
-            title="確認刪除此模板？"
-            description="若仍有通路套用此模板將無法刪除。"
-            okText="刪除" okButtonProps={{ danger: true }} cancelText="取消"
-            onConfirm={() => handleDelete(r.id)}
-          >
-            <Button size="small" danger icon={<DeleteOutlined />} />
-          </Popconfirm>
-        </Space>
-      ),
+      title: '操作', width: 220, align: 'center',
+      render: (_, r) => {
+        const assigned = channelList.filter(c => c.templateId === r.id)
+
+        // 依模板內容產生 productsByCat（套用模板價格覆寫）
+        const buildTemplateProductsByCat = () => {
+          const byCat = {}
+          for (const pid of (r.productIds ?? [])) {
+            const p = products.find(pp => pp.id === pid)
+            if (!p) continue
+            const overridePrice = r.productPrices?.[pid]
+            const adjusted = overridePrice != null && overridePrice !== p.b2bPrice
+              ? { ...p, b2bPrice: overridePrice }
+              : p
+            const cat = categories.find(c => c.subCategories.some(s => s.name === p.subCategory))
+              ?? categories.find(c => c.temperature === p.category)
+              ?? categories[0]
+            if (!byCat[cat.id]) byCat[cat.id] = []
+            byCat[cat.id].push(adjusted)
+          }
+          return byCat
+        }
+
+        const doQuotation = async (channel) => {
+          try {
+            message.loading({ content: '報價單 PDF 產生中…', key: 'exp', duration: 0 })
+            await exportQuotationPdf({ template: r, channel })
+            message.success({ content: '報價單已下載', key: 'exp' })
+          } catch (err) {
+            console.error(err)
+            message.error({ content: err.message || '匯出失敗', key: 'exp' })
+          }
+        }
+
+        const doBlankOrder = async (channel) => {
+          try {
+            message.loading({ content: '空白採購單 Excel 產生中…', key: 'exp', duration: 0 })
+            await exportBlankOrder({
+              channel: channel ?? { name: '客戶' },
+              productsByCat: buildTemplateProductsByCat(),
+              categories,
+              systemSettings,
+            })
+            message.success({ content: '空白採購單已下載', key: 'exp' })
+          } catch (err) {
+            console.error(err)
+            message.error({ content: err.message || '匯出失敗', key: 'exp' })
+          }
+        }
+
+        // Dropdown menu：兩個分組
+        const menuItems = [
+          { key: 'quo-group', type: 'group', label: '📄 報價單 (PDF)' },
+          { key: 'quo-generic', label: '通用報價單（空白客戶）' },
+          ...assigned.map(c => ({ key: `quo-${c.id}`, label: `指定：${c.name}` })),
+          { type: 'divider' },
+          { key: 'bo-group', type: 'group', label: '📋 空白採購單 (Excel)' },
+          { key: 'bo-generic', label: '通用空白採購單' },
+          ...assigned.map(c => ({ key: `bo-${c.id}`, label: `指定：${c.name}` })),
+        ]
+
+        const onMenuClick = ({ key }) => {
+          if (key === 'quo-generic')       return doQuotation(null)
+          if (key === 'bo-generic')        return doBlankOrder(null)
+          if (key.startsWith('quo-'))      return doQuotation(assigned.find(c => c.id === key.slice(4)))
+          if (key.startsWith('bo-'))       return doBlankOrder(assigned.find(c => c.id === key.slice(3)))
+        }
+
+        return (
+          <Space size={4}>
+            <Button size="small" icon={<EditOutlined />} onClick={() => openEdit(r)}>編輯</Button>
+            <Dropdown trigger={['click']} menu={{ items: menuItems, onClick: onMenuClick }}>
+              <Button size="small">
+                匯出 <DownOutlined style={{ fontSize: 10 }} />
+              </Button>
+            </Dropdown>
+            <Popconfirm
+              title="確認刪除此模板？"
+              description="若仍有通路套用此模板將無法刪除。"
+              okText="刪除" okButtonProps={{ danger: true }} cancelText="取消"
+              onConfirm={() => handleDelete(r.id)}
+            >
+              <Button size="small" danger icon={<DeleteOutlined />} />
+            </Popconfirm>
+          </Space>
+        )
+      },
     },
   ]
 
@@ -309,33 +532,6 @@ export default function AdminTemplates() {
         <Title level={4} style={{ margin: 0 }}>品項表模板管理</Title>
         <Button type="primary" icon={<PlusOutlined />} onClick={openAdd}>新增模板</Button>
       </div>
-
-      <Row gutter={16} style={{ marginBottom: 20 }}>
-        <Col span={6}>
-          <Card size="small" style={{ textAlign: 'center' }}>
-            <Statistic title="模板數量" value={templateList.length} suffix="個"
-              valueStyle={{ color: '#1677ff', fontSize: 22 }} />
-          </Card>
-        </Col>
-        <Col span={6}>
-          <Card size="small" style={{ textAlign: 'center' }}>
-            <Statistic title="已指派通路" value={channelList.filter(c => c.templateId).length} suffix="個"
-              valueStyle={{ color: '#52c41a', fontSize: 22 }} />
-          </Card>
-        </Col>
-        <Col span={6}>
-          <Card size="small" style={{ textAlign: 'center' }}>
-            <Statistic title="未指派通路" value={channelList.filter(c => !c.templateId).length} suffix="個"
-              valueStyle={{ color: '#ff4d4f', fontSize: 22 }} />
-          </Card>
-        </Col>
-        <Col span={6}>
-          <Card size="small" style={{ textAlign: 'center' }}>
-            <Statistic title="可用商品總數" value={products.length} suffix="項"
-              valueStyle={{ color: '#888', fontSize: 22 }} />
-          </Card>
-        </Col>
-      </Row>
 
       {channelList.some(c => !c.templateId) && (
         <Alert
@@ -357,14 +553,7 @@ export default function AdminTemplates() {
         onClose={() => setDrawerOpen(false)}
         onSave={handleSave}
         initial={editing}
-      />
-
-      <AssignModal
-        open={!!assigning}
-        onClose={() => setAssigning(null)}
-        template={assigning}
         channelList={channelList}
-        onAssign={handleAssign}
       />
     </div>
   )

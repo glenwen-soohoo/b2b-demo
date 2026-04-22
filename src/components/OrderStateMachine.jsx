@@ -3,29 +3,25 @@ import {
   ClockCircleOutlined,
   CheckCircleOutlined,
   InboxOutlined,
-  DollarOutlined,
+  SyncOutlined,
   CheckSquareOutlined,
-  FileProtectOutlined,
 } from '@ant-design/icons';
 
-// B2B訂單流程 + 結算流程合併顯示
+// B2B訂單流程：待業務確認 → 已成立訂單 → 到貨等待結算 → 結算中 → 結算完畢
 const STEPS = [
-  { key: 'pending_sales',     label: '待業務確認', icon: <ClockCircleOutlined /> },
-  { key: 'pending_warehouse', label: '待倉庫確認', icon: <InboxOutlined /> },
-  { key: 'ordered',           label: '已成立訂單', icon: <CheckCircleOutlined /> },
-  { key: 'awaiting_payment',  label: '待匯款',     icon: <DollarOutlined /> },
-  { key: 'paid',              label: '已匯款',     icon: <FileProtectOutlined /> },
-  { key: 'completed',         label: '完成',       icon: <CheckSquareOutlined /> },
+  { key: 'pending_sales', label: '待業務確認',   icon: <ClockCircleOutlined /> },
+  { key: 'ordered',       label: '已成立訂單',   icon: <CheckCircleOutlined /> },
+  { key: 'arrived',       label: '到貨等待結算', icon: <InboxOutlined /> },
+  { key: 'settling',      label: '結算中',       icon: <SyncOutlined /> },
+  { key: 'settled_done',  label: '結算完畢',     icon: <CheckSquareOutlined /> },
 ];
 
 const STATUS_TO_STEP = {
-  pending_sales:     0,
-  pending_warehouse: 1,
-  ordered:           2,
-  settled:           2, // 已結算鎖定，停在已成立訂單位置
-  awaiting_payment:  3,
-  paid:              4,
-  completed:         5,
+  pending_sales: 0,
+  ordered:       1,
+  arrived:       2,
+  settling:      3,
+  settled_done:  4,
 };
 
 export default function OrderStateMachine({ status }) {
@@ -40,7 +36,7 @@ export default function OrderStateMachine({ status }) {
         title: s.label,
         icon: s.icon,
         status:
-          i < current ? 'finish' :
+          i < current   ? 'finish'  :
           i === current ? 'process' :
           'wait',
       }))}

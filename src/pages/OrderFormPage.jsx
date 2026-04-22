@@ -51,7 +51,7 @@ function OrderPreviewModal({ open, onClose, items, channel }) {
         <Descriptions.Item label="收件人">{addr.recipient}</Descriptions.Item>
         <Descriptions.Item label="收件電話">{addr.phone}</Descriptions.Item>
         <Descriptions.Item label="收件地址" span={2}>{addr.address}</Descriptions.Item>
-        <Descriptions.Item label="付款方式" span={2}>{channel.settlementMethod}，次月 {channel.settlementDay} 日前付款</Descriptions.Item>
+        <Descriptions.Item label="付款方式" span={2}>於 {channel.settlementDay} 日收到結算單後匯款</Descriptions.Item>
       </Descriptions>
 
       <Table dataSource={items} columns={cols} rowKey="id" size="small" pagination={false}

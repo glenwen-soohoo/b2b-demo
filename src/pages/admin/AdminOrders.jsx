@@ -1,26 +1,96 @@
 import { useState, useMemo } from 'react'
-import dayjs from 'dayjs'
 import {
-  Table, Button, Space, Input, Badge, Tabs,
-  Statistic, Row, Col, Card, Typography, Tag, Alert,
+  Table, Button, Space, Input, Card, Col, Row,
+  Statistic, Tag, Typography, DatePicker, Select, Tooltip, message,
 } from 'antd'
 import { SearchOutlined, EyeOutlined } from '@ant-design/icons'
+import dayjs from 'dayjs'
 import StatusTag from '../../components/StatusTag'
 import OrderDetail from '../../components/OrderDetail'
-import { preOrders as initPreOrders } from '../../data/fakeData'
+import { preOrders as initPreOrders, productMap, channelMap } from '../../data/fakeData'
 
-const { Title, Text } = Typography
+const { Text } = Typography
+const { RangePicker } = DatePicker
 
-// ── 業務確認 Tab ─────────────────────────────────
-function SalesTab({ preOrderList, setPreOrderList }) {
-  const [filterChannel, setFilterChannel] = useState('')
-  const [selected, setSelected] = useState(null)
+const INVOICE_MODE_LABEL = {
+  per_order:         '單筆開票',
+  monthly_per_store: '門市月結',
+  monthly_combined:  '整合月結',
+}
+
+const INVOICE_MODE_COLOR = {
+  per_order:         'default',
+  monthly_per_store: 'geekblue',
+  monthly_combined:  'purple',
+}
+
+function temperatureZoneTag(items) {
+  const zones = new Set(items.map(i => productMap[i.productId]?.category).filter(Boolean))
+  return (
+    <Space size={4}>
+      {zones.has('frozen')  && <Tag color="blue"  style={{ margin: 0 }}>❄️ 冷凍</Tag>}
+      {zones.has('ambient') && <Tag color="green" style={{ margin: 0 }}>🌿 常溫</Tag>}
+    </Space>
+  )
+}
+
+const STATUS_FILTERS = [
+  { key: 'pending_sales', label: '待業務確認'   },
+  { key: 'ordered',       label: '已成立訂單'   },
+  { key: 'arrived',       label: '到貨等待結算' },
+  { key: 'settling',      label: '結算中'       },
+  { key: 'settled_done',  label: '結算完畢'     },
+]
+
+function getSettlementMonthOptions(orders) {
+  const months = [...new Set(orders.map(o => o.settlementMonth).filter(Boolean))].sort().reverse()
+  return months.map(m => ({ value: m, label: m }))
+}
+
+export default function AdminOrders() {
+  const [preOrderList, setPreOrderList]       = useState(initPreOrders)
+  const [filterText, setFilterText]           = useState('')
+  const [activeStatuses, setActiveStatuses]   = useState([])
+  const [dateMode, setDateMode]               = useState('createdAt')   // 'createdAt' | 'settlementMonth'
+  const [dateRange, setDateRange]             = useState(null)           // [dayjs, dayjs] | null
+  const [settlementMonth, setSettlementMonth] = useState(null)
+  const [selected, setSelected]               = useState(null)
+
+  const stats = useMemo(() => ({
+    pendingSales: preOrderList.filter(o => o.status === 'pending_sales').length,
+    ordered:      preOrderList.filter(o => o.status === 'ordered').length,
+    unsettled:    preOrderList.filter(o => ['ordered', 'arrived'].includes(o.status) && !o.settlementId).length,
+  }), [preOrderList])
+
+  const settlementMonthOptions = useMemo(() => getSettlementMonthOptions(preOrderList), [preOrderList])
 
   const list = useMemo(() =>
-    preOrderList.filter(o =>
-      o.status === 'pending_sales' &&
-      (!filterChannel || o.channelName.includes(filterChannel))
-    ), [preOrderList, filterChannel])
+    preOrderList
+      .filter(o => {
+        const q = filterText.trim()
+        const matchText   = !q || o.id.includes(q) || o.channelName.includes(q) || (o.b2b_order_no ?? '').includes(q)
+        const matchStatus = activeStatuses.length === 0 || activeStatuses.includes(o.status)
+        const matchDate   = (() => {
+          if (dateMode === 'createdAt' && dateRange) {
+            const d = dayjs(o.createdAt)
+            return d.isAfter(dateRange[0].subtract(1, 'day')) && d.isBefore(dateRange[1].add(1, 'day'))
+          }
+          if (dateMode === 'settlementMonth' && settlementMonth) {
+            return o.settlementMonth === settlementMonth
+          }
+          return true
+        })()
+        return matchText && matchStatus && matchDate
+      })
+      .sort((a, b) => b.createdAt.localeCompare(a.createdAt)),
+  [preOrderList, filterText, activeStatuses, dateMode, dateRange, settlementMonth])
+
+  const toggleStatus = (key, checked) => {
+    const next = checked
+      ? [...activeStatuses, key]
+      : activeStatuses.filter(s => s !== key)
+    setActiveStatuses(next)
+  }
 
   const handleStatusChange = (id, next, log, extra) => {
     setPreOrderList(prev => prev.map(o => {
@@ -28,224 +98,79 @@ function SalesTab({ preOrderList, setPreOrderList }) {
       const updated = {
         ...o,
         status: next,
-        logs: [...o.logs, log],
-        ...(extra?.salesAdjustedItems ? { salesAdjustedItems: extra.salesAdjustedItems } : {}),
-        ...(extra?.salesNote !== undefined ? { salesNote: extra.salesNote } : {}),
+        logs: log ? [...o.logs, log] : o.logs,
+        ...(extra?.salesAdjustedItems !== undefined ? { salesAdjustedItems: extra.salesAdjustedItems } : {}),
+        ...(extra?.adjustedItems      !== undefined ? { adjustedItems: extra.adjustedItems }           : {}),
+        ...(extra?.shipping_note      !== undefined ? { shipping_note: extra.shipping_note }           : {}),
+        ...(extra?.warehouse_note     !== undefined ? { warehouse_note: extra.warehouse_note }         : {}),
+        ...(extra?.b2b_order_no       !== undefined ? { b2b_order_no: extra.b2b_order_no }             : {}),
+        ...(extra?.discount_amount    !== undefined ? { discount_amount: extra.discount_amount }       : {}),
+        ...(extra?.discount_note      !== undefined ? { discount_note: extra.discount_note }           : {}),
+        ...(extra?.cs_note            !== undefined ? { cs_note: extra.cs_note }                       : {}),
+        ...(extra?.b2b_note           !== undefined ? { b2b_note: extra.b2b_note }                     : {}),
+        ...(extra?.settlementMonth    !== undefined ? { settlementMonth: extra.settlementMonth }       : {}),
       }
       setSelected(updated)
       return updated
     }))
   }
 
+  const handleSettlementMonthChange = (id, month) => {
+    setPreOrderList(prev => prev.map(o =>
+      o.id === id ? { ...o, settlementMonth: month } : o
+    ))
+    setSelected(prev => prev && prev.id === id ? { ...prev, settlementMonth: month } : prev)
+  }
+
   const columns = [
-    { title: 'B2B訂單號', dataIndex: 'id', width: 170,
-      render: v => <Text code style={{ fontSize: 12 }}>{v}</Text> },
+    { title: '訂單編號', dataIndex: 'id', width: 170,
+      render: (v, r) => (
+        <Space direction="vertical" size={0}>
+          <Text code style={{ fontSize: 12 }}>{v}</Text>
+          {r.backendOrderId && <Text style={{ fontSize: 11, color: '#888' }}>{r.backendOrderId}</Text>}
+        </Space>
+      )},
     { title: '通路', dataIndex: 'channelName', width: 140 },
+    { title: '下單日', dataIndex: 'createdAt', width: 100 },
+    { title: '溫層', dataIndex: 'items', width: 110,
+      render: items => temperatureZoneTag(items) },
+    { title: '金額', width: 110,
+      render: (_, r) => {
+        const items = r.adjustedItems ?? r.salesAdjustedItems ?? r.items
+        const t = items.reduce((s, i) => s + i.qty * i.price, 0)
+        const disc = r.discount_amount ?? 0
+        return (
+          <Space direction="vertical" size={0}>
+            <Text strong style={{ color: '#1677ff' }}>${(t - disc).toLocaleString()}</Text>
+            {disc > 0 && <Text style={{ fontSize: 11, color: '#fa8c16' }}>已折扣 ${disc.toLocaleString()}</Text>}
+          </Space>
+        )
+      }},
+    { title: '發票模式', dataIndex: 'invoice_mode_snapshot', width: 95,
+      render: v => v
+        ? <Tag color={INVOICE_MODE_COLOR[v] ?? 'default'} style={{ fontSize: 11 }}>{INVOICE_MODE_LABEL[v] ?? v}</Tag>
+        : <Text type="secondary">—</Text> },
     { title: '品項摘要', dataIndex: 'items', ellipsis: true,
       render: items => items.map(i => i.productName).join('、') },
-    { title: '金額', dataIndex: 'items', width: 100,
-      render: items => {
-        const t = items.reduce((s, i) => s + i.qty * i.price, 0)
-        return <Text strong style={{ color: '#1677ff' }}>${t.toLocaleString()}</Text>
-      }},
-    { title: '下單日期', dataIndex: 'createdAt', width: 110 },
-    { title: '狀態', dataIndex: 'status', width: 120,
+    { title: '狀態', dataIndex: 'status', width: 130,
       render: s => <StatusTag status={s} /> },
-    { title: '', width: 70, align: 'center',
+    { title: '操作', width: 80, align: 'center',
       render: (_, r) => (
         <Button size="small" icon={<EyeOutlined />} onClick={() => setSelected(r)}>查看</Button>
       )},
   ]
 
-  return (
-    <>
-      <Space style={{ marginBottom: 16 }}>
-        <Input prefix={<SearchOutlined />} placeholder="通路名稱" value={filterChannel}
-          onChange={e => setFilterChannel(e.target.value)} style={{ width: 200 }} allowClear />
-      </Space>
-      {list.length === 0
-        ? <Alert type="success" showIcon message="目前沒有待業務確認的B2B訂單" />
-        : (
-          <Table
-            dataSource={list}
-            columns={columns}
-            rowKey="id"
-            size="small"
-            pagination={{ pageSize: 20 }}
-          />
-        )
-      }
-      <OrderDetail
-        order={selected} open={!!selected}
-        onClose={() => setSelected(null)}
-        onStatusChange={handleStatusChange}
-      />
-    </>
-  )
-}
-
-// ── 倉庫確認 Tab（唯讀）────────────────────────────
-function WarehouseTab({ preOrderList }) {
-  const [filterChannel, setFilterChannel] = useState('')
-
-  const list = useMemo(() =>
-    preOrderList.filter(o =>
-      o.status === 'pending_warehouse' &&
-      (!filterChannel || o.channelName.includes(filterChannel))
-    ), [preOrderList, filterChannel])
-
-  const columns = [
-    { title: 'B2B訂單號', dataIndex: 'id', width: 170,
-      render: v => <Text code style={{ fontSize: 12 }}>{v}</Text> },
-    { title: '通路', dataIndex: 'channelName', width: 140 },
-    { title: '品項數', dataIndex: 'items', width: 70, align: 'center',
-      render: items => items.length },
-    { title: '金額', dataIndex: 'items', width: 100,
-      render: items => {
-        const t = items.reduce((s, i) => s + i.qty * i.price, 0)
-        return <Text strong style={{ color: '#1677ff' }}>${t.toLocaleString()}</Text>
-      }},
-    { title: '業務確認日期', dataIndex: 'logs', width: 130,
-      render: logs => {
-        const l = [...logs].reverse().find(l => l.action.includes('業務確認完成'))
-        return l ? <Text type="secondary" style={{ fontSize: 12 }}>{l.time.split(' ')[0]}</Text> : '—'
-      }},
-    { title: '狀態', dataIndex: 'status', width: 120,
-      render: s => <StatusTag status={s} /> },
-    { title: '操作說明', width: 180,
-      render: () => (
-        <Text type="secondary" style={{ fontSize: 12 }}>請至 /warehouse/orders 操作</Text>
-      )},
-  ]
-
-  return (
-    <>
-      <Alert type="info" showIcon style={{ marginBottom: 16 }}
-        message="此頁面為唯讀，供管理者查看進度"
-        description="實際操作由倉庫人員在倉庫專屬介面（/warehouse/orders）完成。"
-      />
-      <Space style={{ marginBottom: 16 }}>
-        <Input prefix={<SearchOutlined />} placeholder="通路名稱" value={filterChannel}
-          onChange={e => setFilterChannel(e.target.value)} style={{ width: 200 }} allowClear />
-      </Space>
-      {list.length === 0
-        ? <Alert type="success" showIcon message="目前沒有待倉庫確認的B2B訂單" />
-        : (
-          <Table
-            dataSource={list}
-            columns={columns}
-            rowKey="id"
-            size="small"
-            pagination={{ pageSize: 20 }}
-          />
-        )
-      }
-    </>
-  )
-}
-
-// ── 訂單紀錄 Tab ──────────────────────────────────
-function OrderRecordsTab({ preOrderList }) {
-  const [filterChannel, setFilterChannel] = useState('')
-
-  const list = useMemo(() =>
-    preOrderList.filter(o =>
-      ['ordered', 'settled'].includes(o.status) &&
-      (!filterChannel || o.channelName.includes(filterChannel))
-    ), [preOrderList, filterChannel])
-
-  const columns = [
-    { title: 'B2B訂單號', dataIndex: 'id', width: 170,
-      render: v => <Text code style={{ fontSize: 12 }}>{v}</Text> },
-    { title: '通路', dataIndex: 'channelName', width: 140 },
-    { title: '品項摘要', dataIndex: 'items', ellipsis: true,
-      render: items => items.map(i => i.productName).join('、') },
-    { title: '金額', dataIndex: 'items', width: 100,
-      render: items => {
-        const t = items.reduce((s, i) => s + i.qty * i.price, 0)
-        return <Text strong style={{ color: '#1677ff' }}>${t.toLocaleString()}</Text>
-      }},
-    { title: '後台訂單號', dataIndex: 'backendOrderId', width: 130,
-      render: v => v ? <Tag color="cyan" style={{ fontSize: 11 }}>{v}</Tag> : <Text type="secondary">—</Text> },
-    { title: '狀態', dataIndex: 'status', width: 120,
-      render: s => <StatusTag status={s} /> },
-    { title: '結算月', dataIndex: 'settlementMonth', width: 90 },
-  ]
-
-  return (
-    <>
-      <Space style={{ marginBottom: 16 }}>
-        <Input prefix={<SearchOutlined />} placeholder="通路名稱" value={filterChannel}
-          onChange={e => setFilterChannel(e.target.value)} style={{ width: 200 }} allowClear />
-      </Space>
-      {list.length === 0
-        ? <Alert type="info" showIcon message="目前沒有已成立訂單" />
-        : (
-          <Table
-            dataSource={list}
-            columns={columns}
-            rowKey="id"
-            size="small"
-            pagination={{ pageSize: 20 }}
-            rowClassName={r => r.status === 'settled' ? 'row-settled' : ''}
-          />
-        )
-      }
-    </>
-  )
-}
-
-// ── 主頁面 ────────────────────────────────────────
-export default function AdminOrders() {
-  const [preOrderList, setPreOrderList] = useState(initPreOrders)
-
-  const stats = useMemo(() => ({
-    pendingSales:     preOrderList.filter(o => o.status === 'pending_sales').length,
-    pendingWarehouse: preOrderList.filter(o => o.status === 'pending_warehouse').length,
-    ordered:          preOrderList.filter(o => o.status === 'ordered').length,
-    settled:          preOrderList.filter(o => o.status === 'settled').length,
-  }), [preOrderList])
-
-  const tabItems = [
-    {
-      key: 'sales',
-      label: (
-        <Space>
-          待業務確認
-          {stats.pendingSales > 0 && <Badge count={stats.pendingSales} size="small" />}
-        </Space>
-      ),
-      children: <SalesTab preOrderList={preOrderList} setPreOrderList={setPreOrderList} />,
-    },
-    {
-      key: 'warehouse',
-      label: (
-        <Space>
-          待倉庫確認
-          {stats.pendingWarehouse > 0 && <Badge count={stats.pendingWarehouse} color="orange" size="small" />}
-        </Space>
-      ),
-      children: <WarehouseTab preOrderList={preOrderList} />,
-    },
-    {
-      key: 'records',
-      label: '訂單紀錄',
-      children: <OrderRecordsTab preOrderList={preOrderList} />,
-    },
-  ]
+  const isAll = activeStatuses.length === 0
 
   return (
     <div style={{ padding: 24 }}>
-      <Title level={4} style={{ marginBottom: 20 }}>B2B訂單管理</Title>
-
       <Row gutter={16} style={{ marginBottom: 24 }}>
         {[
-          { label: '待業務確認', value: stats.pendingSales,     color: '#1677ff' },
-          { label: '待倉庫確認', value: stats.pendingWarehouse, color: '#fa8c16' },
-          { label: '本月已成立訂單', value: stats.ordered,      color: '#13c2c2' },
-          { label: '已結算', value: stats.settled,             color: '#722ed1' },
+          { label: '待業務確認',   value: stats.pendingSales, color: '#1677ff' },
+          { label: '已成立訂單',   value: stats.ordered,      color: '#13c2c2' },
+          { label: '尚未結算訂單', value: stats.unsettled,    color: '#fa8c16' },
         ].map(s => (
-          <Col span={6} key={s.label}>
+          <Col span={8} key={s.label}>
             <Card size="small" bordered style={{ textAlign: 'center' }}>
               <Statistic title={s.label} value={s.value}
                 valueStyle={{ color: s.color, fontSize: 28 }} suffix="筆" />
@@ -254,7 +179,75 @@ export default function AdminOrders() {
         ))}
       </Row>
 
-      <Tabs items={tabItems} />
+      <Space style={{ marginBottom: 16 }} wrap>
+        <Input
+          prefix={<SearchOutlined />} placeholder="搜尋訂單號 / B2B編號 / 通路名稱"
+          value={filterText} onChange={e => setFilterText(e.target.value)}
+          style={{ width: 240 }} allowClear
+        />
+
+        {/* 日期篩選 */}
+        <Space.Compact>
+          <Select
+            value={dateMode}
+            onChange={v => { setDateMode(v); setDateRange(null); setSettlementMonth(null) }}
+            style={{ width: 100 }}
+            options={[
+              { value: 'createdAt',      label: '建單日期' },
+              { value: 'settlementMonth', label: '結算月份' },
+            ]}
+          />
+          {dateMode === 'createdAt' ? (
+            <RangePicker
+              value={dateRange}
+              onChange={setDateRange}
+              allowClear
+              style={{ width: 230 }}
+            />
+          ) : (
+            <Select
+              value={settlementMonth}
+              onChange={setSettlementMonth}
+              placeholder="選擇月份"
+              allowClear
+              style={{ width: 140 }}
+              options={settlementMonthOptions}
+            />
+          )}
+        </Space.Compact>
+
+        {/* 狀態篩選 */}
+        <Space size={4}>
+          <Button size="small" type={isAll ? 'primary' : 'default'} onClick={() => setActiveStatuses([])}>
+            全部
+          </Button>
+          {STATUS_FILTERS.map(f => (
+            <Tag.CheckableTag
+              key={f.key}
+              checked={activeStatuses.includes(f.key)}
+              onChange={checked => toggleStatus(f.key, checked)}
+            >
+              {f.label}
+            </Tag.CheckableTag>
+          ))}
+        </Space>
+      </Space>
+
+      <Table
+        dataSource={list}
+        columns={columns}
+        rowKey="id"
+        size="small"
+        pagination={{ pageSize: 20, showSizeChanger: false }}
+        rowClassName={r => (r.status === 'settling' || r.status === 'settled_done') ? 'row-settled' : ''}
+      />
+
+      <OrderDetail
+        order={selected}
+        open={!!selected}
+        onClose={() => setSelected(null)}
+        onStatusChange={handleStatusChange}
+      />
 
       <style>{`
         .row-settled td { background: #f9f0ff !important; color: #888; }

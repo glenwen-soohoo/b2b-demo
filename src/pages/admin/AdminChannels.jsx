@@ -1,13 +1,25 @@
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
 import {
   Table, Button, Typography, Badge, Space, Modal, Form, Input,
-  InputNumber, Select, Popconfirm, message, Divider, Row, Col,
+  InputNumber, Select, Popconfirm, message, Divider, Row, Col, Tag,
 } from 'antd'
-import { EyeOutlined, EditOutlined, DeleteOutlined, PlusOutlined } from '@ant-design/icons'
+import { EyeOutlined, EditOutlined, DeleteOutlined, PlusOutlined, SearchOutlined } from '@ant-design/icons'
 import { channels as initialChannels, templates } from '../../data/fakeData'
 import ChannelDetail from '../../components/ChannelDetail'
 
 const { Title } = Typography
+
+const INVOICE_MODE_OPTIONS = [
+  { value: 'per_order',         label: '訂單單筆開票' },
+  { value: 'monthly_per_store', label: '門市分開月結' },
+  { value: 'monthly_combined',  label: '整合月結' },
+]
+
+const INVOICE_MODE_COLOR = {
+  per_order:         'default',
+  monthly_per_store: 'geekblue',
+  monthly_combined:  'purple',
+}
 
 function ChannelModal({ open, onClose, onSave, initial }) {
   const [form] = Form.useForm()
@@ -23,7 +35,7 @@ function ChannelModal({ open, onClose, onSave, initial }) {
     <Modal
       open={open} onCancel={onClose} onOk={handleOk}
       title={initial?.id ? '編輯通路' : '新增通路'}
-      okText="儲存" cancelText="取消" width={600}
+      okText="儲存" cancelText="取消" width={640}
       destroyOnClose
       afterOpenChange={visible => { if (visible) form.setFieldsValue(initial ?? {}) }}
     >
@@ -36,60 +48,81 @@ function ChannelModal({ open, onClose, onSave, initial }) {
             </Form.Item>
           </Col>
           <Col span={12}>
-            <Form.Item label="公司抬頭" name="title" rules={[{ required: true }]}>
-              <Input />
-            </Form.Item>
-          </Col>
-        </Row>
-        <Row gutter={12}>
-          <Col span={8}>
-            <Form.Item label="統一編號" name="taxId" rules={[{ required: true }]}>
-              <Input />
-            </Form.Item>
-          </Col>
-          <Col span={16}>
             <Form.Item label="聯繫信箱" name="email" rules={[{ required: true, type: 'email' }]}>
               <Input />
             </Form.Item>
           </Col>
         </Row>
         <Row gutter={12}>
-          <Col span={10}>
+          <Col span={12}>
             <Form.Item label="聯繫窗口" name="contact" rules={[{ required: true }]}>
               <Input placeholder="姓名" />
             </Form.Item>
           </Col>
-          <Col span={14}>
+          <Col span={12}>
             <Form.Item label="聯繫電話" name="contactPhone">
               <Input />
             </Form.Item>
           </Col>
         </Row>
-
-        <Divider orientation="left" plain style={{ margin: '4px 0 12px' }}>結算設定</Divider>
         <Row gutter={12}>
-          <Col span={8}>
-            <Form.Item label="結算日" name="settlementDay" rules={[{ required: true }]}>
-              <InputNumber min={1} max={31} addonBefore="每月" addonAfter="日" style={{ width: '100%' }} />
+          <Col span={12}>
+            <Form.Item label="公司抬頭" name="title" rules={[{ required: true }]}>
+              <Input />
             </Form.Item>
           </Col>
-          <Col span={16}>
-            <Form.Item label="月結方式" name="settlementMethod">
-              <Input placeholder="例：由會計手開發票" />
+          <Col span={12}>
+            <Form.Item label="統一編號" name="taxId" rules={[{ required: true }]}>
+              <Input />
             </Form.Item>
           </Col>
         </Row>
-        <Form.Item label="套用品項表模板" name="templateId" rules={[{ required: true }]}>
-          <Select options={templates.map(t => ({ value: t.id, label: t.name }))} />
-        </Form.Item>
+
+        <Divider orientation="left" plain style={{ margin: '4px 0 12px' }}>結算 &amp; 發票設定</Divider>
+        <Row gutter={12}>
+          <Col span={8}>
+            <Form.Item label="結算日" name="settlementDay" rules={[{ required: true }]}>
+              <InputNumber min={1} max={31} addonBefore={<span style={{ whiteSpace: 'nowrap' }}>每月</span>} addonAfter="日" style={{ width: '100%' }} />
+            </Form.Item>
+          </Col>
+          <Col span={16}>
+            <Form.Item label="發票模式" name="invoice_mode" rules={[{ required: true }]}>
+              <Select options={INVOICE_MODE_OPTIONS} />
+            </Form.Item>
+          </Col>
+        </Row>
+        <Row gutter={12}>
+          <Col span={12}>
+            <Form.Item label="套用品項表模板" name="templateId" rules={[{ required: true }]}>
+              <Select options={templates.map(t => ({ value: t.id, label: t.name }))} />
+            </Form.Item>
+          </Col>
+          <Col span={12}>
+            <Form.Item label="常用匯款末五碼" name="default_bank_last5">
+              <Input placeholder="選填，5碼" maxLength={5} />
+            </Form.Item>
+          </Col>
+        </Row>
 
         <Divider orientation="left" plain style={{ margin: '4px 0 12px' }}>備註</Divider>
         <Form.Item label="議價說明" name="pricingNote">
-          <Input.TextArea rows={3} placeholder="各品項特殊議價說明..." />
+          <Input.TextArea rows={2} placeholder="各品項特殊議價說明..." />
         </Form.Item>
         <Form.Item label="量折優惠" name="volumeDiscount">
-          <Input.TextArea rows={3} placeholder="達標量折規則..." />
+          <Input.TextArea rows={2} placeholder="達標量折規則..." />
         </Form.Item>
+        <Row gutter={12}>
+          <Col span={12}>
+            <Form.Item label="內部折扣筆記" name="discount_note">
+              <Input.TextArea rows={2} placeholder="後台人員使用..." />
+            </Form.Item>
+          </Col>
+          <Col span={12}>
+            <Form.Item label="預設客服備註" name="internal_note">
+              <Input.TextArea rows={2} placeholder="僅後台可見..." />
+            </Form.Item>
+          </Col>
+        </Row>
       </Form>
     </Modal>
   )
@@ -97,6 +130,7 @@ function ChannelModal({ open, onClose, onSave, initial }) {
 
 export default function AdminChannels() {
   const [channelList, setChannelList] = useState(initialChannels)
+  const [searchText,  setSearchText]  = useState('')
   const [viewing,   setViewing]   = useState(null)
   const [editing,   setEditing]   = useState(null)
   const [modalOpen, setModalOpen] = useState(false)
@@ -120,6 +154,16 @@ export default function AdminChannels() {
     message.success('通路已刪除')
   }
 
+  const filteredList = useMemo(() => {
+    const q = searchText.trim().toLowerCase()
+    if (!q) return channelList
+    return channelList.filter(c =>
+      c.name?.toLowerCase().includes(q) ||
+      c.taxId?.toLowerCase().includes(q) ||
+      c.email?.toLowerCase().includes(q)
+    )
+  }, [channelList, searchText])
+
   const columns = [
     { title: '通路名稱', dataIndex: 'name',
       render: (v, r) => (
@@ -129,9 +173,16 @@ export default function AdminChannels() {
     { title: '聯繫信箱', dataIndex: 'email' },
     { title: '聯繫窗口', dataIndex: 'contact', width: 150,
       render: (v, r) => `${v ?? ''}　${r.contactPhone ?? ''}` },
+    { title: '發票模式', dataIndex: 'invoice_mode', width: 110,
+      render: v => v
+        ? <Tag color={INVOICE_MODE_COLOR[v] ?? 'default'} style={{ fontSize: 11 }}>
+            {INVOICE_MODE_OPTIONS.find(o => o.value === v)?.label ?? v}
+          </Tag>
+        : <span style={{ color: '#bbb' }}>—</span>
+    },
     { title: '結算日', dataIndex: 'settlementDay', width: 100,
       render: v => `每月 ${v} 日` },
-    { title: '收件地址', dataIndex: 'addresses', width: 90, align: 'center',
+    { title: '收件地址', dataIndex: 'addresses', width: 80, align: 'center',
       render: arr => <Badge count={arr?.length ?? 0} color="#1677ff" /> },
     { title: '操作', width: 150, align: 'center',
       render: (_, r) => (
@@ -151,12 +202,21 @@ export default function AdminChannels() {
 
   return (
     <div style={{ padding: 24 }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
         <Title level={4} style={{ margin: 0 }}>通路名單管理</Title>
         <Button type="primary" icon={<PlusOutlined />} onClick={openAdd}>新增通路</Button>
       </div>
 
-      <Table dataSource={channelList} columns={columns} rowKey="id" size="small" pagination={false} />
+      <Input
+        prefix={<SearchOutlined />}
+        placeholder="搜尋通路名稱 / 統一編號 / 信箱"
+        value={searchText}
+        onChange={e => setSearchText(e.target.value)}
+        allowClear
+        style={{ width: 280, marginBottom: 16 }}
+      />
+
+      <Table dataSource={filteredList} columns={columns} rowKey="id" size="small" pagination={false} />
 
       <ChannelDetail channel={viewing} open={!!viewing} onClose={() => setViewing(null)} />
 

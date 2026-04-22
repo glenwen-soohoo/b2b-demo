@@ -12,7 +12,7 @@ const { Text } = Typography;
  *   type: 'sales_to_warehouse' | 'warehouse_confirmed' | 'settlement_created' | 'payment_received'
  *   data: object（依 type 不同內容不同）
  */
-export default function NotificationPreviewModal({ open, onClose, onConfirm, type, data }) {
+export default function NotificationPreviewModal({ open, onClose, onConfirm, type, data, onlyTab }) {
   if (!data) return null;
 
   const renderContent = () => {
@@ -111,6 +111,17 @@ export default function NotificationPreviewModal({ open, onClose, onConfirm, typ
             <div>戶名：舒果農企業有限公司</div>
             <div>銀行：兆豐 0170077</div>
             <div>帳號：00709001170</div>
+            {data.preOrderIds && data.preOrderIds.length > 0 && (
+              <>
+                <Divider style={{ margin: '12px 0' }} />
+                <div style={{ fontWeight: 600, marginBottom: 4 }}>涵蓋B2B訂單</div>
+                <Space wrap size={4}>
+                  {data.preOrderIds.map(id => (
+                    <Tag key={id} color="purple" style={{ fontSize: 11 }}>{id}</Tag>
+                  ))}
+                </Space>
+              </>
+            )}
             <div style={{ marginTop: 8, color: '#888', fontSize: 12 }}>
               完成匯款後，請聯繫業務窗口回報，以利財務核帳。
             </div>
@@ -121,6 +132,8 @@ export default function NotificationPreviewModal({ open, onClose, onConfirm, typ
 
     if (type === 'order_submitted') {
       // 廠商送出B2B訂單時，通知業務/管理者
+      const hasFrozen  = (data.frozenCount  ?? 0) > 0
+      const hasAmbient = (data.ambientCount ?? 0) > 0
       return {
         title: '新B2B訂單通知',
         to: '業務人員 / 管理者',
@@ -133,14 +146,21 @@ export default function NotificationPreviewModal({ open, onClose, onConfirm, typ
             </div>
             <div style={{ marginTop: 8, padding: '10px 14px', background: '#f5f5f5', borderRadius: 6 }}>
               <div>結算月份：<Text strong>{data.settlementMonth}</Text></div>
-              <div>訂購品項：<Text strong>{data.itemCount}</Text> 項</div>
-              <div>訂購金額：<Text strong style={{ color: '#1677ff' }}>${(data.total ?? 0).toLocaleString()}</Text></div>
+              {hasFrozen && (
+                <div>❄️ 冷凍品項：<Text strong>{data.frozenCount}</Text> 項，金額 <Text strong style={{ color: '#1677ff' }}>${(data.frozenTotal ?? 0).toLocaleString()}</Text></div>
+              )}
+              {hasAmbient && (
+                <div>🌿 常溫品項：<Text strong>{data.ambientCount}</Text> 項，金額 <Text strong style={{ color: '#1677ff' }}>${(data.ambientTotal ?? 0).toLocaleString()}</Text></div>
+              )}
+              <div>訂購總金額：<Text strong style={{ color: '#1677ff' }}>${(data.total ?? 0).toLocaleString()}</Text></div>
               {data.vendorNote && (
                 <div>廠商備註：<Text style={{ color: '#595959' }}>{data.vendorNote}</Text></div>
               )}
-              {data.addrCount > 1 && (
-                <div>出貨門市：<Text strong>{data.addrCount}</Text> 個（將各別產生 {data.addrCount} 筆B2B訂單）</div>
-              )}
+              <div>
+                出貨門市：<Text strong>{data.addrCount}</Text> 個　將產生{' '}
+                <Text strong>{data.orderCount ?? data.addrCount}</Text> 筆B2B訂單
+                {hasFrozen && hasAmbient && '（冷凍、常溫各自獨立）'}
+              </div>
             </div>
             <div style={{ marginTop: 8 }}>請盡快至後台【B2B訂單管理】確認此筆B2B訂單。</div>
             <div style={{ marginTop: 4, color: '#888' }}>送出時間：{data.submittedAt}</div>
@@ -165,6 +185,9 @@ export default function NotificationPreviewModal({ open, onClose, onConfirm, typ
             <div style={{ marginTop: 8, padding: '10px 14px', background: '#f5f5f5', borderRadius: 6 }}>
               <div>結算單號：<Text code style={{ fontSize: 12 }}>{data.settlementId}</Text></div>
               <div>結算金額：<Text strong style={{ color: '#1677ff' }}>${(data.totalAmount ?? 0).toLocaleString()}</Text></div>
+              {data.bank_last5 && (
+                <div>匯款帳號末五碼：<Text code>{data.bank_last5}</Text></div>
+              )}
               <div>回報時間：<Text>{data.reportedAt}</Text></div>
             </div>
             <div style={{ marginTop: 8 }}>請財務人員確認帳戶入帳後，至後台將此結算單標記為「已匯款」。</div>
@@ -240,6 +263,9 @@ export default function NotificationPreviewModal({ open, onClose, onConfirm, typ
     </>
   );
 
+  // onlyTab：只顯示指定 tab（不顯示 tab 列）
+  const singleTab = onlyTab && content.tabs?.find(t => t.key === onlyTab)
+
   return (
     <Modal
       open={open}
@@ -250,7 +276,9 @@ export default function NotificationPreviewModal({ open, onClose, onConfirm, typ
       title={<Space><MailOutlined /><span>通知預覽 — {content.title}</span></Space>}
       width={620}
     >
-      {content.tabs ? (
+      {singleTab ? (
+        renderSingleNotif(singleTab.to, singleTab.subject, singleTab.body)
+      ) : content.tabs ? (
         <Tabs
           defaultActiveKey="vendor"
           items={content.tabs.map(t => ({

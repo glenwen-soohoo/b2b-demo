@@ -2,18 +2,34 @@ import { useState, useEffect, useRef } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
 import {
   Card, Tabs, Table, InputNumber, Button, Space, Typography,
-  Tag, Alert, Descriptions, Modal, message, Divider, Select, Input, Checkbox,
+  Tag, Alert, Descriptions, Modal, message, Input, Checkbox,
 } from 'antd'
 import dayjs from 'dayjs'
 import {
   ShoppingCartOutlined, FileTextOutlined, SendOutlined,
   EnvironmentOutlined, WarningOutlined, InfoCircleOutlined,
+  DownloadOutlined,
 } from '@ant-design/icons'
-import { products, templates } from '../../data/fakeData'
+import { products, templates, categories, systemSettings } from '../../data/fakeData'
 import { useVendor } from '../../context/VendorContext'
 import NotificationPreviewModal from '../../components/NotificationPreviewModal'
+import { exportBlankOrder } from '../../utils/exportBlankOrder'
 
 const { Title, Text } = Typography
+
+const TEMP_ICON  = { frozen: '❄️', ambient: '🌿' }
+const TEMP_STYLE = {
+  frozen:  { background: '#e6f4ff', border: '1px solid #91caff', color: '#0958d9' },
+  ambient: { background: '#f6ffed', border: '1px solid #b7eb8f', color: '#389e0d' },
+}
+
+// 將商品對應到大分類（與後台共用邏輯）
+function getProductCatId(product) {
+  for (const cat of categories) {
+    if (cat.subCategories.some(s => s.name === product.subCategory)) return cat.id
+  }
+  return categories.find(c => c.temperature === product.category)?.id ?? categories[0].id
+}
 
 function getSettlementMonthOptions() {
   const now = dayjs()
@@ -33,21 +49,77 @@ function groupBySubCategory(prods) {
 }
 
 // ── 採購單確認 Modal ──────────────────────────────────────
+function ItemTable({ items, showHeader = true }) {
+  const subtotal = items.reduce((s, i) => s + i.qty * i.b2bPrice, 0)
+  const columns = [
+    { title: '縮圖', width: 56, align: 'center',
+      render: (_, r) => r.thumbnailUrl
+        ? <img src={r.thumbnailUrl} alt="" style={{ width: 40, height: 40, objectFit: 'cover', borderRadius: 4 }} />
+        : <div style={{ width: 40, height: 40, background: '#f0f0f0', borderRadius: 4 }} /> },
+    { title: '品項', dataIndex: 'name',
+      render: (v, r) => (
+        <Space direction="vertical" size={0}>
+          {r.spec && <Tag style={{ fontSize: 11 }}>{r.spec}</Tag>}
+          <span>{v}</span>
+          <Text type="secondary" style={{ fontSize: 11 }}>#{r.id}</Text>
+        </Space>
+      )},
+    { title: '單位', dataIndex: 'unit', width: 60 },
+    { title: '採購價', dataIndex: 'b2bPrice', width: 80, render: v => `$${v}` },
+    { title: '數量', dataIndex: 'qty', width: 70 },
+    { title: '小計', width: 100,
+      render: (_, r) => <Text strong>${(r.qty * r.b2bPrice).toLocaleString()}</Text> },
+  ]
+  return (
+    <Table
+      dataSource={items} rowKey="id" size="small" pagination={false}
+      showHeader={showHeader}
+      columns={columns}
+      summary={() => (
+        <Table.Summary.Row>
+          <Table.Summary.Cell colSpan={5} align="right"><strong>小計</strong></Table.Summary.Cell>
+          <Table.Summary.Cell>
+            <strong style={{ color: '#389e0d' }}>${subtotal.toLocaleString()}</strong>
+          </Table.Summary.Cell>
+        </Table.Summary.Row>
+      )}
+    />
+  )
+}
+
 function OrderPreviewModal({ open, onClose, items, channel, onConfirm }) {
-  const [addrLabels,      setAddrLabels]      = useState([])
-  const [settlementMonth, setSettlementMonth] = useState(dayjs().format('YYYY-MM'))
-  const [vendorNote,      setVendorNote]      = useState('')
-  const addresses    = channel?.addresses ?? []
-  const monthOptions = getSettlementMonthOptions()
+  const [addrLabels, setAddrLabels] = useState([])
+  const [vendorNote, setVendorNote] = useState('')
+  const addresses = channel?.addresses ?? []
+
+  // 結算月份自動計算：今天日期 > settlementDay → 下月；否則 → 本月
+  const now = dayjs()
+  const settlementMonth = now.date() > (channel?.settlementDay ?? 25)
+    ? now.add(1, 'month').format('YYYY-MM')
+    : now.format('YYYY-MM')
 
   if (!channel) return null
-  const total = items.reduce((s, i) => s + i.qty * i.b2bPrice, 0)
+
+  const frozenItems  = items.filter(i => i.category === 'frozen')
+  const ambientItems = items.filter(i => i.category === 'ambient')
+  const frozenSubtotal  = frozenItems.reduce((s, i) => s + i.qty * i.b2bPrice, 0)
+  const ambientSubtotal = ambientItems.reduce((s, i) => s + i.qty * i.b2bPrice, 0)
+  const { freeShippingThreshold, shippingFee } = systemSettings
+  const frozenShipping  = frozenItems.length > 0 && frozenSubtotal < freeShippingThreshold ? shippingFee * addrLabels.length : 0
+  const ambientShipping = ambientItems.length > 0 && ambientSubtotal < freeShippingThreshold ? shippingFee * addrLabels.length : 0
+  const total = frozenSubtotal + ambientSubtotal + frozenShipping + ambientShipping
+  const ordersPerAddr = (frozenItems.length > 0 ? 1 : 0) + (ambientItems.length > 0 ? 1 : 0)
+  const totalOrders   = addrLabels.length * ordersPerAddr
 
   const toggleAddr = (label, checked) => {
     setAddrLabels(prev =>
       checked ? [...prev, label] : prev.filter(l => l !== label)
     )
   }
+
+  const confirmLabel = addrLabels.length === 0
+    ? '確認送出B2B訂單'
+    : `確認送出B2B訂單（共 ${totalOrders} 筆）`
 
   return (
     <Modal
@@ -57,8 +129,7 @@ function OrderPreviewModal({ open, onClose, items, channel, onConfirm }) {
       afterOpenChange={vis => {
         if (vis) {
           setAddrLabels(addresses.length > 0 ? [addresses[0].label] : [])
-          setSettlementMonth(dayjs().format('YYYY-MM'))
-          setVendorNote('')
+          setVendorNote(channel?.default_vendor_note ?? '')
         }
       }}
       footer={[
@@ -68,7 +139,7 @@ function OrderPreviewModal({ open, onClose, items, channel, onConfirm }) {
           disabled={addrLabels.length === 0}
           onClick={() => onConfirm({ addrLabels, settlementMonth, vendorNote })}
         >
-          確認送出B2B訂單{addrLabels.length > 1 ? `（共 ${addrLabels.length} 筆）` : ''}
+          {confirmLabel}
         </Button>,
       ]}
     >
@@ -77,44 +148,69 @@ function OrderPreviewModal({ open, onClose, items, channel, onConfirm }) {
         <Descriptions.Item label="通路名稱">{channel.name}</Descriptions.Item>
         <Descriptions.Item label="統一編號">{channel.taxId}</Descriptions.Item>
         <Descriptions.Item label="結算月份">
-          <Select value={settlementMonth} onChange={setSettlementMonth}
-            style={{ width: '100%' }} options={monthOptions} />
+          <Text strong>{settlementMonth}</Text>
         </Descriptions.Item>
         <Descriptions.Item label="付款方式">
-          {channel.settlementMethod}，次月 {channel.settlementDay} 日前付款
+          於 {channel.settlementDay} 日收到結算單後匯款
         </Descriptions.Item>
       </Descriptions>
 
-      {/* ── 品項表格 ── */}
-      <Table
-        dataSource={items} rowKey="id" size="small" pagination={false}
-        columns={[
-          { title: '縮圖', width: 56, align: 'center',
-            render: (_, r) => r.thumbnailUrl
-              ? <img src={r.thumbnailUrl} alt="" style={{ width: 40, height: 40, objectFit: 'cover', borderRadius: 4 }} />
-              : <div style={{ width: 40, height: 40, background: '#f0f0f0', borderRadius: 4 }} /> },
-          { title: '品項', dataIndex: 'name',
-            render: (v, r) => (
-              <Space direction="vertical" size={0}>
-                <Space>{v}{r.spec && <Tag style={{ fontSize: 11 }}>{r.spec}</Tag>}</Space>
-                <Text type="secondary" style={{ fontSize: 11 }}>#{r.id}</Text>
-              </Space>
-            )},
-          { title: '單位', dataIndex: 'unit', width: 60 },
-          { title: '採購價', dataIndex: 'b2bPrice', width: 80, render: v => `$${v}` },
-          { title: '數量', dataIndex: 'qty', width: 70 },
-          { title: '小計', width: 100,
-            render: (_, r) => <Text strong>${(r.qty * r.b2bPrice).toLocaleString()}</Text> },
-        ]}
-        summary={() => (
-          <Table.Summary.Row>
-            <Table.Summary.Cell colSpan={5} align="right"><strong>訂購總金額</strong></Table.Summary.Cell>
-            <Table.Summary.Cell>
-              <strong style={{ color: '#1677ff', fontSize: 16 }}>${total.toLocaleString()}</strong>
-            </Table.Summary.Cell>
-          </Table.Summary.Row>
+      {/* ── 冷凍商品 ── */}
+      {frozenItems.length > 0 && (
+        <div style={{ marginBottom: 12 }}>
+          <div style={{
+            background: '#e6f4ff', border: '1px solid #91caff', borderRadius: '6px 6px 0 0',
+            padding: '5px 12px', fontWeight: 600, fontSize: 13, color: '#0958d9',
+          }}>
+            ❄️ 冷凍商品（將獨立產生一筆B2B訂單）
+          </div>
+          <ItemTable items={frozenItems} />
+          {frozenItems.length > 0 && frozenSubtotal < freeShippingThreshold && (
+            <div style={{ background: '#fff7e6', border: '1px solid #ffd591', borderTop: 'none', padding: '6px 12px', fontSize: 12, color: '#d46b08' }}>
+              ⚠ 冷凍訂單金額 ${frozenSubtotal.toLocaleString()} 未達免運門檻 ${freeShippingThreshold.toLocaleString()}，
+              {addrLabels.length > 0
+                ? `每門市加收運費 $${shippingFee}（共 ${addrLabels.length} 門市 = $${(shippingFee * addrLabels.length).toLocaleString()}）`
+                : `每筆將加收運費 $${shippingFee}`
+              }
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ── 常溫商品 ── */}
+      {ambientItems.length > 0 && (
+        <div style={{ marginBottom: 12 }}>
+          <div style={{
+            background: '#f6ffed', border: '1px solid #b7eb8f', borderRadius: '6px 6px 0 0',
+            padding: '5px 12px', fontWeight: 600, fontSize: 13, color: '#389e0d',
+          }}>
+            🌿 常溫商品（將獨立產生一筆B2B訂單）
+          </div>
+          <ItemTable items={ambientItems} showHeader={frozenItems.length === 0} />
+          {ambientItems.length > 0 && ambientSubtotal < freeShippingThreshold && (
+            <div style={{ background: '#fff7e6', border: '1px solid #ffd591', borderTop: 'none', padding: '6px 12px', fontSize: 12, color: '#d46b08' }}>
+              ⚠ 常溫訂單金額 ${ambientSubtotal.toLocaleString()} 未達免運門檻 ${freeShippingThreshold.toLocaleString()}，
+              {addrLabels.length > 0
+                ? `每門市加收運費 $${shippingFee}（共 ${addrLabels.length} 門市 = $${(shippingFee * addrLabels.length).toLocaleString()}）`
+                : `每筆將加收運費 $${shippingFee}`
+              }
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ── 合計 ── */}
+      <div style={{
+        textAlign: 'right', padding: '8px 12px', marginBottom: 12,
+        background: '#fafafa', border: '1px solid #f0f0f0', borderRadius: 6,
+      }}>
+        {(frozenShipping + ambientShipping) > 0 && (
+          <div style={{ fontSize: 12, color: '#d46b08', marginBottom: 4 }}>
+            運費合計：+${(frozenShipping + ambientShipping).toLocaleString()}
+          </div>
         )}
-      />
+        訂購總金額（含運費）：<strong style={{ color: '#1677ff', fontSize: 16 }}>${total.toLocaleString()}</strong>
+      </div>
 
       {/* ── 收貨地址選擇（多選）── */}
       <div style={{ marginTop: 16 }}>
@@ -135,14 +231,16 @@ function OrderPreviewModal({ open, onClose, items, channel, onConfirm }) {
             </Checkbox>
           ))}
         </div>
-        {addrLabels.length > 1 && (
+        {addrLabels.length > 0 && ordersPerAddr > 0 && (
           <div style={{
             marginTop: 10, padding: '8px 12px',
             background: '#e6f4ff', border: '1px solid #91caff', borderRadius: 6, fontSize: 13,
           }}>
             <InfoCircleOutlined style={{ color: '#1677ff', marginRight: 6 }} />
-            已選 <Text strong>{addrLabels.length}</Text> 個門市，確認後將各別產生{' '}
-            <Text strong>{addrLabels.length}</Text> 筆B2B訂單，每筆品項數量相同
+            已選 <Text strong>{addrLabels.length}</Text> 個門市 ×{' '}
+            <Text strong>{ordersPerAddr}</Text> 種溫層，確認後將產生{' '}
+            <Text strong>{totalOrders}</Text> 筆B2B訂單
+            {ordersPerAddr > 1 && '（冷凍、常溫各自獨立）'}
           </div>
         )}
         {addrLabels.length === 0 && (
@@ -154,8 +252,15 @@ function OrderPreviewModal({ open, onClose, items, channel, onConfirm }) {
 
       {/* ── 備註 ── */}
       <div style={{ marginTop: 16 }}>
-        <div style={{ fontSize: 13, color: '#888', marginBottom: 4 }}>備註（選填）</div>
-        <Input.TextArea rows={2} placeholder="如有特殊出貨需求或備註，請在此說明..."
+        <div style={{ fontSize: 13, color: '#888', marginBottom: 4 }}>
+          備註（選填）
+          {channel?.default_vendor_note && (
+            <Text type="secondary" style={{ fontSize: 11, marginLeft: 6 }}>
+              已自動帶入通路資料的預設備註，可直接修改。
+            </Text>
+          )}
+        </div>
+        <Input.TextArea rows={3} placeholder="如有特殊出貨需求或備註，請在此說明..."
           value={vendorNote} onChange={e => setVendorNote(e.target.value)} />
       </div>
 
@@ -168,15 +273,16 @@ function OrderPreviewModal({ open, onClose, items, channel, onConfirm }) {
 }
 
 // ── 商品分類列表 ──────────────────────────────────────────
-function ProductSection({ prods, qtyMap, setQty }) {
+function ProductSection({ prods, qtyMap, setQty, temperature = 'ambient' }) {
   const grouped   = groupBySubCategory(prods)
   const firstKey  = Object.keys(grouped)[0]
+  const style     = TEMP_STYLE[temperature] ?? TEMP_STYLE.ambient
   return (
     <>
       {Object.entries(grouped).map(([subCat, items]) => (
         <div key={subCat} style={{ marginBottom: 20 }}>
           <div style={{
-            background: '#f6ffed', border: '1px solid #b7eb8f', borderRadius: 6,
+            ...style, borderRadius: 6,
             padding: '6px 14px', fontWeight: 600, marginBottom: 6, fontSize: 13,
           }}>
             {subCat}
@@ -184,41 +290,51 @@ function ProductSection({ prods, qtyMap, setQty }) {
           <Table
             dataSource={items} rowKey="id" size="small"
             pagination={false} showHeader={subCat === firstKey}
+            rowClassName={r => r.stockMode === 'out_of_stock' ? 'row-out-of-stock' : ''}
             columns={[
               { title: '縮圖', width: 56, align: 'center',
-                render: (_, r) => r.thumbnailUrl
-                  ? <img src={r.thumbnailUrl} alt="" style={{ width: 40, height: 40, objectFit: 'cover', borderRadius: 4 }} />
-                  : <div style={{ width: 40, height: 40, background: '#f0f0f0', borderRadius: 4 }} />
+                render: (_, r) => {
+                  const img = r.thumbnailUrl
+                    ? <img src={r.thumbnailUrl} alt="" style={{ width: 40, height: 40, objectFit: 'cover', borderRadius: 4 }} />
+                    : <div style={{ width: 40, height: 40, background: '#f0f0f0', borderRadius: 4 }} />
+                  return r.stockMode === 'out_of_stock'
+                    ? <div style={{ opacity: 0.45, filter: 'grayscale(0.8)' }}>{img}</div>
+                    : img
+                }
               },
-              { title: '品項名稱', render: (_, r) => (
-                <Space direction="vertical" size={0}>
-                  <Space>
-                    {r.name}
-                    {r.spec && <Tag style={{ fontSize: 11 }}>{r.spec}</Tag>}
-                    {r.stockMode === 'out_of_stock' && (
-                      <Tag color="orange" style={{ fontSize: 11 }}>暫時缺貨</Tag>
+              { title: '品項名稱', render: (_, r) => {
+                const isOut = r.stockMode === 'out_of_stock'
+                return (
+                  <Space direction="vertical" size={0} style={isOut ? { color: '#bfbfbf' } : undefined}>
+                    {r.spec && (
+                      <Tag style={{ fontSize: 11, opacity: isOut ? 0.6 : 1 }}>{r.spec}</Tag>
                     )}
+                    <span style={isOut ? { color: '#bfbfbf' } : undefined}>{r.name}</span>
+                    <Text type="secondary" style={{ fontSize: 11 }}>#{r.id}</Text>
                   </Space>
-                  <Text type="secondary" style={{ fontSize: 11 }}>#{r.id}</Text>
-                </Space>
-              )},
-              { title: '單位', dataIndex: 'unit', width: 60, align: 'center' },
+                )
+              }},
+              { title: '單位', dataIndex: 'unit', width: 60, align: 'center',
+                render: (v, r) => r.stockMode === 'out_of_stock'
+                  ? <Text style={{ color: '#bfbfbf' }}>{v}</Text>
+                  : v },
               { title: '採購價', dataIndex: 'b2bPrice', width: 90, align: 'right',
                 render: (v, r) => r.stockMode === 'out_of_stock'
-                  ? <Text type="secondary">${v}</Text>
+                  ? <Text style={{ color: '#bfbfbf' }}>${v}</Text>
                   : <Text strong>${v}</Text> },
-              { title: '數量', width: 170, align: 'center',
+              { title: '數量', width: 120, align: 'center',
                 render: (_, r) => {
-                  const isOutOfStock = r.stockMode === 'out_of_stock'
+                  if (r.stockMode === 'out_of_stock') {
+                    return <Text style={{ color: '#bfbfbf', fontSize: 13 }}>暫時缺貨</Text>
+                  }
                   const max = r.stockMode === 'limited' ? r.stockLimit : undefined
                   return (
-                    <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: 6 }}>
+                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2 }}>
                       <InputNumber
                         min={0} max={max} size="small"
                         value={qtyMap[r.id] ?? 0}
                         onChange={v => setQty(r.id, v ?? 0)}
                         style={{ width: 100 }}
-                        disabled={isOutOfStock}
                         className="vendor-qty-input"
                       />
                       {r.stockMode === 'limited' && (
@@ -229,11 +345,25 @@ function ProductSection({ prods, qtyMap, setQty }) {
                 }},
               { title: '小計', width: 100, align: 'right',
                 render: (_, r) => {
+                  if (r.stockMode === 'out_of_stock') return <Text style={{ color: '#bfbfbf' }}>—</Text>
                   const q = qtyMap[r.id] ?? 0
                   return q > 0
                     ? <Text strong style={{ color: '#389e0d' }}>${(q * r.b2bPrice).toLocaleString()}</Text>
                     : <Text type="secondary">—</Text>
                 }},
+              { title: '產品展示', width: 90, align: 'center',
+                render: (_, r) => r.frontend_product_id
+                  ? (
+                    <Button
+                      size="small"
+                      type="link"
+                      onClick={() => window.open('https://www.google.com', '_blank')}
+                    >
+                      查看
+                    </Button>
+                  )
+                  : <Text type="secondary" style={{ fontSize: 11 }}>—</Text>
+              },
             ]}
           />
         </div>
@@ -275,9 +405,11 @@ export default function VendorOrderForm() {
     tpl?.productIds.includes(p.id) && p.isListed !== false
   )
 
-  const frozenProds  = tplProducts.filter(p => p.category === 'frozen' && p.subCategory !== '高湯')
-  const ambientProds = tplProducts.filter(p => p.category === 'ambient')
-  const soupProds    = tplProducts.filter(p => p.subCategory === '高湯')
+  // 依大分類歸類（與後台共用邏輯）
+  const productsByCat = categories.reduce((acc, cat) => {
+    acc[cat.id] = tplProducts.filter(p => getProductCatId(p) === cat.id)
+    return acc
+  }, {})
 
   const hasPricingNote    = !!channel.pricingNote
   const hasVolumeDiscount = !!(channel.volumeDiscount && channel.volumeDiscount !== '無')
@@ -330,21 +462,34 @@ export default function VendorOrderForm() {
     .filter(p => (qtyMap[p.id] ?? 0) > 0 && p.stockMode !== 'out_of_stock')
     .map(p => ({ ...p, qty: qtyMap[p.id] }))
 
-  const total = orderedItems.reduce((s, i) => s + i.qty * i.b2bPrice, 0)
+  const frozenOrdered  = orderedItems.filter(i => i.category === 'frozen')
+  const ambientOrdered = orderedItems.filter(i => i.category === 'ambient')
+  const frozenTotal    = frozenOrdered.reduce((s, i) => s + i.qty * i.b2bPrice, 0)
+  const ambientTotal   = ambientOrdered.reduce((s, i) => s + i.qty * i.b2bPrice, 0)
+  const { freeShippingThreshold, shippingFee } = systemSettings
+  const frozenBelowThreshold  = frozenOrdered.length > 0 && frozenTotal < freeShippingThreshold
+  const ambientBelowThreshold = ambientOrdered.length > 0 && ambientTotal < freeShippingThreshold
+  const total = frozenTotal + ambientTotal
 
   // 第一步：關閉預覽 Modal，開啟通知預覽
   const handleConfirm = ({ addrLabels, settlementMonth, vendorNote }) => {
     setPreviewOpen(false)
     const now = new Date().toLocaleString('zh-TW', { hour12: false }).replace(',', '')
+    const ordersPerAddr = (frozenOrdered.length > 0 ? 1 : 0) + (ambientOrdered.length > 0 ? 1 : 0)
     setPendingSubmit({ addrLabels, settlementMonth, vendorNote })
     setNotifData({
-      channelName:   channel.name,
+      channelName:    channel.name,
       settlementMonth,
-      itemCount:     orderedItems.length,
+      itemCount:      orderedItems.length,
       total,
-      vendorNote:    vendorNote || null,
-      addrCount:     addrLabels.length,
-      submittedAt:   now,
+      frozenCount:    frozenOrdered.length,
+      frozenTotal,
+      ambientCount:   ambientOrdered.length,
+      ambientTotal,
+      vendorNote:     vendorNote || null,
+      addrCount:      addrLabels.length,
+      orderCount:     addrLabels.length * ordersPerAddr,
+      submittedAt:    now,
     })
     setNotifOpen(true)
   }
@@ -360,17 +505,36 @@ export default function VendorOrderForm() {
 
   return (
     <div style={{ padding: 24, maxWidth: 960 }}>
-      <style>{`.vendor-qty-input .ant-input-number-input { text-align: center !important; }`}</style>
+      <style>{`
+        .vendor-qty-input .ant-input-number-input { text-align: center !important; }
+        .row-out-of-stock td { background: #fafafa !important; }
+      `}</style>
 
       {/* ── 標題列 ── */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
         <Title level={4} style={{ margin: 0 }}>商品採購</Title>
-        <div style={{
-          background: '#f6ffed', border: '1px solid #b7eb8f', borderRadius: 8,
-          padding: '5px 14px', fontSize: 14, fontWeight: 600, color: '#389e0d',
-        }}>
-          月結日：每月 {channel.settlementDay} 日
-        </div>
+        <Space>
+          <Button
+            icon={<DownloadOutlined />}
+            onClick={async () => {
+              try {
+                await exportBlankOrder({ channel, productsByCat, categories, systemSettings })
+                message.success('空白採購單已下載')
+              } catch (err) {
+                console.error(err)
+                message.error('匯出失敗，請檢查瀏覽器 console')
+              }
+            }}
+          >
+            下載空白採購單
+          </Button>
+          <div style={{
+            background: '#f6ffed', border: '1px solid #b7eb8f', borderRadius: 8,
+            padding: '5px 14px', fontSize: 14, fontWeight: 600, color: '#389e0d',
+          }}>
+            月結日：每月 {channel.settlementDay} 日
+          </div>
+        </Space>
       </div>
 
       {/* ── 議價備註（移除大標題，各類別各自顯示）── */}
@@ -403,27 +567,40 @@ export default function VendorOrderForm() {
       )}
 
       {/* ── 已選品項摘要（常駐）── */}
-      <Card size="small" style={{ marginBottom: 12 }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 16 }}>
-          <Space wrap style={{ flex: 1 }}>
-            <Text>
-              已選 <Text strong>{orderedItems.length}</Text> 項
-            </Text>
-            {orderedItems.length === 0 ? (
-              <Text type="secondary" style={{ fontSize: 12 }}>尚未選購任何商品</Text>
-            ) : (
-              orderedItems.map(i => (
-                <Tag key={i.id} closable onClose={() => setQty(i.id, 0)}>
-                  {i.name} × {i.qty}
-                </Tag>
-              ))
-            )}
-          </Space>
-          <div style={{ whiteSpace: 'nowrap', paddingTop: 2 }}>
-            合計 <Text strong style={{ color: '#1677ff' }}>${total.toLocaleString()}</Text>
-          </div>
+      {orderedItems.length === 0 ? (
+        <Card size="small" style={{ marginBottom: 12 }}>
+          <Text type="secondary" style={{ fontSize: 12 }}>尚未選購任何商品</Text>
+        </Card>
+      ) : (
+        <div style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
+          {frozenOrdered.length > 0 && (
+            <Card size="small" style={{ flex: 1, borderColor: frozenBelowThreshold ? '#ffd591' : '#91caff', background: frozenBelowThreshold ? '#fffbe6' : '#f0f5ff' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                <span>❄️ 冷凍　已選 <Text strong>{frozenOrdered.length}</Text> 項</span>
+                <Text strong style={{ color: '#1677ff' }}>${frozenTotal.toLocaleString()}</Text>
+              </div>
+              {frozenBelowThreshold && (
+                <div style={{ fontSize: 11, color: '#d46b08', marginTop: 2 }}>
+                  未達免運門檻 ${freeShippingThreshold.toLocaleString()}，每筆加收運費 ${shippingFee}
+                </div>
+              )}
+            </Card>
+          )}
+          {ambientOrdered.length > 0 && (
+            <Card size="small" style={{ flex: 1, borderColor: ambientBelowThreshold ? '#ffd591' : '#b7eb8f', background: ambientBelowThreshold ? '#fffbe6' : '#f6ffed' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                <span>🌿 常溫　已選 <Text strong>{ambientOrdered.length}</Text> 項</span>
+                <Text strong style={{ color: '#389e0d' }}>${ambientTotal.toLocaleString()}</Text>
+              </div>
+              {ambientBelowThreshold && (
+                <div style={{ fontSize: 11, color: '#d46b08', marginTop: 2 }}>
+                  未達免運門檻 ${freeShippingThreshold.toLocaleString()}，每筆加收運費 ${shippingFee}
+                </div>
+              )}
+            </Card>
+          )}
         </div>
-      </Card>
+      )}
 
       {/* ── 填寫採購數量 ── */}
       <Card
@@ -440,30 +617,22 @@ export default function VendorOrderForm() {
         }
       >
         <Tabs
-          items={[
-            {
-              key: 'frozen',
-              label: `❄️ 冷凍商品（${frozenProds.length} 項）`,
-              children: <ProductSection prods={frozenProds} qtyMap={qtyMap} setQty={setQty} />,
-            },
-            {
-              key: 'ambient',
-              label: `🌿 常溫商品（${ambientProds.length} 項）`,
-              children: <ProductSection prods={ambientProds} qtyMap={qtyMap} setQty={setQty} />,
-            },
-            {
-              key: 'adult',
-              label: soupProds.length > 0 ? `🍲 大人系（${soupProds.length} 項）` : '🍲 大人系',
-              children: soupProds.length > 0
-                ? <ProductSection prods={soupProds} qtyMap={qtyMap} setQty={setQty} />
-                : <ComingSoonTab emoji="🍲" />,
-            },
-            {
-              key: 'green',
-              label: '🍹 綠時光',
-              children: <ComingSoonTab emoji="🍹" />,
-            },
-          ]}
+          items={categories.map(cat => {
+            const catProds = productsByCat[cat.id] ?? []
+            const icon     = TEMP_ICON[cat.temperature] ?? ''
+            return {
+              key: cat.id,
+              label: catProds.length > 0
+                ? `${icon} ${cat.name}（${catProds.length} 項）`
+                : `${icon} ${cat.name}`,
+              children: catProds.length > 0
+                ? <ProductSection
+                    prods={catProds} qtyMap={qtyMap} setQty={setQty}
+                    temperature={cat.temperature}
+                  />
+                : <ComingSoonTab emoji={icon} />,
+            }
+          })}
         />
       </Card>
 
