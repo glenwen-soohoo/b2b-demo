@@ -38,9 +38,7 @@ function CategoryModal({ open, onClose, onSave, initial }) {
         <Form.Item label="分類名稱" name="name" rules={[{ required: true }]}>
           <Input placeholder="例：大人系" maxLength={20} />
         </Form.Item>
-        <Form.Item label="溫層" name="temperature" rules={[{ required: true }]}
-          help="決定此大分類下的商品屬於冷凍或常溫"
-        >
+        <Form.Item label="溫層" name="temperature" rules={[{ required: true }]}>
           <Select options={TEMP_OPTIONS} />
         </Form.Item>
       </Form>

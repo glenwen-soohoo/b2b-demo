@@ -3,7 +3,7 @@
 import jsPDF from 'jspdf'
 import html2canvas from 'html2canvas'
 import { makeEan13PngBuffer } from './barcodePng'
-import { products, categories as allCats } from '../data/fakeData'
+import { products, categories as allCats, shippingSettings } from '../data/fakeData'
 
 const LOGO_PATH = `${import.meta.env.BASE_URL}assets/logo.png`
 // 前台商品頁 URL 樣板（之後可替換為正式網域）
@@ -139,7 +139,7 @@ function buildTemperaturePageHtml({ temperature, groupProducts, template, channe
         <div>2. 以上價格皆為 <strong>含稅</strong> 之 B2B 合作價；實際出貨金額以訂單確認為準。</div>
         <div>3. 付款方式：月結 30 天（每月 25 日前付清當期帳款）。</div>
         <div>4. 合作方式：買斷；已出貨商品恕不退換。出貨方式：黑貓宅配。</div>
-        <div>5. 運費說明：單筆訂單未滿 NT$ 3,500 酌收運費 NT$ 150。</div>
+        <div>5. 運費說明：冷凍單筆未滿 NT$ ${shippingSettings.frozen.freeShippingThreshold.toLocaleString()} 酌收 NT$ ${shippingSettings.frozen.shippingFee}，常溫單筆未滿 NT$ ${shippingSettings.ambient.freeShippingThreshold.toLocaleString()} 酌收 NT$ ${shippingSettings.ambient.shippingFee}。</div>
         <div>6. 【匯款資訊】戶名：舒果農企業有限公司 / 金融機構代碼：兆豐 0170077 / 帳號：00709001170</div>
       </div>
     </div>

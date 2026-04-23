@@ -10,7 +10,7 @@ import {
   EnvironmentOutlined, WarningOutlined, InfoCircleOutlined,
   DownloadOutlined,
 } from '@ant-design/icons'
-import { products, templates, categories, systemSettings } from '../../data/fakeData'
+import { products, templates, categories, systemSettings, shippingSettings } from '../../data/fakeData'
 import { useVendor } from '../../context/VendorContext'
 import NotificationPreviewModal from '../../components/NotificationPreviewModal'
 import { exportBlankOrder } from '../../utils/exportBlankOrder'
@@ -104,9 +104,12 @@ function OrderPreviewModal({ open, onClose, items, channel, onConfirm }) {
   const ambientItems = items.filter(i => i.category === 'ambient')
   const frozenSubtotal  = frozenItems.reduce((s, i) => s + i.qty * i.b2bPrice, 0)
   const ambientSubtotal = ambientItems.reduce((s, i) => s + i.qty * i.b2bPrice, 0)
-  const { freeShippingThreshold, shippingFee } = systemSettings
-  const frozenShipping  = frozenItems.length > 0 && frozenSubtotal < freeShippingThreshold ? shippingFee * addrLabels.length : 0
-  const ambientShipping = ambientItems.length > 0 && ambientSubtotal < freeShippingThreshold ? shippingFee * addrLabels.length : 0
+  const frozenCfg  = shippingSettings.frozen
+  const ambientCfg = shippingSettings.ambient
+  const frozenShipping  = frozenItems.length > 0 && frozenSubtotal < frozenCfg.freeShippingThreshold
+    ? frozenCfg.shippingFee * addrLabels.length : 0
+  const ambientShipping = ambientItems.length > 0 && ambientSubtotal < ambientCfg.freeShippingThreshold
+    ? ambientCfg.shippingFee * addrLabels.length : 0
   const total = frozenSubtotal + ambientSubtotal + frozenShipping + ambientShipping
   const ordersPerAddr = (frozenItems.length > 0 ? 1 : 0) + (ambientItems.length > 0 ? 1 : 0)
   const totalOrders   = addrLabels.length * ordersPerAddr
@@ -165,12 +168,12 @@ function OrderPreviewModal({ open, onClose, items, channel, onConfirm }) {
             ❄️ 冷凍商品（將獨立產生一筆B2B訂單）
           </div>
           <ItemTable items={frozenItems} />
-          {frozenItems.length > 0 && frozenSubtotal < freeShippingThreshold && (
+          {frozenItems.length > 0 && frozenSubtotal < frozenCfg.freeShippingThreshold && (
             <div style={{ background: '#fff7e6', border: '1px solid #ffd591', borderTop: 'none', padding: '6px 12px', fontSize: 12, color: '#d46b08' }}>
-              ⚠ 冷凍訂單金額 ${frozenSubtotal.toLocaleString()} 未達免運門檻 ${freeShippingThreshold.toLocaleString()}，
+              ⚠ 冷凍訂單金額 ${frozenSubtotal.toLocaleString()} 未達免運門檻 ${frozenCfg.freeShippingThreshold.toLocaleString()}，
               {addrLabels.length > 0
-                ? `每門市加收運費 $${shippingFee}（共 ${addrLabels.length} 門市 = $${(shippingFee * addrLabels.length).toLocaleString()}）`
-                : `每筆將加收運費 $${shippingFee}`
+                ? `每門市加收運費 $${frozenCfg.shippingFee}（共 ${addrLabels.length} 門市 = $${(frozenCfg.shippingFee * addrLabels.length).toLocaleString()}）`
+                : `每筆將加收運費 $${frozenCfg.shippingFee}`
               }
             </div>
           )}
@@ -187,12 +190,12 @@ function OrderPreviewModal({ open, onClose, items, channel, onConfirm }) {
             🌿 常溫商品（將獨立產生一筆B2B訂單）
           </div>
           <ItemTable items={ambientItems} showHeader={frozenItems.length === 0} />
-          {ambientItems.length > 0 && ambientSubtotal < freeShippingThreshold && (
+          {ambientItems.length > 0 && ambientSubtotal < ambientCfg.freeShippingThreshold && (
             <div style={{ background: '#fff7e6', border: '1px solid #ffd591', borderTop: 'none', padding: '6px 12px', fontSize: 12, color: '#d46b08' }}>
-              ⚠ 常溫訂單金額 ${ambientSubtotal.toLocaleString()} 未達免運門檻 ${freeShippingThreshold.toLocaleString()}，
+              ⚠ 常溫訂單金額 ${ambientSubtotal.toLocaleString()} 未達免運門檻 ${ambientCfg.freeShippingThreshold.toLocaleString()}，
               {addrLabels.length > 0
-                ? `每門市加收運費 $${shippingFee}（共 ${addrLabels.length} 門市 = $${(shippingFee * addrLabels.length).toLocaleString()}）`
-                : `每筆將加收運費 $${shippingFee}`
+                ? `每門市加收運費 $${ambientCfg.shippingFee}（共 ${addrLabels.length} 門市 = $${(ambientCfg.shippingFee * addrLabels.length).toLocaleString()}）`
+                : `每筆將加收運費 $${ambientCfg.shippingFee}`
               }
             </div>
           )}
@@ -466,9 +469,8 @@ export default function VendorOrderForm() {
   const ambientOrdered = orderedItems.filter(i => i.category === 'ambient')
   const frozenTotal    = frozenOrdered.reduce((s, i) => s + i.qty * i.b2bPrice, 0)
   const ambientTotal   = ambientOrdered.reduce((s, i) => s + i.qty * i.b2bPrice, 0)
-  const { freeShippingThreshold, shippingFee } = systemSettings
-  const frozenBelowThreshold  = frozenOrdered.length > 0 && frozenTotal < freeShippingThreshold
-  const ambientBelowThreshold = ambientOrdered.length > 0 && ambientTotal < freeShippingThreshold
+  const frozenBelowThreshold  = frozenOrdered.length > 0 && frozenTotal < shippingSettings.frozen.freeShippingThreshold
+  const ambientBelowThreshold = ambientOrdered.length > 0 && ambientTotal < shippingSettings.ambient.freeShippingThreshold
   const total = frozenTotal + ambientTotal
 
   // 第一步：關閉預覽 Modal，開啟通知預覽
@@ -581,7 +583,7 @@ export default function VendorOrderForm() {
               </div>
               {frozenBelowThreshold && (
                 <div style={{ fontSize: 11, color: '#d46b08', marginTop: 2 }}>
-                  未達免運門檻 ${freeShippingThreshold.toLocaleString()}，每筆加收運費 ${shippingFee}
+                  未達免運門檻 ${shippingSettings.frozen.freeShippingThreshold.toLocaleString()}，每筆加收運費 ${shippingSettings.frozen.shippingFee}
                 </div>
               )}
             </Card>
@@ -594,7 +596,7 @@ export default function VendorOrderForm() {
               </div>
               {ambientBelowThreshold && (
                 <div style={{ fontSize: 11, color: '#d46b08', marginTop: 2 }}>
-                  未達免運門檻 ${freeShippingThreshold.toLocaleString()}，每筆加收運費 ${shippingFee}
+                  未達免運門檻 ${shippingSettings.ambient.freeShippingThreshold.toLocaleString()}，每筆加收運費 ${shippingSettings.ambient.shippingFee}
                 </div>
               )}
             </Card>

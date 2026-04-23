@@ -1,6 +1,7 @@
 // 空白採購單 Excel（v6 — 對齊範例 PDF）
 import ExcelJS from 'exceljs'
 import { makeEan13PngBuffer } from './barcodePng'
+import { shippingSettings } from '../data/fakeData'
 
 const LOGO_PATH = `${import.meta.env.BASE_URL}assets/logo.png`
 
@@ -208,8 +209,10 @@ function buildSheet(wb, logoImageId, { cat, prods, channel, systemSettings }) {
   row++
 
   // ══════ 小計 / 運費 / 折扣 / 訂單總金額 ══════
-  const freeThr     = systemSettings?.freeShippingThreshold ?? 3500
-  const shippingFee = systemSettings?.shippingFee ?? 150
+  // 依該大分類的溫層取運費設定
+  const tempSetting = shippingSettings[cat.temperature] ?? shippingSettings.frozen
+  const freeThr     = tempSetting.freeShippingThreshold
+  const shippingFee = tempSetting.shippingFee
   const sumRange = firstProductRow
     ? `E${firstProductRow}:E${lastProductRow}`
     : `E${row - 2}:E${row - 2}`

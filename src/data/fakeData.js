@@ -958,7 +958,14 @@ export const fakeOrders = formalOrders;
 // ─────────────────────────────────────────────
 // 系統設定
 // ─────────────────────────────────────────────
+// 運費設定（依溫層分開計算）
+export const shippingSettings = {
+  frozen:  { freeShippingThreshold: 3000, shippingFee: 200 },
+  ambient: { freeShippingThreshold: 2000, shippingFee: 150 },
+};
+
+// 保留 systemSettings 作為全域參數容器（目前放冷凍預設供 fallback）
 export const systemSettings = {
-  freeShippingThreshold: 3000,
-  shippingFee: 200,
+  freeShippingThreshold: shippingSettings.frozen.freeShippingThreshold,
+  shippingFee:           shippingSettings.frozen.shippingFee,
 };

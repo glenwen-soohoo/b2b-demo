@@ -2,7 +2,7 @@
 import jsPDF from 'jspdf'
 import html2canvas from 'html2canvas'
 import { makeEan13PngBuffer } from './barcodePng'
-import { productMap, categories as allCats } from '../data/fakeData'
+import { productMap, categories as allCats, shippingSettings } from '../data/fakeData'
 
 const LOGO_PATH = `${import.meta.env.BASE_URL}assets/logo.png`
 
@@ -67,8 +67,10 @@ function buildTemperaturePageHtml({ temperature, groupItems, order, channel, sys
   const tempIcon  = temperature === 'frozen' ? '❄️' : '🌿'
   const tempLabel = temperature === 'frozen' ? '冷凍品項' : '常溫品項'
   const settlementDay = channel?.settlementDay ?? 25
-  const freeThr     = systemSettings?.freeShippingThreshold ?? 3500
-  const shippingFee = systemSettings?.shippingFee ?? 150
+  // 按溫層取運費設定
+  const tempSetting = shippingSettings[temperature] ?? shippingSettings.frozen
+  const freeThr     = tempSetting.freeShippingThreshold
+  const shippingFee = tempSetting.shippingFee
 
   // 子分類分組
   const bySub = {}

@@ -13,6 +13,7 @@ import AdminProducts     from './pages/admin/AdminProducts'
 import AdminCategories  from './pages/admin/AdminCategories'
 import AdminChannels     from './pages/admin/AdminChannels'
 import AdminTemplates    from './pages/admin/AdminTemplates'
+import AdminShipping     from './pages/admin/AdminShipping'
 import AnalyticsPage     from './pages/AnalyticsPage'
 
 export default function App() {
@@ -37,6 +38,7 @@ export default function App() {
         <Route path="settlements" element={<AdminSettlements />} />
         <Route path="products"    element={<AdminProducts />} />
         <Route path="categories"  element={<AdminCategories />} />
+        <Route path="shipping"    element={<AdminShipping />} />
         <Route path="channels"    element={<AdminChannels />} />
         <Route path="templates"   element={<AdminTemplates />} />
         <Route path="analytics"   element={<AnalyticsPage />} />
