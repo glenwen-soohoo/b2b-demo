@@ -6,6 +6,8 @@ import {
 import { CheckOutlined, InboxOutlined } from '@ant-design/icons'
 import { preOrders as initPreOrders } from '../../data/fakeData'
 import NotificationPreviewModal from '../../components/NotificationPreviewModal'
+// TODO_FRUIT_WEB: 倉庫確認時替換為 orderService.buildWarehouseConfirmPatch(order, adjItems, channel)
+// 參考: src/services/orderService.js createFruitOrderFromB2B()
 
 const { Text, Title } = Typography
 
@@ -51,7 +53,7 @@ export default function WarehouseOrders() {
         adjustedQty: adjQtyMap[i.productId] ?? i.qty,
       }))
 
-    const backendOrderId = `EZPOS-${Math.floor(8000 + Math.random() * 2000)}`
+    const backendOrderId = `FRUIT-${Math.floor(8000 + Math.random() * 2000)}` // TODO: replace with real fruitOrderNumber from API
     const now = new Date().toLocaleString('zh-TW', { hour12: false }).replace(',', '')
 
     const logMsg = diffs.length > 0

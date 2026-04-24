@@ -115,9 +115,11 @@ function OrderDetailDrawer({ order, open, onClose, onReorder, onSaveItems, chann
         <Descriptions.Item label="下單日期">{order.createdAt}</Descriptions.Item>
         <Descriptions.Item label="收貨地址" span={2}>{order.shippingAddress}</Descriptions.Item>
         <Descriptions.Item label="正式訂單編號" span={2}>
-          {order.backendOrderId
-            ? <Text code style={{ fontSize: 13 }}>{order.backendOrderId}</Text>
-            : <Text type="secondary">尚未建立正式訂單</Text>
+          {order.fruitOrderNumber
+            ? <><Text code style={{ fontSize: 13 }}>{order.fruitOrderNumber}</Text><Text type="secondary" style={{ fontSize: 11, marginLeft: 4 }}>（無毒農）</Text></>
+            : order.backendOrderId
+              ? <Text code style={{ fontSize: 13, color: '#8c8c8c' }}>{order.backendOrderId}</Text>
+              : <Text type="secondary">尚未建立正式訂單</Text>
           }
         </Descriptions.Item>
         <Descriptions.Item label="我的備註" span={2}>

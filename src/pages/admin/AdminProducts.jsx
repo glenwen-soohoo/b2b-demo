@@ -1,20 +1,17 @@
 import { useMemo, useState } from 'react'
 import {
   Table, Tag, Typography, Card, Row, Col, Statistic, Select, Space,
-  Badge, Button, Modal, Form, Input, InputNumber, Popconfirm, message,
+  Button, Dropdown, Modal, Form, Input, InputNumber, Popconfirm, message,
   Switch, Segmented, Divider,
 } from 'antd'
-import { PlusOutlined, EditOutlined, DeleteOutlined } from '@ant-design/icons'
+import { PlusOutlined, EditOutlined, DeleteOutlined, CheckCircleOutlined, ExclamationCircleOutlined, LinkOutlined, DownOutlined, ReloadOutlined } from '@ant-design/icons'
 import { products as initialProducts, categories as initCategories } from '../../data/fakeData'
 import Barcode from '../../components/Barcode'
+import { TEMP } from '../../styles/tokens'
 
 const { Title, Text } = Typography
 
-const TEMP_LABEL  = { frozen: '❄️ 冷凍', ambient: '🌿 常溫' }
-const TEMP_STYLE  = {
-  frozen:  { bg: '#e6f4ff', border: '#91caff', icon: '❄️' },
-  ambient: { bg: '#f6ffed', border: '#b7eb8f', icon: '🌿' },
-}
+const TEMP_LABEL = { frozen: `${TEMP.frozen.icon} 冷凍`, ambient: `${TEMP.ambient.icon} 常溫` }
 
 // 將商品對應到大分類（與前台、模板共用邏輯）
 function getProductCatId(product, cats) {
@@ -31,8 +28,10 @@ const STOCK_MODE_OPTIONS = [
 ]
 
 function ProductModal({ open, onClose, onSave, initial, categories }) {
-  const [form]       = Form.useForm()
-  const [catId, setCatId] = useState(initial?.mainCategoryId ?? categories[0]?.id ?? '')
+  const [form]                       = Form.useForm()
+  const [catId,       setCatId]      = useState(initial?.mainCategoryId ?? categories[0]?.id ?? '')
+  const [linkStatus,  setLinkStatus] = useState('none')   // 'none' | 'linked' | 'invalid'
+  const [linking,     setLinking]    = useState(false)
 
   const currentCat = categories.find(c => c.id === catId)
 
@@ -42,6 +41,19 @@ function ProductModal({ open, onClose, onSave, initial, categories }) {
       onSave({ ...initial, ...values, category: cat?.temperature ?? 'frozen' })
       onClose()
     })
+  }
+
+  // TODO_FRUIT_WEB: 串接 /api/products/detail/{id} 確認規格ID存在
+  const handleLink = async () => {
+    const fruitId = form.getFieldValue('fruitProductDetailId')
+    if (!fruitId) { message.warning('請先輸入產品規格 ID'); return }
+    setLinking(true)
+    await new Promise(r => setTimeout(r, 500))   // mock 驗證延遲
+    setLinking(false)
+    setLinkStatus('linked')
+    // mock thumbnail — 真實串接後由 API 回傳
+    form.setFieldValue('thumbnailUrl', `https://placehold.co/80x80?text=${fruitId}`)
+    message.success(`規格 ID ${fruitId} 連結成功`)
   }
 
   return (
@@ -56,6 +68,7 @@ function ProductModal({ open, onClose, onSave, initial, categories }) {
       destroyOnClose
       afterOpenChange={isOpen => {
         if (isOpen) {
+          form.resetFields()
           const defaultCatId = initial?.mainCategoryId
             ?? (initial?.id ? getProductCatId(initial, categories) : null)
             ?? categories[0]?.id
@@ -67,6 +80,8 @@ function ProductModal({ open, onClose, onSave, initial, categories }) {
             mainCategoryId: defaultCatId,
           })
           setCatId(defaultCatId)
+          setLinkStatus(initial?.fruitProductDetailId ? 'linked' : 'none')
+          setLinking(false)
         }
       }}
     >
@@ -75,13 +90,12 @@ function ProductModal({ open, onClose, onSave, initial, categories }) {
         <Row gutter={16} align="bottom">
           <Col flex="96px">
             <Form.Item
-              shouldUpdate={(p, c) => p.ezposId !== c.ezposId || p.thumbnailUrl !== c.thumbnailUrl}
+              shouldUpdate={(p, c) => p.thumbnailUrl !== c.thumbnailUrl}
               style={{ marginBottom: 24 }}
             >
               {({ getFieldValue }) => {
                 const url = getFieldValue('thumbnailUrl')
-                const ezposId = getFieldValue('ezposId')
-                if (url) {
+                if (url && linkStatus === 'linked') {
                   return <img src={url} alt="" style={{ width: 80, height: 80, objectFit: 'cover', borderRadius: 6, border: '1px solid #f0f0f0', display: 'block' }} />
                 }
                 return (
@@ -91,7 +105,7 @@ function ProductModal({ open, onClose, onSave, initial, categories }) {
                     color: '#bfbfbf', fontSize: 11, textAlign: 'center', padding: 4, lineHeight: 1.3,
                     whiteSpace: 'pre-line',
                   }}>
-                    {ezposId ? '依規格 ID\n自動帶入' : '無圖'}
+                    {linkStatus === 'invalid' ? '連結失效' : '無圖'}
                   </div>
                 )
               }}
@@ -115,13 +129,89 @@ function ProductModal({ open, onClose, onSave, initial, categories }) {
 
         <Row gutter={12}>
           <Col span={12}>
-            <Form.Item label="產品規格 ID" name="ezposId" rules={[{ required: true, message: '請輸入產品規格 ID' }]}>
-              <Input placeholder="例：159476" />
+            <Form.Item label="產品規格 ID (fruitProductDetailId)" name="fruitProductDetailId"
+              rules={[{ required: true, message: '請輸入產品規格 ID' }]}>
+              <Input
+                placeholder="例：159476"
+                disabled={linkStatus === 'linked'}
+                addonAfter={
+                  linkStatus === 'linked' ? (
+                    <Dropdown
+                      trigger={['click']}
+                      menu={{
+                        items: [
+                          {
+                            key: 'edit',
+                            icon: <LinkOutlined />,
+                            label: '開啟後台編輯頁',
+                            onClick: () => {
+                              const fid = form.getFieldValue('fruitProductDetailId')
+                              window.open(`https://greenbox.tw/GoX/Product/Edit18/${fid}?fun_id=3033`, '_blank')
+                            },
+                          },
+                          { type: 'divider' },
+                          {
+                            key: 'relink',
+                            icon: <ReloadOutlined />,
+                            label: '重新連結',
+                            danger: true,
+                            onClick: () => {
+                              setLinkStatus('none')
+                              form.setFieldValue('thumbnailUrl', '')
+                            },
+                          },
+                        ],
+                      }}
+                    >
+                      <Button type="link" size="small"
+                        style={{ padding: 0, color: '#52c41a', height: 'auto', fontSize: 12 }}
+                      >
+                        <CheckCircleOutlined style={{ marginRight: 4 }} />
+                        已連結
+                        <DownOutlined style={{ fontSize: 9, marginLeft: 3 }} />
+                      </Button>
+                    </Dropdown>
+                  ) : linkStatus === 'invalid' ? (
+                    <span style={{ color: '#ff4d4f', fontSize: 12, userSelect: 'none' }}>
+                      <ExclamationCircleOutlined style={{ marginRight: 4 }} />連結失效
+                    </span>
+                  ) : (
+                    <Button type="link" size="small" loading={linking}
+                      style={{ padding: 0, color: '#1677ff', height: 'auto' }}
+                      onClick={handleLink}
+                    >
+                      {linking ? '' : '連結ID'}
+                    </Button>
+                  )
+                }
+              />
             </Form.Item>
           </Col>
           <Col span={12}>
-            <Form.Item label="前台展示頁面 ID" name="frontend_product_id">
-              <Input placeholder="例：163522" />
+            <Form.Item
+              label="前台展示頁面 ID"
+              shouldUpdate={(p, c) => p.frontend_product_id !== c.frontend_product_id}
+            >
+              {({ getFieldValue }) => {
+                const fid = getFieldValue('frontend_product_id')
+                return (
+                  <Form.Item name="frontend_product_id" noStyle>
+                    <Input
+                      placeholder="例：163522"
+                      addonAfter={
+                        <Button
+                          type="link" size="small" icon={<LinkOutlined />}
+                          disabled={!fid}
+                          style={{ padding: 0, height: 'auto', color: fid ? '#1677ff' : '#bfbfbf' }}
+                          onClick={() => window.open(`https://greenbox.tw/Products/ItemDetail/${fid}`, '_blank')}
+                        >
+                          開啟頁面
+                        </Button>
+                      }
+                    />
+                  </Form.Item>
+                )
+              }}
             </Form.Item>
           </Col>
         </Row>
@@ -257,7 +347,7 @@ export default function AdminProducts() {
   const grouped = useMemo(() => {
     const map = {}
     filtered.forEach(p => {
-      const catId  = getProductCatId(p, categories)
+      const catId   = getProductCatId(p, categories)
       const mainCat = categories.find(c => c.id === catId) ?? categories[0]
       const key = `${catId}__${p.subCategory}`
       if (!map[key]) map[key] = {
@@ -274,8 +364,8 @@ export default function AdminProducts() {
     })
   }, [filtered, categories])
 
-  const openAdd  = () => { setEditing(null); setModalOpen(true) }
-  const openEdit = (p) => { setEditing(p); setModalOpen(true) }
+  const openAdd    = () => { setEditing(null); setModalOpen(true) }
+  const openEdit   = (p) => { setEditing(p);   setModalOpen(true) }
   const closeModal = () => { setModalOpen(false); setEditing(null) }
 
   const handleSave = (values) => {
@@ -284,7 +374,13 @@ export default function AdminProducts() {
       message.success('商品已更新')
     } else {
       const newId = `p${Date.now()}`
-      setProductList(prev => [...prev, { ...values, id: newId, thumbnailUrl: values.thumbnailUrl ?? '', isListed: values.isListed ?? true, stockMode: values.stockMode ?? 'unlimited', stockLimit: values.stockLimit ?? null }])
+      setProductList(prev => [...prev, {
+        ...values, id: newId,
+        thumbnailUrl: values.thumbnailUrl ?? '',
+        isListed:     values.isListed     ?? true,
+        stockMode:    values.stockMode    ?? 'unlimited',
+        stockLimit:   values.stockLimit   ?? null,
+      }])
       message.success('商品已新增')
     }
   }
@@ -307,13 +403,6 @@ export default function AdminProducts() {
 
   const handleStockLimitChange = (id, val) => {
     setProductList(prev => prev.map(p => p.id === id ? { ...p, stockLimit: val } : p))
-  }
-
-  const stockModeLabel = (mode) => {
-    if (mode === 'unlimited')    return <Tag color="green">不限數量</Tag>
-    if (mode === 'limited')      return <Tag color="orange">限定數量</Tag>
-    if (mode === 'out_of_stock') return <Tag color="red">缺貨</Tag>
-    return <Tag>—</Tag>
   }
 
   const columns = [
@@ -372,8 +461,6 @@ export default function AdminProducts() {
           )}
         </Space>
       )},
-    { title: '產品規格 ID', dataIndex: 'ezposId', width: 100,
-      render: v => v ? <Text code style={{ fontSize: 11 }}>{v}</Text> : <Text type="secondary">-</Text> },
     { title: '操作', width: 100, align: 'center',
       render: (_, r) => (
         <Space size={4}>
@@ -395,9 +482,9 @@ export default function AdminProducts() {
 
       <Row gutter={16} style={{ marginBottom: 16 }}>
         {[
-          { label: '商品總數',   value: productList.length },
-          { label: '冷凍品項',   value: productList.filter(p => p.category === 'frozen').length },
-          { label: '常溫品項',   value: productList.filter(p => p.category === 'ambient').length },
+          { label: '商品總數',    value: productList.length },
+          { label: '冷凍品項',    value: productList.filter(p => p.category === 'frozen').length },
+          { label: '常溫品項',    value: productList.filter(p => p.category === 'ambient').length },
           { label: '缺貨 / 下架', value: productList.filter(p => p.stockMode === 'out_of_stock' || p.isListed === false).length, color: '#ff4d4f' },
         ].map(s => (
           <Col span={6} key={s.label}>
@@ -415,27 +502,27 @@ export default function AdminProducts() {
             { value: '', label: '全部分類' },
             ...categories.map(c => ({
               value: c.id,
-              label: `${TEMP_STYLE[c.temperature]?.icon ?? ''} ${c.name}`,
+              label: `${TEMP[c.temperature]?.icon ?? ''} ${c.name}`,
             })),
           ]}
         />
       </Space>
 
       {grouped.map(g => {
-        const ts = TEMP_STYLE[g.temperature] ?? TEMP_STYLE.frozen
+        const ts = TEMP[g.temperature] ?? TEMP.frozen
         return (
-        <div key={`${g.mainCatId}__${g.subCategory}`} style={{ marginBottom: 16 }}>
-          <div style={{
-            background: ts.bg, border: `1px solid ${ts.border}`,
-            borderRadius: 4, padding: '4px 12px', fontWeight: 600, marginBottom: 6,
-          }}>
-            {ts.icon} <span style={{ color: '#888', fontWeight: 400, fontSize: 12, marginRight: 4 }}>{g.mainCatName} ›</span>
-            {g.subCategory}
-            <Tag style={{ marginLeft: 8, fontWeight: 400 }}>{g.items.length} 項</Tag>
+          <div key={`${g.mainCatId}__${g.subCategory}`} style={{ marginBottom: 16 }}>
+            <div style={{
+              background: ts.bg, border: `1px solid ${ts.border}`,
+              borderRadius: 4, padding: '4px 12px', fontWeight: 600, marginBottom: 6,
+            }}>
+              {ts.icon} <span style={{ color: '#888', fontWeight: 400, fontSize: 12, marginRight: 4 }}>{g.mainCatName} ›</span>
+              {g.subCategory}
+              <Tag style={{ marginLeft: 8, fontWeight: 400 }}>{g.items.length} 項</Tag>
+            </div>
+            <Table dataSource={g.items} columns={columns} rowKey="id" size="small" pagination={false}
+              rowClassName={r => r.isListed === false ? 'row-unlisted' : ''} />
           </div>
-          <Table dataSource={g.items} columns={columns} rowKey="id" size="small" pagination={false}
-            rowClassName={r => r.isListed === false ? 'row-unlisted' : ''} />
-        </div>
         )
       })}
 

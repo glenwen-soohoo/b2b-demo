@@ -3,11 +3,23 @@ import {
   Drawer, Descriptions, Table, Timeline, Button, Space, Popconfirm, Tag,
   Divider, Alert, Row, Col, InputNumber, Input, Typography, Tooltip, Select, message,
 } from 'antd';
-import { SendOutlined, EyeOutlined, LockOutlined, SaveOutlined, EditOutlined, FilePdfOutlined, CloseOutlined } from '@ant-design/icons';
+import { SendOutlined, LockOutlined, SaveOutlined, EditOutlined, FilePdfOutlined, CloseOutlined } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import { exportOrderPdf } from '../utils/exportOrderPdf';
+import { generateB2bOrderNo, getConfirmedItems } from '../services/orderService';
+import { useOrderDetailColumns } from '../hooks/useOrderDetailColumns';
+import StatusTag from './StatusTag';
+import OrderStateMachine from './OrderStateMachine';
+import { productMap, channelMap, systemSettings } from '../data/fakeData';
 
-// 產生月結月份選項（接下來3個月；若當前值不在其中則補入）
+const { Text } = Typography;
+
+const INVOICE_MODE_LABEL = {
+  per_order:         '訂單單筆開票',
+  monthly_per_store: '門市分開月結',
+  monthly_combined:  '整合月結',
+};
+
 function getSettlementMonthOptions(settlementDay, currentValue) {
   const now = dayjs()
   const months = [now, now.add(1, 'month'), now.add(2, 'month')]
@@ -31,10 +43,6 @@ function calcAutoSettlementMonth(settlementDay) {
     ? now.add(1, 'month').format('YYYY-MM')
     : now.format('YYYY-MM')
 }
-import StatusTag from './StatusTag';
-import OrderStateMachine from './OrderStateMachine';
-import EZPOSPreview from './EZPOSPreview';
-import { productMap, channelMap, systemSettings } from '../data/fakeData';
 
 function temperatureZoneTag(items) {
   const zones = new Set(items.map(i => productMap[i.productId]?.category).filter(Boolean));
@@ -45,14 +53,6 @@ function temperatureZoneTag(items) {
     </Space>
   );
 }
-
-const { Text } = Typography;
-
-const INVOICE_MODE_LABEL = {
-  per_order:         '訂單單筆開票',
-  monthly_per_store: '門市分開月結',
-  monthly_combined:  '整合月結',
-};
 
 function calcProfitFromMaps(items, adjQtyMap, adjPriceMap) {
   const revenue = items.reduce((s, i) => s + (adjQtyMap[i.productId] ?? i.qty) * (adjPriceMap[i.productId] ?? i.price), 0);
@@ -70,13 +70,6 @@ function calcProfit(items) {
   );
 }
 
-function generateB2bOrderNo() {
-  const now = new Date();
-  const yyyymm = `${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, '0')}`;
-  const seq = String(Math.floor(1 + Math.random() * 99)).padStart(4, '0');
-  return `B2B-${yyyymm}-${seq}`;
-}
-
 function NoteField({ label, value, onChange, locked, placeholder, rows = 2 }) {
   return (
     <div>
@@ -92,7 +85,6 @@ function NoteField({ label, value, onChange, locked, placeholder, rows = 2 }) {
 }
 
 export default function OrderDetail({ order, open, onClose, onStatusChange }) {
-  const [ezposOpen,      setEzposOpen]      = useState(false);
   const [adjQtyMap,      setAdjQtyMap]      = useState({});
   const [adjPriceMap,    setAdjPriceMap]    = useState({});
   const [discountAmount, setDiscountAmount] = useState(0);
@@ -104,6 +96,12 @@ export default function OrderDetail({ order, open, onClose, onStatusChange }) {
   const [editItems,      setEditItems]      = useState([]);
   const [localSettlementMonth, setLocalSettlementMonth] = useState('');
 
+  const { salesConfirmCols, editCols, itemCols } = useOrderDetailColumns({
+    adjQtyMap, setAdjQtyMap,
+    adjPriceMap, setAdjPriceMap,
+    editItems, setEditItems,
+  });
+
   useEffect(() => {
     if (order) {
       const source = order.salesAdjustedItems ?? order.items;
@@ -111,7 +109,6 @@ export default function OrderDetail({ order, open, onClose, onStatusChange }) {
       setAdjPriceMap(Object.fromEntries(order.items.map(i => [i.productId, i.price])));
       setDiscountAmount(order.discount_amount ?? 0);
       setDiscountNote(order.discount_note ?? '');
-      // 出貨備註：優先用 shipping_note（後台填過的），否則 fallback 到廠商下單時填寫的 vendorNote
       setShippingNote(order.shipping_note ?? order.vendorNote ?? '');
       const defaultCsNote = channelMap[order.channelId]?.cs_note_default ?? '';
       setCsNote(order.cs_note ?? defaultCsNote);
@@ -125,7 +122,7 @@ export default function OrderDetail({ order, open, onClose, onStatusChange }) {
 
   if (!order) return null;
 
-  const displayItems = order.adjustedItems ?? order.salesAdjustedItems ?? order.items;
+  const displayItems = getConfirmedItems(order);
 
   const { revenue, cost, profit, margin } = order.status === 'pending_sales'
     ? calcProfitFromMaps(order.items, adjQtyMap, adjPriceMap)
@@ -137,7 +134,6 @@ export default function OrderDetail({ order, open, onClose, onStatusChange }) {
   const canEditAfter = (order.status === 'ordered' || order.status === 'arrived') && !isSettled;
   const noteLocked   = isSettled || (canEditAfter && !editMode);
 
-  // ── 業務確認 → 建立正式訂單 ──
   const handleSalesConfirm = () => {
     const adjustedItems = order.items.map(i => ({
       ...i,
@@ -168,14 +164,12 @@ export default function OrderDetail({ order, open, onClose, onStatusChange }) {
     });
   };
 
-  // ── 建單後修改（已成立訂單 / 到貨等待結算，可改數量、價格、備註） ──
   const handleStartEdit = () => {
     setEditItems(displayItems.map(i => ({ ...i })));
     setEditMode(true);
   };
 
   const handleCancelEdit = () => {
-    // Reset to saved state
     setShippingNote(order.shipping_note ?? order.vendorNote ?? '');
     setCsNote(order.cs_note ?? channelMap[order.channelId]?.cs_note_default ?? '');
     setB2bNote(order.b2b_note ?? '');
@@ -218,117 +212,6 @@ export default function OrderDetail({ order, open, onClose, onStatusChange }) {
     onStatusChange(order.id, order.status, null, { settlementMonth: m });
   };
 
-  // ── pending_sales 品項確認表格（可改數量與單價） ──
-  const salesConfirmCols = [
-    { title: '品項', dataIndex: 'productName' },
-    { title: '廠商下訂', dataIndex: 'qty', width: 80, align: 'center' },
-    {
-      title: '業務確認數量', width: 130, align: 'center',
-      render: (_, r) => (
-        <InputNumber
-          min={0} size="small"
-          value={adjQtyMap[r.productId] ?? r.qty}
-          onChange={v => setAdjQtyMap(prev => ({ ...prev, [r.productId]: v ?? 0 }))}
-          style={{ width: 80 }}
-        />
-      ),
-    },
-    {
-      title: '數量差異', width: 75, align: 'center',
-      render: (_, r) => {
-        const diff = (adjQtyMap[r.productId] ?? r.qty) - r.qty;
-        if (diff === 0) return <Tag>—</Tag>;
-        return <Tag color={diff < 0 ? 'red' : 'green'}>{diff > 0 ? '+' : ''}{diff}</Tag>;
-      },
-    },
-    {
-      title: <Tooltip title="B2B採購價，與後台系統無關">採購單價 ⓘ</Tooltip>,
-      width: 130, align: 'right',
-      render: (_, r) => (
-        <InputNumber
-          min={0} size="small" prefix="$"
-          value={adjPriceMap[r.productId] ?? r.price}
-          onChange={v => setAdjPriceMap(prev => ({ ...prev, [r.productId]: v ?? 0 }))}
-          style={{ width: 95 }}
-        />
-      ),
-    },
-    { title: '成本', dataIndex: 'cost', width: 65, align: 'right',
-      render: v => v ? <span style={{ color: '#999' }}>${v}</span> : '-' },
-    {
-      title: '小計', width: 90, align: 'right',
-      render: (_, r) => `$${((adjQtyMap[r.productId] ?? r.qty) * (adjPriceMap[r.productId] ?? r.price)).toLocaleString()}`,
-    },
-    {
-      title: '毛利', width: 85, align: 'right',
-      render: (_, r) => {
-        const q = adjQtyMap[r.productId] ?? r.qty;
-        const p = adjPriceMap[r.productId] ?? r.price;
-        const g = q * (p - (r.cost ?? 0));
-        return <span style={{ color: g >= 0 ? '#52c41a' : '#ff4d4f' }}>${g.toLocaleString()}</span>;
-      },
-    },
-  ];
-
-  // ── 建單後修改表格（可改數量＋單價） ──
-  const editCols = [
-    { title: '品項', dataIndex: 'productName' },
-    { title: '單位', dataIndex: 'unit', width: 55 },
-    {
-      title: '數量', width: 110, align: 'center',
-      render: (_, r) => (
-        <InputNumber
-          min={0} size="small" value={r.qty}
-          onChange={v => setEditItems(prev =>
-            prev.map(i => i.productId === r.productId ? { ...i, qty: v ?? 0 } : i)
-          )}
-          style={{ width: 80 }}
-        />
-      ),
-    },
-    {
-      title: '採購單價', width: 110, align: 'right',
-      render: (_, r) => (
-        <InputNumber
-          min={0} size="small" prefix="$" value={r.price}
-          onChange={v => setEditItems(prev =>
-            prev.map(i => i.productId === r.productId ? { ...i, price: v ?? 0 } : i)
-          )}
-          style={{ width: 85 }}
-        />
-      ),
-    },
-    { title: '成本', dataIndex: 'cost', width: 65, align: 'right',
-      render: v => v ? <span style={{ color: '#999' }}>${v}</span> : '-' },
-    { title: '小計', width: 90, align: 'right',
-      render: (_, r) => `$${(r.qty * r.price).toLocaleString()}` },
-    {
-      title: '毛利', width: 85, align: 'right',
-      render: (_, r) => {
-        const g = r.qty * (r.price - (r.cost ?? 0));
-        return <span style={{ color: g >= 0 ? '#52c41a' : '#ff4d4f' }}>${g.toLocaleString()}</span>;
-      },
-    },
-  ];
-
-  // ── 其他狀態品項表格（唯讀） ──
-  const itemCols = [
-    { title: '品項', dataIndex: 'productName' },
-    { title: '單位', dataIndex: 'unit', width: 55 },
-    { title: '數量', dataIndex: 'qty', width: 65 },
-    { title: '採購單價', dataIndex: 'price', width: 85, render: v => `$${v}` },
-    { title: '成本', dataIndex: 'cost', width: 65,
-      render: v => v ? <span style={{ color: '#999' }}>${v}</span> : '-' },
-    { title: '小計', width: 90, render: (_, r) => `$${(r.qty * r.price).toLocaleString()}` },
-    {
-      title: '毛利', width: 85,
-      render: (_, r) => {
-        const g = r.qty * (r.price - (r.cost ?? 0));
-        return <span style={{ color: g >= 0 ? '#52c41a' : '#ff4d4f' }}>${g.toLocaleString()}</span>;
-      },
-    },
-  ];
-
   const itemTableLabel = order.adjustedItems
     ? '建單後修改品項'
     : order.salesAdjustedItems
@@ -351,23 +234,13 @@ export default function OrderDetail({ order, open, onClose, onStatusChange }) {
         open={open}
         onClose={() => { handleCancelEdit(); onClose(); }}
         width={900}
-        extra={
-          <Space>
-            {!isSettled && (
-              <Button icon={<EyeOutlined />} onClick={() => setEzposOpen(true)}>
-                EZPOS 格式
-              </Button>
-            )}
-          </Space>
-        }
+        extra={<Space />}
       >
-        {/* 訂單進度 */}
         <div style={{ marginBottom: 24 }}>
           <div style={{ fontWeight: 600, marginBottom: 12, color: '#555' }}>訂單進度</div>
           <OrderStateMachine status={order.status} />
         </div>
 
-        {/* Alert */}
         {isSettled && (
           <Alert type="warning" showIcon icon={<LockOutlined />}
             message="此B2B訂單已結算鎖定，不可再異動"
@@ -375,7 +248,6 @@ export default function OrderDetail({ order, open, onClose, onStatusChange }) {
           />
         )}
 
-        {/* 損益摘要 */}
         <Row gutter={12} style={{ marginBottom: 20 }}>
           {[
             { label: '銷售金額', value: revenue, prefix: '$', color: '#1677ff' },
@@ -394,7 +266,6 @@ export default function OrderDetail({ order, open, onClose, onStatusChange }) {
           ))}
         </Row>
 
-        {/* 訂單基本資訊 */}
         <Descriptions bordered size="small" column={2} style={{ marginBottom: 20 }}>
           <Descriptions.Item label="通路名稱">{order.channelName}</Descriptions.Item>
           <Descriptions.Item label="結算月份">
@@ -422,12 +293,17 @@ export default function OrderDetail({ order, open, onClose, onStatusChange }) {
               : <Text type="secondary">—</Text>
             }
           </Descriptions.Item>
+          {order.fruitOrderNumber && (
+            <Descriptions.Item label="無毒農正式單號" span={2}>
+              <Tag color="green">{order.fruitOrderNumber}</Tag>
+            </Descriptions.Item>
+          )}
           <Descriptions.Item label="發票模式" span={2}>
             <Tag>{INVOICE_MODE_LABEL[order.invoice_mode_snapshot] ?? order.invoice_mode_snapshot ?? '—'}</Tag>
           </Descriptions.Item>
         </Descriptions>
 
-        {/* ── pending_sales：確認數量與單價 ── */}
+        {/* pending_sales：確認數量與單價 */}
         {order.status === 'pending_sales' && (
           <>
             <Table
@@ -453,16 +329,13 @@ export default function OrderDetail({ order, open, onClose, onStatusChange }) {
               }}
               style={{ marginBottom: 16 }}
             />
-
-            {/* 折扣設定：備註在左，金額在右 */}
             <div style={{ display: 'flex', gap: 12, marginBottom: 16, alignItems: 'flex-start' }}>
               <div style={{ flex: 1 }}>
                 <div style={{ fontSize: 12, color: '#888', marginBottom: 4 }}>
                   折扣備註{discountAmount > 0 && <span style={{ color: '#ff4d4f' }}> *必填</span>}
                 </div>
                 <Input.TextArea
-                  rows={2}
-                  value={discountNote}
+                  rows={2} value={discountNote}
                   onChange={e => setDiscountNote(e.target.value)}
                   placeholder="折扣原因說明"
                 />
@@ -484,7 +357,7 @@ export default function OrderDetail({ order, open, onClose, onStatusChange }) {
           </>
         )}
 
-        {/* ── 建單後修改（editMode） ── */}
+        {/* 建單後修改（editMode） */}
         {editMode && (
           <>
             <Divider orientation="left" plain>建單後修改（編輯中）</Divider>
@@ -507,7 +380,6 @@ export default function OrderDetail({ order, open, onClose, onStatusChange }) {
                 );
               }}
             />
-            {/* 折扣設定：備註在左，金額在右 */}
             <div style={{ display: 'flex', gap: 12, marginBottom: 16, alignItems: 'flex-start' }}>
               <div style={{ flex: 1 }}>
                 <div style={{ fontSize: 12, color: '#888', marginBottom: 4 }}>
@@ -531,7 +403,7 @@ export default function OrderDetail({ order, open, onClose, onStatusChange }) {
           </>
         )}
 
-        {/* ── 其他狀態品項表格（唯讀） ── */}
+        {/* 其他狀態品項表格（唯讀） */}
         {order.status !== 'pending_sales' && !editMode && (
           <>
             <Divider orientation="left" plain>{itemTableLabel}（含損益）</Divider>
@@ -579,24 +451,19 @@ export default function OrderDetail({ order, open, onClose, onStatusChange }) {
           </>
         )}
 
-        {/* 備註區 */}
         <Divider orientation="left" plain>備註</Divider>
         <div style={{ display: 'flex', gap: 12, marginBottom: 12 }}>
           <div style={{ flex: 1 }}>
             <NoteField
               label="出貨備註（通路填寫，通路、正式後台、倉庫、物流可見）"
-              value={shippingNote}
-              onChange={setShippingNote}
-              locked={noteLocked}
+              value={shippingNote} onChange={setShippingNote} locked={noteLocked}
               placeholder="出貨相關備註（通路下單時填寫，後續可修改）"
             />
           </div>
           <div style={{ flex: 1 }}>
             <NoteField
               label="客服備註（後台填寫，僅正式後台、自配單可見）"
-              value={csNote}
-              onChange={setCsNote}
-              locked={noteLocked}
+              value={csNote} onChange={setCsNote} locked={noteLocked}
               placeholder="內部客服用備註"
             />
           </div>
@@ -604,15 +471,11 @@ export default function OrderDetail({ order, open, onClose, onStatusChange }) {
         <div style={{ marginBottom: 12 }}>
           <NoteField
             label="B2B備註（後台填寫，僅通路可見，不會帶入正式後台）"
-            value={b2bNote}
-            onChange={setB2bNote}
-            locked={noteLocked}
-            placeholder="回覆通路的備註"
-            rows={2}
+            value={b2bNote} onChange={setB2bNote} locked={noteLocked}
+            placeholder="回覆通路的備註" rows={2}
           />
         </div>
 
-        {/* ── 操作按鈕 ── */}
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16, gap: 8 }}>
           <div>
             {(order.status === 'pending_sales' || order.status === 'ordered' || order.status === 'arrived' || isSettled) && (
@@ -621,11 +484,7 @@ export default function OrderDetail({ order, open, onClose, onStatusChange }) {
                 onClick={async () => {
                   try {
                     message.loading({ content: 'PDF 產生中…', key: 'pdf', duration: 0 })
-                    await exportOrderPdf({
-                      order,
-                      channel: channelMap[order.channelId],
-                      systemSettings,
-                    })
+                    await exportOrderPdf({ order, channel: channelMap[order.channelId], systemSettings })
                     message.success({ content: '採購確認單已下載', key: 'pdf' })
                   } catch (err) {
                     console.error(err)
@@ -638,35 +497,31 @@ export default function OrderDetail({ order, open, onClose, onStatusChange }) {
             )}
           </div>
           <Space>
-          {order.status === 'pending_sales' && (
-            <Popconfirm
-              title="確認執行「業務確認完成，建立正式訂單」？"
-              description="確認後，採購單價與折扣將鎖定，不可再修改。"
-              onConfirm={handleSalesConfirm}
-              okText="確認" cancelText="取消"
-              disabled={discountAmount > 0 && !discountNote.trim()}
-            >
-              <Tooltip title={discountAmount > 0 && !discountNote.trim() ? '折扣金額大於0時，折扣備註為必填' : ''}>
-                <Button type="primary" icon={<SendOutlined />}
-                  disabled={discountAmount > 0 && !discountNote.trim()}>
-                  業務確認完成，建立正式訂單
-                </Button>
-              </Tooltip>
-            </Popconfirm>
-          )}
-          {canEditAfter && !editMode && (
-            <Button icon={<EditOutlined />} onClick={handleStartEdit}>
-              建單後修改
-            </Button>
-          )}
-          {editMode && (
-            <>
-              <Button icon={<CloseOutlined />} onClick={handleCancelEdit}>取消</Button>
-              <Button type="primary" icon={<SaveOutlined />} onClick={handleSaveEdit}>
-                儲存修改
-              </Button>
-            </>
-          )}
+            {order.status === 'pending_sales' && (
+              <Popconfirm
+                title="確認執行「業務確認完成，建立正式訂單」？"
+                description="確認後，採購單價與折扣將鎖定，不可再修改。"
+                onConfirm={handleSalesConfirm}
+                okText="確認" cancelText="取消"
+                disabled={discountAmount > 0 && !discountNote.trim()}
+              >
+                <Tooltip title={discountAmount > 0 && !discountNote.trim() ? '折扣金額大於0時，折扣備註為必填' : ''}>
+                  <Button type="primary" icon={<SendOutlined />}
+                    disabled={discountAmount > 0 && !discountNote.trim()}>
+                    業務確認完成，建立正式訂單
+                  </Button>
+                </Tooltip>
+              </Popconfirm>
+            )}
+            {canEditAfter && !editMode && (
+              <Button icon={<EditOutlined />} onClick={handleStartEdit}>建單後修改</Button>
+            )}
+            {editMode && (
+              <>
+                <Button icon={<CloseOutlined />} onClick={handleCancelEdit}>取消</Button>
+                <Button type="primary" icon={<SaveOutlined />} onClick={handleSaveEdit}>儲存修改</Button>
+              </>
+            )}
           </Space>
         </div>
 
@@ -683,8 +538,6 @@ export default function OrderDetail({ order, open, onClose, onStatusChange }) {
           }))}
         />
       </Drawer>
-
-      <EZPOSPreview order={order} open={ezposOpen} onClose={() => setEzposOpen(false)} />
     </>
   );
 }

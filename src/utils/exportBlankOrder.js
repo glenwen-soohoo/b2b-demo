@@ -3,25 +3,13 @@ import ExcelJS from 'exceljs'
 import { makeEan13PngBuffer } from './barcodePng'
 import { shippingSettings } from '../data/fakeData'
 
-const LOGO_PATH = `${import.meta.env.BASE_URL}assets/logo.png`
+import { ARGB } from './exportTheme'
+import { BASE_URL } from '../config'
 
-// 色票
-const C = {
-  text:        'FF2C2C2C',
-  textMuted:   'FF8C8C8C',
-  red:         'FFC00000',
-  white:       'FFFFFFFF',
-  brand:       'FF8B5D3B',
-  brandSoft:   'FFFFFBEA',   // 淡米黃（子分類 / 折扣 / 條款 底）
-  bgBlue:      'FFDDEBF7',   // 淡藍（小計 / 運費 底）
-  frozen:      'FF366092',   // 冷凍深藍
-  ambient:     'FF76933C',   // 常溫橄欖綠
-  bgHeader:    'FFF5F5F5',   // 灰色（欄頭 / 客戶資訊 label / 簽章說明）
-  bgTotal:     'FFFFF1B8',   // 黃色（訂單總金額 底）
-  borderTotal: 'FFFFC000',
-  termsBord:   'FFFFE58F',
-  borderGray:  'FFBFBFBF',   // 淺灰邊框
-}
+const LOGO_PATH = `${BASE_URL}assets/logo.png`
+
+// 色票（Excel ARGB 格式，白色需手動補充因 CSS hex 無對應）
+const C = { ...ARGB, white: 'FFFFFFFF' }
 
 const fill = (argb) => ({ type: 'pattern', pattern: 'solid', fgColor: { argb } })
 const font = (opts = {}) => ({ name: 'Microsoft JhengHei', size: 11, ...opts })

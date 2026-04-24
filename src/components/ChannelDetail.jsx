@@ -56,6 +56,12 @@ export default function ChannelDetail({ channel, open, onClose }) {
         <Descriptions.Item label="套用模板" span={2}>
           <Tag color="geekblue"><FileTextOutlined /> {tpl?.name ?? channel.templateId}</Tag>
         </Descriptions.Item>
+        <Descriptions.Item label="預設下單備註（通路端亦可填寫）" span={2}>
+          {channel.default_vendor_note
+            ? <Text style={{ whiteSpace: 'pre-line' }}>{channel.default_vendor_note}</Text>
+            : <Text type="secondary">—</Text>
+          }
+        </Descriptions.Item>
         {channel.default_bank_last5 && (
           <Descriptions.Item label="常用匯款末五碼" span={2}>
             <Text code>{channel.default_bank_last5}</Text>

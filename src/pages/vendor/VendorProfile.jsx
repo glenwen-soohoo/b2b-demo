@@ -116,7 +116,7 @@ export default function VendorProfile() {
   ]
 
   return (
-    <div style={{ padding: 24, maxWidth: 800 }}>
+    <div style={{ padding: 24, maxWidth: 800, margin: '0 auto' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
         <Title level={4} style={{ margin: 0 }}>通路資料</Title>
         {!editing
@@ -155,9 +155,8 @@ export default function VendorProfile() {
               </Form.Item>
             </div>
             <Form.Item
-              label="預設下單備註"
+              label="預設下單備註（下單時自動帶入，送出前可修改）"
               name="default_vendor_note"
-              tooltip="未來下單時會自動帶入此備註到「備註」欄，送出前可依當次情況修改"
               style={{ marginBottom: 0 }}
             >
               <Input.TextArea

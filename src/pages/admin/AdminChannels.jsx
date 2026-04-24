@@ -15,6 +15,13 @@ const INVOICE_MODE_OPTIONS = [
   { value: 'monthly_combined',  label: '整合月結' },
 ]
 
+const DELIVERY_TYPE_OPTIONS = [
+  { value: 'own_logistics', label: '自有物流' },
+  { value: 'third_party',   label: '第三方物流' },
+  { value: 'outsource',     label: '外包物流' },
+  { value: 'self_pickup',   label: '廠商自取' },
+]
+
 const INVOICE_MODE_COLOR = {
   per_order:         'default',
   monthly_per_store: 'geekblue',
@@ -85,9 +92,14 @@ function ChannelModal({ open, onClose, onSave, initial }) {
               <InputNumber min={1} max={31} addonBefore={<span style={{ whiteSpace: 'nowrap' }}>每月</span>} addonAfter="日" style={{ width: '100%' }} />
             </Form.Item>
           </Col>
-          <Col span={16}>
+          <Col span={8}>
             <Form.Item label="發票模式" name="invoice_mode" rules={[{ required: true }]}>
               <Select options={INVOICE_MODE_OPTIONS} />
+            </Form.Item>
+          </Col>
+          <Col span={8}>
+            <Form.Item label="配送方式" name="deliveryType" rules={[{ required: true }]}>
+              <Select options={DELIVERY_TYPE_OPTIONS} />
             </Form.Item>
           </Col>
         </Row>
@@ -105,6 +117,17 @@ function ChannelModal({ open, onClose, onSave, initial }) {
         </Row>
 
         <Divider orientation="left" plain style={{ margin: '4px 0 12px' }}>備註</Divider>
+        <Form.Item
+          label="預設下單備註（通路端亦可填寫）"
+          name="default_vendor_note"
+        >
+          <Input.TextArea
+            rows={2}
+            placeholder="例：收貨時若包裝破損請先拍照告知；逢週三早上倉庫收件時段為 9:00–12:00"
+            maxLength={500}
+            showCount
+          />
+        </Form.Item>
         <Form.Item label="議價說明" name="pricingNote">
           <Input.TextArea rows={2} placeholder="各品項特殊議價說明..." />
         </Form.Item>
@@ -178,6 +201,11 @@ export default function AdminChannels() {
         ? <Tag color={INVOICE_MODE_COLOR[v] ?? 'default'} style={{ fontSize: 11 }}>
             {INVOICE_MODE_OPTIONS.find(o => o.value === v)?.label ?? v}
           </Tag>
+        : <span style={{ color: '#bbb' }}>—</span>
+    },
+    { title: '配送方式', dataIndex: 'deliveryType', width: 100,
+      render: v => v
+        ? <Tag style={{ fontSize: 11 }}>{DELIVERY_TYPE_OPTIONS.find(o => o.value === v)?.label ?? v}</Tag>
         : <span style={{ color: '#bbb' }}>—</span>
     },
     { title: '結算日', dataIndex: 'settlementDay', width: 100,

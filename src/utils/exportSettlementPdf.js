@@ -1,31 +1,10 @@
 // 月結結算單 PDF（v2 — 對齊採購確認單 / 報價單視覺）
-import jsPDF from 'jspdf'
-import html2canvas from 'html2canvas'
 import { channelMap } from '../data/fakeData'
+import { COLOR, escapeHtml } from './exportTheme'
+import { newA4Pdf, makeOffscreenContainer, renderDivToPdfPage, todayYmd } from './pdfRenderer'
+import { BASE_URL } from '../config'
 
-const LOGO_PATH = `${import.meta.env.BASE_URL}assets/logo.png`
-
-const COLOR = {
-  text:        '#2C2C2C',
-  textMuted:   '#8C8C8C',
-  textLight:   '#BFBFBF',
-  red:         '#C00000',
-  brand:       '#8B5D3B',
-  brandSoft:   '#FFFBEA',
-  bgBlue:      '#DDEBF7',
-  bgHeader:    '#F5F5F5',
-  bgTotal:     '#FFF1B8',
-  borderTotal: '#FFC000',
-  termsBord:   '#FFE58F',
-  borderGray:  '#BFBFBF',
-  highlight:   '#C41D7F',
-}
-
-function escapeHtml(s) {
-  return String(s ?? '').replace(/[&<>"']/g, c => ({
-    '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;',
-  }[c]))
-}
+const LOGO_PATH = `${BASE_URL}assets/logo.png`
 
 const STATUS_LABEL = {
   awaiting_payment: '待匯款',
@@ -241,15 +220,8 @@ export async function exportSettlementPdf({ settlement, relatedOrders }) {
 
   const meta = { totalOrders: orders.length }
 
-  const container = document.createElement('div')
-  container.style.position = 'fixed'
-  container.style.left = '-99999px'
-  container.style.top = '0'
-  container.style.zIndex = '-1'
-  document.body.appendChild(container)
-
-  const pdf = new jsPDF({ unit: 'pt', format: 'a4', orientation: 'portrait' })
-  const pageW = pdf.internal.pageSize.getWidth()
+  const container = makeOffscreenContainer()
+  const pdf = newA4Pdf()
 
   try {
     for (let i = 0; i < pagesList.length; i++) {
@@ -263,51 +235,11 @@ export async function exportSettlementPdf({ settlement, relatedOrders }) {
         meta,
       })
       container.appendChild(pageDiv)
-
-      const imgs = pageDiv.querySelectorAll('img')
-      await Promise.all(Array.from(imgs).map(img => img.complete
-        ? Promise.resolve()
-        : new Promise(res => { img.onload = img.onerror = res })
-      ))
-      await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)))
-
-      const canvas = await html2canvas(pageDiv.firstElementChild, {
-        scale: 2, useCORS: true, backgroundColor: '#ffffff',
-      })
-      const imgData = canvas.toDataURL('image/png')
-      const imgW = pageW
-      const imgH = (canvas.height * imgW) / canvas.width
-
-      if (i > 0) pdf.addPage()
-      const pageH = pdf.internal.pageSize.getHeight()
-      if (imgH <= pageH) {
-        pdf.addImage(imgData, 'PNG', 0, 0, imgW, imgH, undefined, 'FAST')
-      } else {
-        const pxPerPage = (pageH / imgW) * canvas.width
-        let remaining = canvas.height
-        let y = 0
-        let first = true
-        while (remaining > 0) {
-          const sliceH = Math.min(pxPerPage, remaining)
-          const sliceCanvas = document.createElement('canvas')
-          sliceCanvas.width = canvas.width
-          sliceCanvas.height = sliceH
-          sliceCanvas.getContext('2d').drawImage(canvas, 0, -y)
-          const sliceData = sliceCanvas.toDataURL('image/png')
-          const sliceHPt = (sliceH * imgW) / canvas.width
-          if (!first) pdf.addPage()
-          pdf.addImage(sliceData, 'PNG', 0, 0, imgW, sliceHPt, undefined, 'FAST')
-          first = false
-          y += sliceH
-          remaining -= sliceH
-        }
-      }
+      await renderDivToPdfPage(pdf, pageDiv, i === 0)
     }
   } finally {
     document.body.removeChild(container)
   }
 
-  const today = new Date()
-  const ymd = `${today.getFullYear()}${String(today.getMonth() + 1).padStart(2, '0')}${String(today.getDate()).padStart(2, '0')}`
-  pdf.save(`結算單_${settlement.id}_${ymd}.pdf`)
+  pdf.save(`結算單_${settlement.id}_${todayYmd()}.pdf`)
 }

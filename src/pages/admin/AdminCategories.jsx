@@ -8,6 +8,7 @@ import {
   MenuOutlined, SaveOutlined, CloseOutlined,
 } from '@ant-design/icons'
 import { categories as initCategories } from '../../data/fakeData'
+import { useDragSort } from '../../hooks/useDragSort'
 
 const { Title, Text } = Typography
 
@@ -118,15 +119,16 @@ export default function AdminCategories() {
 
   // 排序模式
   const [sortMode, setSortMode] = useState(false)
-  const [draft,    setDraft]    = useState(null)   // 排序模式暫存
+  const [draft,    setDraft]    = useState(null)
 
-  // 大分類卡片拖曳
-  const [dragCatIdx,  setDragCatIdx]  = useState(null)
-  const [insertAtIdx, setInsertAtIdx] = useState(null)
-
-  // 子分類拖曳
-  const [dragSubId,       setDragSubId]       = useState(null)
-  const [insertBeforeSubIdx, setInsertBeforeSubIdx] = useState(null)
+  const {
+    dragCatIdx, setDragCatIdx,
+    insertAtIdx, setInsertAtIdx,
+    dragSubId, setDragSubId,
+    insertBeforeSubIdx, setInsertBeforeSubIdx,
+    clearCatDrag, clearSubDrag,
+    handleCatDrop, handleSubDrop,
+  } = useDragSort({ sortMode, setDraft })
 
   // 顯示用資料來源：排序模式用 draft，否則用正式資料
   const displayCats = sortMode && draft ? draft : cats
@@ -140,8 +142,8 @@ export default function AdminCategories() {
   const cancelSortMode = () => {
     setDraft(null)
     setSortMode(false)
-    setDragCatIdx(null); setInsertAtIdx(null)
-    setDragSubId(null); setInsertBeforeSubIdx(null)
+    clearCatDrag()
+    clearSubDrag()
     message.info('已取消排序變更')
   }
   const saveSortMode = () => {
@@ -149,20 +151,6 @@ export default function AdminCategories() {
     setDraft(null)
     setSortMode(false)
     message.success('排序已更新')
-  }
-
-  // ── 大分類卡片拖曳 ──（僅排序模式有效）
-  const handleCatDrop = (insertIdx) => {
-    if (!sortMode || dragCatIdx === null) return
-    setDraft(prev => {
-      const next = [...prev]
-      const [item] = next.splice(dragCatIdx, 1)
-      const adjusted = insertIdx > dragCatIdx ? insertIdx - 1 : insertIdx
-      next.splice(adjusted, 0, item)
-      return next
-    })
-    setDragCatIdx(null)
-    setInsertAtIdx(null)
   }
 
   // ── 大分類 CRUD ──
@@ -185,23 +173,6 @@ export default function AdminCategories() {
       return next
     })
     message.success('大分類已刪除')
-  }
-
-  // ── 子分類拖曳 ──（僅排序模式有效）
-  const handleSubDrop = (catId, insertBeforeIdx) => {
-    if (!sortMode || !dragSubId) return
-    setDraft(prev => prev.map(c => {
-      if (c.id !== catId) return c
-      const subs    = [...c.subCategories]
-      const fromIdx = subs.findIndex(s => s.id === dragSubId)
-      if (fromIdx === -1) return c
-      const [item]  = subs.splice(fromIdx, 1)
-      const toIdx   = insertBeforeIdx > fromIdx ? insertBeforeIdx - 1 : insertBeforeIdx
-      subs.splice(toIdx, 0, item)
-      return { ...c, subCategories: subs }
-    }))
-    setDragSubId(null)
-    setInsertBeforeSubIdx(null)
   }
 
   // ── 子分類 CRUD ──

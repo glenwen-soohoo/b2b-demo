@@ -1,7 +1,23 @@
-import { Modal, Descriptions, Tag, Space, Typography, Table, Divider, Tabs, Button } from 'antd';
-import { MailOutlined } from '@ant-design/icons';
+import { Modal, Descriptions, Tag, Space, Typography, Table, Divider, Tabs, Button, Alert } from 'antd';
+import { MailOutlined, LinkOutlined } from '@ant-design/icons';
+import { TEMP } from '../styles/tokens';
 
 const { Text } = Typography;
+
+// 互動式 token 按鈕區塊（模擬信件中的一次性連結）
+// TODO_FRUIT_WEB: 真實實作時替換為後端產生的 14 天 one-time token URL
+//   DB 欄位: EmailTokens(token, orderId/settlementId, action, expiresAt, usedAt)
+function TokenButton({ label, description }) {
+  return (
+    <div style={{ marginTop: 16, padding: '12px 16px', background: TEMP.frozen.bg, borderRadius: 6, border: `1px solid ${TEMP.frozen.border}` }}>
+      <div style={{ fontWeight: 600, marginBottom: 8 }}>
+        <LinkOutlined style={{ marginRight: 6 }} />點擊下方按鈕{description}
+      </div>
+      <Button type="primary" size="small" icon={<LinkOutlined />}>{label}</Button>
+      <Text type="secondary" style={{ marginLeft: 8, fontSize: 11 }}>（Token 連結 14 天有效，僅可使用一次）</Text>
+    </div>
+  );
+}
 
 /**
  * 通知預覽彈窗（模擬寄信，不寄真實 email）
@@ -9,7 +25,9 @@ const { Text } = Typography;
  * Props:
  *   open: bool
  *   onClose: fn
- *   type: 'sales_to_warehouse' | 'warehouse_confirmed' | 'settlement_created' | 'payment_received'
+ *   type: 'order_submitted' | 'sales_to_warehouse' | 'warehouse_confirmed' |
+ *         'settlement_created' | 'settlement_reminder' |
+ *         'vendor_payment_report' | 'payment_received'
  *   data: object（依 type 不同內容不同）
  */
 export default function NotificationPreviewModal({ open, onClose, onConfirm, type, data, onlyTab }) {
@@ -83,6 +101,13 @@ export default function NotificationPreviewModal({ open, onClose, onConfirm, typ
               <div style={{ marginTop: 8, color: '#52c41a' }}>✅ 出貨數量與您的下訂完全一致。</div>
             )}
             <div style={{ marginTop: 12 }}>後續由倉庫依正常出貨流程處理，感謝您的採購。</div>
+            <TokenButton
+              label="確認訂單內容"
+              description="確認此筆B2B訂單（到貨後可回報收貨狀況）"
+            />
+            <div style={{ marginTop: 8, color: '#888', fontSize: 12 }}>
+              若按鈕已失效，請聯繫業務窗口。
+            </div>
           </div>
         ),
       };
@@ -122,8 +147,46 @@ export default function NotificationPreviewModal({ open, onClose, onConfirm, typ
                 </Space>
               </>
             )}
+            <TokenButton
+              label="回報已完成匯款"
+              description="通知無毒農財務人員確認收款"
+            />
             <div style={{ marginTop: 8, color: '#888', fontSize: 12 }}>
-              完成匯款後，請聯繫業務窗口回報，以利財務核帳。
+              完成匯款後，請點擊上方按鈕回報，以利財務核帳。
+            </div>
+          </div>
+        ),
+      };
+    }
+
+    if (type === 'settlement_reminder') {
+      // #6: 超過 7 天未匯款提醒（使用與 #4 同一組 token）
+      return {
+        title: '結算匯款提醒',
+        to: data.channelEmail ?? data.channelName,
+        subject: `【無毒農提醒】${data.settlementMonth} 結算單尚未收到匯款，請確認`,
+        body: (
+          <div style={{ fontSize: 13, lineHeight: 2 }}>
+            <div>親愛的 {data.channelName} 您好，</div>
+            <div style={{ marginTop: 8 }}>
+              我們發現您 <Text strong>{data.settlementMonth}</Text> 月份的結算單自發送後已超過{' '}
+              <Text strong style={{ color: '#fa8c16' }}>7 天</Text>，
+              目前尚未收到匯款確認。
+            </div>
+            <div style={{ marginTop: 8, fontSize: 16, fontWeight: 700, color: '#fa8c16' }}>
+              待匯金額：${(data.totalAmount ?? 0).toLocaleString()}
+            </div>
+            <Divider style={{ margin: '12px 0' }} />
+            <div style={{ fontWeight: 600, marginBottom: 4 }}>匯款資訊</div>
+            <div>戶名：舒果農企業有限公司</div>
+            <div>銀行：兆豐 0170077</div>
+            <div>帳號：00709001170</div>
+            <TokenButton
+              label="回報已完成匯款"
+              description="通知無毒農財務人員確認收款"
+            />
+            <div style={{ marginTop: 8, color: '#888', fontSize: 12 }}>
+              若已匯款，請忽略此封信或聯繫業務窗口，謝謝。
             </div>
           </div>
         ),
@@ -214,7 +277,7 @@ export default function NotificationPreviewModal({ open, onClose, onConfirm, typ
                   金額為 <Text strong style={{ color: '#1677ff' }}>${(data.totalAmount ?? 0).toLocaleString()}</Text>。
                 </div>
                 <div style={{ marginTop: 8 }}>感謝您準時完成匯款！</div>
-                <div style={{ marginTop: 16, padding: '12px 16px', background: '#e6f4ff', borderRadius: 6, border: '1px solid #91caff' }}>
+                <div style={{ marginTop: 16, padding: '12px 16px', background: TEMP.frozen.bg, borderRadius: 6, border: `1px solid ${TEMP.frozen.border}` }}>
                   <div style={{ fontWeight: 600, marginBottom: 8 }}>📋 請點擊下方按鈕向業務窗口回報</div>
                   <Button type="primary" size="small">回報業務窗口</Button>
                   <Text type="secondary" style={{ marginLeft: 8, fontSize: 12 }}>（Demo：此按鈕代表廠商確認回報）</Text>

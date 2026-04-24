@@ -5,7 +5,7 @@ import {
   Statistic, Row, Col, Card, Typography, Tag, Descriptions,
   Timeline, Divider, Alert, message, Popconfirm, Modal, Form,
 } from 'antd'
-import { EyeOutlined, PlusOutlined, CheckOutlined, SearchOutlined, FilePdfOutlined } from '@ant-design/icons'
+import { EyeOutlined, PlusOutlined, CheckOutlined, SearchOutlined, FilePdfOutlined, MailOutlined } from '@ant-design/icons'
 import { exportSettlementPdf } from '../../utils/exportSettlementPdf'
 import StatusTag from '../../components/StatusTag'
 import NotificationPreviewModal from '../../components/NotificationPreviewModal'
@@ -132,8 +132,10 @@ function GenerateSettlementModal({ open, onClose, preOrderList, onGenerate }) {
 
 // ── 結算單詳情 Drawer ──────────────────────────────
 function SettlementDrawer({ settlement, preOrderList, open, onClose, onStatusChange }) {
-  const [financeNotifOpen, setFinanceNotifOpen] = useState(false)
-  const [financeNotifData, setFinanceNotifData] = useState(null)
+  const [financeNotifOpen,   setFinanceNotifOpen]   = useState(false)
+  const [financeNotifData,   setFinanceNotifData]   = useState(null)
+  const [reminderNotifOpen,  setReminderNotifOpen]  = useState(false)
+  const [reminderNotifData,  setReminderNotifData]  = useState(null)
 
   if (!settlement) return null
 
@@ -170,6 +172,20 @@ function SettlementDrawer({ settlement, preOrderList, open, onClose, onStatusCha
     onStatusChange(settlement.id, 'completed', {
       time: new Date().toLocaleString('zh-TW', { hour12: false }).replace(',', ''),
       action: '[手動操作] 財務確認已匯款',
+    })
+  }
+
+  const handleSendReminder = () => {
+    setReminderNotifData({
+      channelName:     settlement.channelName,
+      channelEmail:    null,
+      settlementMonth: settlement.settlementMonth,
+      totalAmount:     settlement.totalAmount,
+    })
+    setReminderNotifOpen(true)
+    onStatusChange(settlement.id, settlement.status, {
+      time: new Date().toLocaleString('zh-TW', { hour12: false }).replace(',', ''),
+      action: '已補發匯款提醒通知',
     })
   }
 
@@ -263,6 +279,12 @@ function SettlementDrawer({ settlement, preOrderList, open, onClose, onStatusCha
                 匯出 PDF
               </Button>
               <Space>
+                <Button
+                  icon={<MailOutlined />}
+                  onClick={handleSendReminder}
+                >
+                  補發催款通知
+                </Button>
                 <Popconfirm
                   title="確認廠商已完成匯款？"
                   onConfirm={handleMarkPaid}
@@ -348,6 +370,13 @@ function SettlementDrawer({ settlement, preOrderList, open, onClose, onStatusCha
         type="payment_received"
         onlyTab="business"
         data={financeNotifData}
+      />
+      {/* 催款提醒通知 */}
+      <NotificationPreviewModal
+        open={reminderNotifOpen}
+        onClose={() => setReminderNotifOpen(false)}
+        type="settlement_reminder"
+        data={reminderNotifData}
       />
     </>
   )

@@ -10,10 +10,9 @@ import {
 import { products, templates as initTemplates, channels as initChannels, categories, systemSettings } from '../../data/fakeData'
 import { exportQuotationPdf } from '../../utils/exportQuotationPdf'
 import { exportBlankOrder } from '../../utils/exportBlankOrder'
+import { TEMP_ICON } from '../../styles/tokens'
 
 const { Title, Text } = Typography
-
-const TEMP_ICON = { frozen: '❄️', ambient: '🌿' }
 
 // 將商品對應到大分類：先比對子分類名稱，找不到則 fallback 溫層
 function getProductCatId(product) {
