@@ -1,12 +1,12 @@
 import { useState, useEffect } from 'react';
 import {
   Drawer, Descriptions, Table, Timeline, Button, Space, Popconfirm, Tag,
-  Divider, Alert, Row, Col, InputNumber, Input, Typography, Tooltip, Select, message,
+  Divider, Alert, Row, Col, InputNumber, Input, Typography, Tooltip, Select, Dropdown, message,
 } from 'antd';
-import { SendOutlined, LockOutlined, SaveOutlined, EditOutlined, FilePdfOutlined, CloseOutlined } from '@ant-design/icons';
+import { SendOutlined, LockOutlined, SaveOutlined, EditOutlined, FilePdfOutlined, CloseOutlined, StopOutlined, DownOutlined, RedoOutlined } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import { exportOrderPdf } from '../utils/exportOrderPdf';
-import { generateB2bOrderNo, getConfirmedItems } from '../services/orderService';
+import { generateB2bOrderNo, getConfirmedItems, buildVoidPatch, buildRecreatedOrder } from '../services/orderService';
 import { useOrderDetailColumns } from '../hooks/useOrderDetailColumns';
 import StatusTag from './StatusTag';
 import OrderStateMachine from './OrderStateMachine';
@@ -70,31 +70,37 @@ function calcProfit(items) {
   );
 }
 
-function NoteField({ label, value, onChange, locked, placeholder, rows = 2 }) {
+function NoteField({ label, value, onChange, locked, placeholder, rows = 2, fillHeight = false }) {
   return (
-    <div>
+    <div style={fillHeight ? { display: 'flex', flexDirection: 'column', flex: 1 } : {}}>
       <div style={{ fontSize: 12, color: '#888', marginBottom: 4 }}>{label}</div>
       {locked
-        ? <div style={{ background: '#fafafa', border: '1px solid #f0f0f0', borderRadius: 6, padding: '6px 10px', minHeight: 54, fontSize: 13, color: '#595959', whiteSpace: 'pre-line' }}>
+        ? <div style={{ background: '#fafafa', border: '1px solid #f0f0f0', borderRadius: 6, padding: '6px 10px', fontSize: 13, color: '#595959', whiteSpace: 'pre-line', ...(fillHeight ? { flex: 1 } : { minHeight: 54 }) }}>
             {value || <Text type="secondary">—</Text>}
           </div>
-        : <Input.TextArea rows={rows} value={value} onChange={e => onChange(e.target.value)} placeholder={placeholder} />
+        : <Input.TextArea
+            rows={fillHeight ? undefined : rows}
+            style={fillHeight ? { flex: 1, resize: 'none' } : {}}
+            value={value} onChange={e => onChange(e.target.value)} placeholder={placeholder}
+          />
       }
     </div>
   );
 }
 
-export default function OrderDetail({ order, open, onClose, onStatusChange }) {
+export default function OrderDetail({ order, open, onClose, onStatusChange, onRecreate }) {
   const [adjQtyMap,      setAdjQtyMap]      = useState({});
   const [adjPriceMap,    setAdjPriceMap]    = useState({});
   const [discountAmount, setDiscountAmount] = useState(0);
   const [discountNote,   setDiscountNote]   = useState('');
   const [shippingNote,   setShippingNote]   = useState('');
+  const [warehouseNote,  setWarehouseNote]  = useState('');
   const [csNote,         setCsNote]         = useState('');
   const [b2bNote,        setB2bNote]        = useState('');
   const [editMode,       setEditMode]       = useState(false);
   const [editItems,      setEditItems]      = useState([]);
   const [localSettlementMonth, setLocalSettlementMonth] = useState('');
+  const [voidConfirm,    setVoidConfirm]    = useState({ open: false, mode: null }); // mode: 'void' | 'recreate'
 
   const { salesConfirmCols, editCols, itemCols } = useOrderDetailColumns({
     adjQtyMap, setAdjQtyMap,
@@ -110,6 +116,7 @@ export default function OrderDetail({ order, open, onClose, onStatusChange }) {
       setDiscountAmount(order.discount_amount ?? 0);
       setDiscountNote(order.discount_note ?? '');
       setShippingNote(order.shipping_note ?? order.vendorNote ?? '');
+      setWarehouseNote(order.warehouse_note ?? '');
       const defaultCsNote = channelMap[order.channelId]?.cs_note_default ?? '';
       setCsNote(order.cs_note ?? defaultCsNote);
       setB2bNote(order.b2b_note ?? '');
@@ -131,8 +138,28 @@ export default function OrderDetail({ order, open, onClose, onStatusChange }) {
   const netRevenue = revenue - (order.status === 'pending_sales' ? discountAmount : (order.discount_amount ?? 0));
 
   const isSettled    = order.status === 'settling' || order.status === 'settled_done';
-  const canEditAfter = (order.status === 'ordered' || order.status === 'arrived') && !isSettled;
-  const noteLocked   = isSettled || (canEditAfter && !editMode);
+  const isVoided     = order.status === 'voided';
+  const canEditAfter = (order.status === 'ordered' || order.status === 'arrived') && !isSettled && !isVoided;
+  const noteLocked   = isSettled || isVoided || (canEditAfter && !editMode);
+
+  const handleSaveDraft = () => {
+    const adjustedItems = order.items.map(i => ({
+      ...i,
+      qty:   adjQtyMap[i.productId]   ?? i.qty,
+      price: adjPriceMap[i.productId] ?? i.price,
+    }));
+    onStatusChange(order.id, 'pending_sales', null, {
+      salesAdjustedItems: adjustedItems,
+      shipping_note:   shippingNote   || null,
+      warehouse_note:  warehouseNote  || null,
+      cs_note:         csNote         || null,
+      b2b_note:        b2bNote        || null,
+      discount_amount: discountAmount,
+      discount_note:   discountNote   || null,
+      settlementMonth: localSettlementMonth || order.settlementMonth,
+    });
+    message.success('修改已儲存');
+  };
 
   const handleSalesConfirm = () => {
     const adjustedItems = order.items.map(i => ({
@@ -154,9 +181,10 @@ export default function OrderDetail({ order, open, onClose, onStatusChange }) {
       action: logMsg,
     }, {
       salesAdjustedItems: adjustedItems,
-      shipping_note:   shippingNote  || null,
-      cs_note:         csNote        || null,
-      b2b_note:        b2bNote       || null,
+      shipping_note:   shippingNote   || null,
+      warehouse_note:  warehouseNote  || null,
+      cs_note:         csNote         || null,
+      b2b_note:        b2bNote        || null,
       b2b_order_no:    b2bOrderNo,
       discount_amount: discountAmount,
       discount_note:   discountNote  || null,
@@ -171,6 +199,7 @@ export default function OrderDetail({ order, open, onClose, onStatusChange }) {
 
   const handleCancelEdit = () => {
     setShippingNote(order.shipping_note ?? order.vendorNote ?? '');
+    setWarehouseNote(order.warehouse_note ?? '');
     setCsNote(order.cs_note ?? channelMap[order.channelId]?.cs_note_default ?? '');
     setB2bNote(order.b2b_note ?? '');
     setDiscountAmount(order.discount_amount ?? 0);
@@ -180,6 +209,14 @@ export default function OrderDetail({ order, open, onClose, onStatusChange }) {
   };
 
   const handleSaveEdit = () => {
+    // TODO_FRUIT_WEB: 「建單後修改」的連動規則
+    //   - adjustedItems（品項明細）：**不**同步到正式訂單的 OrderDetail，
+    //     避免覆蓋已出貨的倉庫數量紀錄。
+    //   - 訂單總金額（adjustedItems 加總 - discount_amount）：
+    //     需呼叫 PUT /GoX/Orders/UpdatePrice/{backendOrderId} 同步更新 Orders.TotalPrice。
+    //   - 備註欄位（shipping_note / warehouse_note / cs_note）：
+    //     需呼叫對應 API 同步寫回 fruit_web Orders 備註欄位。
+    //   串接時以此為優先，細項不動、金額與備註要更新。
     const changes = [];
     displayItems.forEach(orig => {
       const edited = editItems.find(i => i.productId === orig.productId);
@@ -196,9 +233,10 @@ export default function OrderDetail({ order, open, onClose, onStatusChange }) {
       action: logMsg,
     }, {
       adjustedItems:   editItems,
-      shipping_note:   shippingNote  || null,
-      cs_note:         csNote        || null,
-      b2b_note:        b2bNote       || null,
+      shipping_note:   shippingNote   || null,
+      warehouse_note:  warehouseNote  || null,
+      cs_note:         csNote         || null,
+      b2b_note:        b2bNote        || null,
       discount_amount: discountAmount,
       discount_note:   discountNote  || null,
     });
@@ -210,6 +248,49 @@ export default function OrderDetail({ order, open, onClose, onStatusChange }) {
   const handleSettlementMonthChange = (m) => {
     setLocalSettlementMonth(m);
     onStatusChange(order.id, order.status, null, { settlementMonth: m });
+  };
+
+  // 純作廢：呼叫 fruit_web 刪單 API、狀態改 voided
+  const handleVoid = async () => {
+    try {
+      message.loading({ content: '作廢中…', key: 'void', duration: 0 });
+      const patch = await buildVoidPatch(order);
+      onStatusChange(order.id, patch.status, patch.logs[patch.logs.length - 1], {
+        voided_at: patch.voided_at,
+        voided_reason: patch.voided_reason,
+      });
+      message.success({ content: '訂單已作廢', key: 'void' });
+    } catch (err) {
+      console.error(err);
+      message.error({ content: err.message || '作廢失敗', key: 'void' });
+    }
+  };
+
+  // 作廢 + 重新建單：先作廢舊單，再 push 一筆新訂單
+  const handleVoidAndRecreate = async () => {
+    try {
+      message.loading({ content: '作廢並重新建單…', key: 'void', duration: 0 });
+      const patch = await buildVoidPatch(order, '作廢重新建單');
+      onStatusChange(order.id, patch.status, patch.logs[patch.logs.length - 1], {
+        voided_at: patch.voided_at,
+        voided_reason: patch.voided_reason,
+      });
+      const newOrder = buildRecreatedOrder(order);
+      onRecreate?.(newOrder);
+      message.success({ content: `已作廢，並建立新訂單 ${newOrder.id}`, key: 'void' });
+      onClose();
+    } catch (err) {
+      console.error(err);
+      message.error({ content: err.message || '作廢失敗', key: 'void' });
+    }
+  };
+
+  // 重新建單（僅作廢狀態下使用）：複製舊單建立新一筆 pending_sales
+  const handleRecreate = () => {
+    const newOrder = buildRecreatedOrder(order);
+    onRecreate?.(newOrder);
+    message.success(`已建立新訂單 ${newOrder.id}`);
+    onClose();
   };
 
   const itemTableLabel = order.adjustedItems
@@ -229,6 +310,7 @@ export default function OrderDetail({ order, open, onClose, onStatusChange }) {
             <StatusTag status={order.status} />
             {temperatureZoneTag(order.items)}
             {isSettled && <LockOutlined style={{ color: '#722ed1' }} />}
+            {isVoided && <StopOutlined style={{ color: '#cf1322' }} />}
           </Space>
         }
         open={open}
@@ -244,6 +326,20 @@ export default function OrderDetail({ order, open, onClose, onStatusChange }) {
         {isSettled && (
           <Alert type="warning" showIcon icon={<LockOutlined />}
             message="此B2B訂單已結算鎖定，不可再異動"
+            style={{ marginBottom: 16 }}
+          />
+        )}
+
+        {isVoided && (
+          <Alert type="error" showIcon icon={<StopOutlined />}
+            message="此訂單已作廢"
+            description={
+              <Space direction="vertical" size={2} style={{ fontSize: 12 }}>
+                {order.backendOrderId && <span>後台正式訂單號 <Text code>{order.backendOrderId}</Text> 已同步刪除</span>}
+                {order.voided_at && <span>作廢時間：{order.voided_at}</span>}
+                {order.voided_reason && <span>作廢原因：{order.voided_reason}</span>}
+              </Space>
+            }
             style={{ marginBottom: 16 }}
           />
         )}
@@ -269,7 +365,7 @@ export default function OrderDetail({ order, open, onClose, onStatusChange }) {
         <Descriptions bordered size="small" column={2} style={{ marginBottom: 20 }}>
           <Descriptions.Item label="通路名稱">{order.channelName}</Descriptions.Item>
           <Descriptions.Item label="結算月份">
-            {!isSettled
+            {!isSettled && !isVoided
               ? <Select
                   size="small"
                   value={localSettlementMonth || order.settlementMonth}
@@ -277,7 +373,7 @@ export default function OrderDetail({ order, open, onClose, onStatusChange }) {
                   options={getSettlementMonthOptions(channelMap[order.channelId]?.settlementDay ?? 25, localSettlementMonth || order.settlementMonth)}
                   style={{ width: 180 }}
                 />
-              : order.settlementMonth
+              : (order.settlementMonth || <Text type="secondary">—</Text>)
             }
           </Descriptions.Item>
           <Descriptions.Item label="建立日期">{order.createdAt}</Descriptions.Item>
@@ -287,17 +383,12 @@ export default function OrderDetail({ order, open, onClose, onStatusChange }) {
               <Tag color="blue">{order.b2b_order_no}</Tag>
             </Descriptions.Item>
           )}
-          <Descriptions.Item label="後台訂單號" span={2}>
+          <Descriptions.Item label="後台正式訂單號" span={2}>
             {order.backendOrderId
               ? <Tag color="cyan">{order.backendOrderId}</Tag>
               : <Text type="secondary">—</Text>
             }
           </Descriptions.Item>
-          {order.fruitOrderNumber && (
-            <Descriptions.Item label="無毒農正式單號" span={2}>
-              <Tag color="green">{order.fruitOrderNumber}</Tag>
-            </Descriptions.Item>
-          )}
           <Descriptions.Item label="發票模式" span={2}>
             <Tag>{INVOICE_MODE_LABEL[order.invoice_mode_snapshot] ?? order.invoice_mode_snapshot ?? '—'}</Tag>
           </Descriptions.Item>
@@ -452,15 +543,27 @@ export default function OrderDetail({ order, open, onClose, onStatusChange }) {
         )}
 
         <Divider orientation="left" plain>備註</Divider>
-        <div style={{ display: 'flex', gap: 12, marginBottom: 12 }}>
-          <div style={{ flex: 1 }}>
+        <div style={{ display: 'flex', gap: 16, marginBottom: 12, alignItems: 'stretch' }}>
+          {/* 左：B2B備註（通路可見，性質特殊獨立） */}
+          <div style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
+            <NoteField
+              label="B2B備註（後台填寫，僅通路可見，不會帶入正式後台）"
+              value={b2bNote} onChange={setB2bNote} locked={noteLocked}
+              placeholder="回覆通路的備註" fillHeight
+            />
+          </div>
+          {/* 右：出貨、倉庫、客服三個後台備註直排 */}
+          <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 12 }}>
             <NoteField
               label="出貨備註（通路填寫，通路、正式後台、倉庫、物流可見）"
               value={shippingNote} onChange={setShippingNote} locked={noteLocked}
               placeholder="出貨相關備註（通路下單時填寫，後續可修改）"
             />
-          </div>
-          <div style={{ flex: 1 }}>
+            <NoteField
+              label="倉庫備註（後台填寫，僅正式後台、倉庫、物流可見）"
+              value={warehouseNote} onChange={setWarehouseNote} locked={noteLocked}
+              placeholder="提醒倉庫的注意事項"
+            />
             <NoteField
               label="客服備註（後台填寫，僅正式後台、自配單可見）"
               value={csNote} onChange={setCsNote} locked={noteLocked}
@@ -468,17 +571,10 @@ export default function OrderDetail({ order, open, onClose, onStatusChange }) {
             />
           </div>
         </div>
-        <div style={{ marginBottom: 12 }}>
-          <NoteField
-            label="B2B備註（後台填寫，僅通路可見，不會帶入正式後台）"
-            value={b2bNote} onChange={setB2bNote} locked={noteLocked}
-            placeholder="回覆通路的備註" rows={2}
-          />
-        </div>
 
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16, gap: 8 }}>
-          <div>
-            {(order.status === 'pending_sales' || order.status === 'ordered' || order.status === 'arrived' || isSettled) && (
+          <Space>
+            {(order.status === 'pending_sales' || order.status === 'ordered' || order.status === 'arrived' || isSettled || isVoided) && (
               <Button
                 icon={<FilePdfOutlined />}
                 onClick={async () => {
@@ -495,26 +591,100 @@ export default function OrderDetail({ order, open, onClose, onStatusChange }) {
                 匯出 PDF
               </Button>
             )}
-          </div>
+            {/* 「作廢」下拉按鈕：僅在「已成立訂單」狀態下出現 */}
+            {order.status === 'ordered' && (
+              <Popconfirm
+                open={voidConfirm.open}
+                title={voidConfirm.mode === 'recreate'
+                  ? '確認執行「作廢並重新建單」？'
+                  : '確認執行「作廢訂單」？'}
+                description={
+                  voidConfirm.mode === 'recreate' ? (
+                    <span>
+                      舊訂單後台正式訂單號 <Text code>{order.backendOrderId ?? '—'}</Text> 將<strong>同步刪除</strong>，<br />
+                      並建立一筆新的「待業務確認」訂單，<br />
+                      給予新的 B2B 編號，原始品項會帶入。
+                    </span>
+                  ) : (
+                    <span>
+                      後台正式訂單號 <Text code>{order.backendOrderId ?? '—'}</Text> 將<strong>同步刪除</strong>，<br />
+                      作廢後此訂單<strong>無法</strong>再做任何修改。
+                    </span>
+                  )
+                }
+                onConfirm={() => {
+                  if (voidConfirm.mode === 'recreate') handleVoidAndRecreate();
+                  else handleVoid();
+                  setVoidConfirm({ open: false, mode: null });
+                }}
+                onCancel={() => setVoidConfirm({ open: false, mode: null })}
+                okText="確認" cancelText="取消"
+                okButtonProps={{ danger: true }}
+              >
+                <Dropdown
+                  menu={{
+                    items: [
+                      {
+                        key: 'void_only',
+                        label: '純作廢',
+                        icon: <StopOutlined />,
+                        onClick: () => setVoidConfirm({ open: true, mode: 'void' }),
+                      },
+                      {
+                        key: 'void_and_recreate',
+                        label: '作廢重新建單',
+                        icon: <RedoOutlined />,
+                        onClick: () => setVoidConfirm({ open: true, mode: 'recreate' }),
+                      },
+                    ],
+                  }}
+                  trigger={['click']}
+                >
+                  <Button danger icon={<StopOutlined />}>
+                    作廢 <DownOutlined />
+                  </Button>
+                </Dropdown>
+              </Popconfirm>
+            )}
+          </Space>
           <Space>
             {order.status === 'pending_sales' && (
-              <Popconfirm
-                title="確認執行「業務確認完成，建立正式訂單」？"
-                description="確認後，採購單價與折扣將鎖定，不可再修改。"
-                onConfirm={handleSalesConfirm}
-                okText="確認" cancelText="取消"
-                disabled={discountAmount > 0 && !discountNote.trim()}
-              >
-                <Tooltip title={discountAmount > 0 && !discountNote.trim() ? '折扣金額大於0時，折扣備註為必填' : ''}>
-                  <Button type="primary" icon={<SendOutlined />}
-                    disabled={discountAmount > 0 && !discountNote.trim()}>
-                    業務確認完成，建立正式訂單
-                  </Button>
-                </Tooltip>
-              </Popconfirm>
+              <>
+                <Button icon={<SaveOutlined />} onClick={handleSaveDraft}>儲存</Button>
+                <Popconfirm
+                  title="確認執行「業務確認完成，建立正式訂單」？"
+                  description={
+                    <span>
+                      建單後，未來「建單後修改」調整細項<strong>不會</strong>連動正式訂單<br />
+                      僅 <strong>訂單總金額</strong> 與 <strong>備註文字</strong> 會連動調整。
+                    </span>
+                  }
+                  onConfirm={handleSalesConfirm}
+                  okText="確認" cancelText="取消"
+                  disabled={discountAmount > 0 && !discountNote.trim()}
+                >
+                  <Tooltip title={discountAmount > 0 && !discountNote.trim() ? '折扣金額大於0時，折扣備註為必填' : ''}>
+                    <Button type="primary" icon={<SendOutlined />}
+                      disabled={discountAmount > 0 && !discountNote.trim()}>
+                      業務確認完成，建立正式訂單
+                    </Button>
+                  </Tooltip>
+                </Popconfirm>
+              </>
             )}
             {canEditAfter && !editMode && (
               <Button icon={<EditOutlined />} onClick={handleStartEdit}>建單後修改</Button>
+            )}
+            {/* 作廢狀態：「建單後修改」位置改為「重新建單」 */}
+            {isVoided && (
+              <Popconfirm
+                title="確認重新建單？"
+                description={<span>將以原始品項建立一筆新的「待業務確認」B2B 訂單，並產生新的 B2B 編號。</span>}
+                onConfirm={handleRecreate}
+                okText="確認" cancelText="取消"
+              >
+                <Button type="primary" icon={<RedoOutlined />}>重新建單</Button>
+              </Popconfirm>
             )}
             {editMode && (
               <>

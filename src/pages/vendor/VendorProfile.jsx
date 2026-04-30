@@ -212,14 +212,18 @@ export default function VendorProfile() {
         <div style={{ fontSize: 12, color: '#ad8b00', marginBottom: 10, fontWeight: 600 }}>
           結算資訊（如需修改請聯繫業務窗口）
         </div>
-        {/* 第一行：結算日 + 匯款帳號 */}
-        <Space split={<Divider type="vertical" />} wrap style={{ marginBottom: 8 }}>
-          <Text>結算日：每月 <strong>{info.settlementDay}</strong> 日</Text>
-          <Text>匯款帳號：<Text code>00709001170</Text>（兆豐銀行）</Text>
-        </Space>
-        {/* 第二行：發票模式 */}
-        <div>
-          <Text>發票模式：{INVOICE_MODE_LABEL[info.invoice_mode] ?? '—'}</Text>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px 24px' }}>
+          {[
+            { label: '結算日',  value: `每月 ${info.settlementDay} 日` },
+            { label: '匯款帳號', value: '00709001170（兆豐銀行）' },
+            { label: '發票模式', value: INVOICE_MODE_LABEL[info.invoice_mode] ?? '—' },
+            { label: '發票類型', value: info.invoice_type === 'three_part' ? '三聯式' : info.invoice_type === 'two_part' ? '二聯式' : '—' },
+          ].map(f => (
+            <div key={f.label}>
+              <div style={{ fontSize: 12, color: '#999', marginBottom: 2 }}>{f.label}</div>
+              <div style={{ fontSize: 14 }}>{f.value}</div>
+            </div>
+          ))}
         </div>
       </Card>
 

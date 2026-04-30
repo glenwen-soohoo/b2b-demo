@@ -66,26 +66,32 @@ function buildTemperaturePageHtml({ temperature, groupProducts, template, channe
             <div style="font-weight:700;color:${COLOR.text};line-height:1.3;">${escapeHtml(p.name)}</div>
             ${p.spec ? `<div style="font-size:9px;color:${COLOR.textMuted};margin-top:3px;line-height:1.2;">${escapeHtml(p.spec)}</div>` : ''}
           </td>
-          <td style="padding:8px 10px;border:1px solid ${COLOR.borderGray};font-size:12px;text-align:right;vertical-align:middle;width:82px;font-weight:700;color:${isOverride ? COLOR.highlight : COLOR.text};">
+          <td style="padding:8px 10px;border:1px solid ${COLOR.borderGray};font-size:12px;text-align:right;vertical-align:middle;width:70px;color:${COLOR.textMuted};">
+            ${p.retailPrice != null ? `$${p.retailPrice.toLocaleString()}` : `<span style="color:${COLOR.textLight};">—</span>`}
+          </td>
+          <td style="padding:8px 10px;border:1px solid ${COLOR.borderGray};font-size:12px;text-align:right;vertical-align:middle;width:70px;color:${COLOR.textMuted};">
+            ${p.minRetailPrice != null ? `$${p.minRetailPrice.toLocaleString()}` : `<span style="color:${COLOR.textLight};">—</span>`}
+          </td>
+          <td style="padding:8px 10px;border:1px solid ${COLOR.borderGray};font-size:12px;text-align:right;vertical-align:middle;width:75px;font-weight:700;color:${isOverride ? COLOR.highlight : COLOR.text};">
             $${price.toLocaleString()}${isOverride ? '<span style="font-size:9px;font-weight:400;">＊</span>' : ''}
           </td>
-          <td style="padding:4px 6px;border:1px solid ${COLOR.borderGray};text-align:center;vertical-align:middle;width:145px;">
-            ${barcodeUrl ? `<img src="${barcodeUrl}" style="max-width:138px;max-height:32px;display:inline-block;vertical-align:middle;" />` : ''}
+          <td style="padding:4px 6px;border:1px solid ${COLOR.borderGray};text-align:center;vertical-align:middle;width:120px;">
+            ${barcodeUrl ? `<img src="${barcodeUrl}" style="max-width:113px;max-height:32px;display:inline-block;vertical-align:middle;" />` : ''}
           </td>
-          <td style="padding:8px 8px;border:1px solid ${COLOR.borderGray};font-size:10px;text-align:center;vertical-align:middle;width:128px;line-height:1.3;">
+          <td style="padding:8px 8px;border:1px solid ${COLOR.borderGray};font-size:10px;text-align:center;vertical-align:middle;width:110px;line-height:1.3;">
             ${pageUrl ? `
               <div style="color:${COLOR.link};font-weight:700;">🔗 查看商品頁</div>
               <div style="font-size:8px;color:${COLOR.textMuted};word-break:break-all;margin-top:2px;">${escapeHtml(pageUrl)}</div>
             ` : `<span style="color:${COLOR.textLight};">—</span>`}
           </td>
-          <td style="padding:8px 10px;border:1px solid ${COLOR.borderGray};font-size:10px;color:${COLOR.textMuted};vertical-align:middle;width:110px;"></td>
+          <td style="padding:8px 10px;border:1px solid ${COLOR.borderGray};font-size:10px;color:${COLOR.textMuted};vertical-align:middle;width:85px;"></td>
         </tr>
       `
     }).join('')
 
     return `
       <tr>
-        <td colspan="5" style="padding:4px 14px;border:1px solid ${COLOR.borderGray};background:${COLOR.brandSoft};color:${COLOR.brand};font-size:11px;font-weight:700;">
+        <td colspan="7" style="padding:4px 14px;border:1px solid ${COLOR.borderGray};background:${COLOR.brandSoft};color:${COLOR.brand};font-size:11px;font-weight:700;">
           ${escapeHtml(subName)}
         </td>
       </tr>
@@ -96,14 +102,14 @@ function buildTemperaturePageHtml({ temperature, groupProducts, template, channe
   // 摘要列（最後一頁顯示）
   const summaryHtml = isLastPage ? `
     <tr>
-      <td colspan="5" style="padding:6px 14px;border:1px solid ${COLOR.borderGray};background:${COLOR.bgHeader};font-size:10px;color:${COLOR.textMuted};text-align:right;">
+      <td colspan="7" style="padding:6px 14px;border:1px solid ${COLOR.borderGray};background:${COLOR.bgHeader};font-size:10px;color:${COLOR.textMuted};text-align:right;">
         本報價單共 <strong style="color:${COLOR.text};">${meta.totalItems}</strong> 項商品
         ${meta.hasOverride ? `　／　<span style="color:${COLOR.highlight};">＊</span> 表示本合作案專屬價，非標準 B2B 價` : ''}
       </td>
     </tr>
   ` : `
     <tr>
-      <td colspan="5" style="padding:6px 14px;font-size:10px;color:${COLOR.textMuted};text-align:right;">
+      <td colspan="7" style="padding:6px 14px;font-size:10px;color:${COLOR.textMuted};text-align:right;">
         本頁 ${groupProducts.length} 項　·　報價尚有後續頁
       </td>
     </tr>
@@ -169,14 +175,8 @@ function buildTemperaturePageHtml({ temperature, groupProducts, template, channe
       <div style="margin-top:10px;padding:5px 10px;background:${COLOR.bgHeader};border:1px solid ${COLOR.borderGray};text-align:center;font-size:10px;color:${COLOR.textMuted};">
         請<span style="color:${COLOR.red};font-weight:700;">蓋章</span>及<span style="color:${COLOR.red};font-weight:700;">簽名</span>確認後回傳，以利後續合作作業
       </div>
-      <div style="display:flex;">
-        <div style="flex:1;height:72px;border:1px solid ${COLOR.borderGray};border-top:none;border-right:none;"></div>
-        <div style="flex:1;height:72px;border:1px solid ${COLOR.borderGray};border-top:none;"></div>
-      </div>
-      <div style="display:flex;">
-        <div style="flex:1;padding:4px 10px;border:1px solid ${COLOR.borderGray};border-top:none;border-right:none;text-align:center;font-size:10px;color:${COLOR.textMuted};">我方業務代表簽章</div>
-        <div style="flex:1;padding:4px 10px;border:1px solid ${COLOR.borderGray};border-top:none;text-align:center;font-size:10px;color:${COLOR.textMuted};">客戶確認簽章</div>
-      </div>
+      <div style="height:72px;border:1px solid ${COLOR.borderGray};border-top:none;"></div>
+      <div style="padding:4px 10px;border:1px solid ${COLOR.borderGray};border-top:none;text-align:center;font-size:10px;color:${COLOR.textMuted};">客戶確認簽章</div>
     </div>
   ` : ''
 
@@ -199,10 +199,12 @@ function buildTemperaturePageHtml({ temperature, groupProducts, template, channe
         <thead>
           <tr>
             <th style="padding:6px 10px;border:1px solid ${COLOR.borderGray};background:${COLOR.bgHeader};font-size:11px;font-weight:700;color:${COLOR.textMuted};text-align:center;">品　項</th>
-            <th style="padding:6px 10px;border:1px solid ${COLOR.borderGray};background:${COLOR.bgHeader};font-size:11px;font-weight:700;color:${COLOR.textMuted};text-align:center;width:82px;">合作單價</th>
-            <th style="padding:6px 10px;border:1px solid ${COLOR.borderGray};background:${COLOR.bgHeader};font-size:11px;font-weight:700;color:${COLOR.textMuted};text-align:center;width:145px;">國際條碼</th>
-            <th style="padding:6px 10px;border:1px solid ${COLOR.borderGray};background:${COLOR.bgHeader};font-size:11px;font-weight:700;color:${COLOR.textMuted};text-align:center;width:128px;">前台展示頁面</th>
-            <th style="padding:6px 10px;border:1px solid ${COLOR.borderGray};background:${COLOR.bgHeader};font-size:11px;font-weight:700;color:${COLOR.textMuted};text-align:center;width:110px;">備　註</th>
+            <th style="padding:6px 10px;border:1px solid ${COLOR.borderGray};background:${COLOR.bgHeader};font-size:11px;font-weight:700;color:${COLOR.textMuted};text-align:center;width:70px;">官網售價</th>
+            <th style="padding:6px 10px;border:1px solid ${COLOR.borderGray};background:${COLOR.bgHeader};font-size:11px;font-weight:700;color:${COLOR.textMuted};text-align:center;width:70px;">通路最低售價</th>
+            <th style="padding:6px 10px;border:1px solid ${COLOR.borderGray};background:${COLOR.bgHeader};font-size:11px;font-weight:700;color:${COLOR.textMuted};text-align:center;width:75px;">合作單價</th>
+            <th style="padding:6px 10px;border:1px solid ${COLOR.borderGray};background:${COLOR.bgHeader};font-size:11px;font-weight:700;color:${COLOR.textMuted};text-align:center;width:120px;">國際條碼</th>
+            <th style="padding:6px 10px;border:1px solid ${COLOR.borderGray};background:${COLOR.bgHeader};font-size:11px;font-weight:700;color:${COLOR.textMuted};text-align:center;width:110px;">前台展示頁面</th>
+            <th style="padding:6px 10px;border:1px solid ${COLOR.borderGray};background:${COLOR.bgHeader};font-size:11px;font-weight:700;color:${COLOR.textMuted};text-align:center;width:85px;">備　註</th>
           </tr>
         </thead>
         <tbody>

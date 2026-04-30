@@ -13,8 +13,9 @@ import AdminProducts     from './pages/admin/AdminProducts'
 import AdminCategories  from './pages/admin/AdminCategories'
 import AdminChannels     from './pages/admin/AdminChannels'
 import AdminTemplates    from './pages/admin/AdminTemplates'
-import AdminShipping     from './pages/admin/AdminShipping'
-import AnalyticsPage     from './pages/AnalyticsPage'
+import AdminShipping       from './pages/admin/AdminShipping'
+import AdminAnnouncements from './pages/admin/AdminAnnouncements'
+import AnalyticsPage       from './pages/AnalyticsPage'
 
 export default function App() {
   return (
@@ -41,7 +42,8 @@ export default function App() {
         <Route path="shipping"    element={<AdminShipping />} />
         <Route path="channels"    element={<AdminChannels />} />
         <Route path="templates"   element={<AdminTemplates />} />
-        <Route path="analytics"   element={<AnalyticsPage />} />
+        <Route path="analytics"      element={<AnalyticsPage />} />
+        <Route path="announcements"  element={<AdminAnnouncements />} />
         <Route path="*"           element={<Navigate to="orders" replace />} />
       </Route>
 

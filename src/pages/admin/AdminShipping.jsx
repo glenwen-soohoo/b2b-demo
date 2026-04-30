@@ -92,6 +92,12 @@ export default function AdminShipping() {
 
   const handleSave = (tempKey, newVal) => {
     setSettings(prev => ({ ...prev, [tempKey]: newVal }))
+    // ⚠️ 連動說明：直接 mutate fakeData 匯出的 shippingSettings 物件。
+    // 由於 ES module 在同一 runtime 共用同一 object reference，
+    // 以下幾個地方會即時讀到新值，不需要額外傳參：
+    //   - exportBlankOrder.js  → buildSheet() 的免運/運費公式與說明文字
+    //   - VendorOrderForm.jsx  → 前台採購單頁面的免運門檻警示
+    // 若未來改為真實 API，請將這三處的資料來源統一改成 API 回傳值。
     initialSettings[tempKey] = newVal
   }
 

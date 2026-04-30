@@ -197,7 +197,9 @@ function buildSheet(wb, logoImageId, { cat, prods, channel, systemSettings }) {
   row++
 
   // ══════ 小計 / 運費 / 折扣 / 訂單總金額 ══════
-  // 依該大分類的溫層取運費設定
+  // 依該大分類的溫層取運費設定。
+  // shippingSettings 直接從 fakeData import，與 AdminShipping 的 handleSave
+  // 共用同一個 object reference，因此後台修改運費後下載的 Excel 會即時反映新設定。
   const tempSetting = shippingSettings[cat.temperature] ?? shippingSettings.frozen
   const freeThr     = tempSetting.freeShippingThreshold
   const shippingFee = tempSetting.shippingFee

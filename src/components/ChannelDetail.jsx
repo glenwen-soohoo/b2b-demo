@@ -1,5 +1,5 @@
 import { Drawer, Descriptions, Tabs, Tag, Table, Typography, Space, Divider } from 'antd';
-import { EnvironmentOutlined, FileTextOutlined, BankOutlined } from '@ant-design/icons';
+import { EnvironmentOutlined, FileTextOutlined, BankOutlined, UserOutlined, CheckCircleOutlined } from '@ant-design/icons';
 import { templates } from '../data/fakeData';
 
 const { Text } = Typography;
@@ -41,6 +41,18 @@ export default function ChannelDetail({ channel, open, onClose }) {
       width={780}
     >
       <Descriptions bordered size="small" column={2} style={{ marginBottom: 20 }}>
+        <Descriptions.Item label="綁定會員" span={2}>
+          {channel.memberId
+            ? (
+              <Space size={8}>
+                <Tag color="green" icon={<CheckCircleOutlined />}>已綁定</Tag>
+                <span><UserOutlined style={{ marginRight: 4 }} />{channel.memberName}</span>
+                <Text type="secondary" style={{ fontSize: 12 }}>{channel.memberAccount}</Text>
+              </Space>
+            )
+            : <Text type="secondary">未綁定</Text>
+          }
+        </Descriptions.Item>
         <Descriptions.Item label="通路名稱">{channel.name}</Descriptions.Item>
         <Descriptions.Item label="聯絡信箱">{channel.email}</Descriptions.Item>
         <Descriptions.Item label="聯繫窗口">{channel.contact}</Descriptions.Item>
@@ -52,6 +64,14 @@ export default function ChannelDetail({ channel, open, onClose }) {
           <Tag color={INVOICE_MODE_COLOR[channel.invoice_mode] ?? 'default'}>
             {INVOICE_MODE_LABEL[channel.invoice_mode] ?? '—'}
           </Tag>
+        </Descriptions.Item>
+        <Descriptions.Item label="發票類型">
+          {channel.invoice_type === 'three_part'
+            ? <><Tag color="cyan">三聯式</Tag><Text type="secondary" style={{ fontSize: 11 }}>寄送至聯繫信箱</Text></>
+            : channel.invoice_type === 'two_part'
+            ? <Tag>二聯式</Tag>
+            : <Text type="secondary">—</Text>
+          }
         </Descriptions.Item>
         <Descriptions.Item label="套用模板" span={2}>
           <Tag color="geekblue"><FileTextOutlined /> {tpl?.name ?? channel.templateId}</Tag>

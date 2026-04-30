@@ -35,7 +35,7 @@ function PreOrdersPane({ channelId }) {
           {s === 'ordered' && <Tag color="cyan" style={{ fontSize: 11 }}>已出貨</Tag>}
         </Space>
       )},
-    { title: '後台訂單號', dataIndex: 'backendOrderId', width: 130,
+    { title: '後台正式訂單號', dataIndex: 'backendOrderId', width: 130,
       render: v => v
         ? <Tag color="cyan" style={{ fontSize: 11 }}>{v}</Tag>
         : <Text type="secondary">—</Text> },

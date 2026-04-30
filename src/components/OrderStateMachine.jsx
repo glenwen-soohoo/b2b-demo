@@ -5,6 +5,7 @@ import {
   InboxOutlined,
   SyncOutlined,
   CheckSquareOutlined,
+  StopOutlined,
 } from '@ant-design/icons';
 
 // B2B訂單流程：待業務確認 → 已成立訂單 → 到貨等待結算 → 結算中 → 結算完畢
@@ -25,6 +26,25 @@ const STATUS_TO_STEP = {
 };
 
 export default function OrderStateMachine({ status }) {
+  // 作廢狀態：不顯示 Steps，改用紅色標籤取代整條進度條
+  if (status === 'voided') {
+    return (
+      <div style={{
+        background: '#fff1f0',
+        border: '1px solid #ffa39e',
+        borderRadius: 6,
+        padding: '12px 16px',
+        textAlign: 'center',
+        color: '#cf1322',
+        fontSize: 14,
+        fontWeight: 600,
+      }}>
+        <StopOutlined style={{ marginRight: 8 }} />
+        此訂單已作廢
+      </div>
+    );
+  }
+
   const current = STATUS_TO_STEP[status] ?? 0;
 
   return (

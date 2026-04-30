@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
   Table, Tag, Typography, Card, Space, Drawer,
-  Button, Descriptions, Divider, InputNumber, message,
+  Button, Descriptions, Divider, InputNumber, message, DatePicker,
 } from 'antd'
 import { EyeOutlined, RedoOutlined, EditOutlined, SaveOutlined, CloseOutlined, FilePdfOutlined } from '@ant-design/icons'
 import { preOrders as initialOrders, productMap, systemSettings } from '../../data/fakeData'
@@ -27,6 +27,7 @@ function vendorStatusTag(status) {
   if (status === 'arrived')       return <Tag color="orange">已送達，待結算</Tag>
   if (status === 'settling')      return <Tag color="gold">結算中</Tag>
   if (status === 'settled_done')  return <Tag color="purple">已結算</Tag>
+  if (status === 'voided')        return <Tag color="red">已作廢</Tag>
   return <Tag>{status}</Tag>
 }
 
@@ -114,12 +115,10 @@ function OrderDetailDrawer({ order, open, onClose, onReorder, onSaveItems, chann
         <Descriptions.Item label="結算月份">{order.settlementMonth}</Descriptions.Item>
         <Descriptions.Item label="下單日期">{order.createdAt}</Descriptions.Item>
         <Descriptions.Item label="收貨地址" span={2}>{order.shippingAddress}</Descriptions.Item>
-        <Descriptions.Item label="正式訂單編號" span={2}>
-          {order.fruitOrderNumber
-            ? <><Text code style={{ fontSize: 13 }}>{order.fruitOrderNumber}</Text><Text type="secondary" style={{ fontSize: 11, marginLeft: 4 }}>（無毒農）</Text></>
-            : order.backendOrderId
-              ? <Text code style={{ fontSize: 13, color: '#8c8c8c' }}>{order.backendOrderId}</Text>
-              : <Text type="secondary">尚未建立正式訂單</Text>
+        <Descriptions.Item label="後台正式訂單號" span={2}>
+          {order.backendOrderId
+            ? <Text code style={{ fontSize: 13 }}>{order.backendOrderId}</Text>
+            : <Text type="secondary">尚未建立正式訂單</Text>
           }
         </Descriptions.Item>
         <Descriptions.Item label="我的備註" span={2}>
@@ -253,17 +252,41 @@ function OrderDetailDrawer({ order, open, onClose, onReorder, onSaveItems, chann
   )
 }
 
+const TEMP_OPTIONS = [
+  { key: 'all',     label: '全部溫層' },
+  { key: 'frozen',  label: '❄️ 冷凍' },
+  { key: 'ambient', label: '🌿 常溫' },
+]
+
 export default function VendorOrders() {
   const { channel } = useVendor()
   const nav = useNavigate()
-  const [orders, setOrders] = useState(initialOrders)
-  const [selected, setSelected] = useState(null)
+  const [orders, setOrders]       = useState(initialOrders)
+  const [selected, setSelected]   = useState(null)
+  const [dateRange, setDateRange] = useState([null, null])
+  const [tempFilter, setTempFilter] = useState('all')  // 'all' | 'frozen' | 'ambient'
 
   if (!channel) { nav('/login'); return null }
 
   const myOrders = orders
     .filter(o => o.channelId === channel.id)
     .sort((a, b) => b.createdAt.localeCompare(a.createdAt) || b.id.localeCompare(a.id))
+
+  const filteredOrders = myOrders.filter(o => {
+    // 日期區間篩選
+    if (dateRange[0] && dateRange[1]) {
+      const from = dateRange[0].format('YYYY-MM-DD')
+      const to   = dateRange[1].format('YYYY-MM-DD')
+      if (o.createdAt < from || o.createdAt > to) return false
+    }
+    // 溫層單選篩選
+    if (tempFilter !== 'all') {
+      const zones = new Set(o.items.map(i => productMap[i.productId]?.category).filter(Boolean))
+      if (!zones.has(tempFilter)) return false
+    }
+    return true
+  })
+
 
   const handleReorder = (order) => {
     nav('/order', { state: { prefill: order.items } })
@@ -289,9 +312,14 @@ export default function VendorOrders() {
     { title: '溫層', dataIndex: 'items', width: 120,
       render: items => temperatureZoneTag(items) },
     { title: '金額', dataIndex: 'items', width: 110,
-      render: items => {
+      render: (items, r) => {
+        const isVoided = r.status === 'voided'
         const t = items.reduce((s, i) => s + i.qty * i.price, 0)
-        return <Text strong style={{ color: '#1677ff' }}>${t.toLocaleString()}</Text>
+        return (
+          <Text strong style={isVoided ? null : { color: '#1677ff' }}>
+            ${t.toLocaleString()}
+          </Text>
+        )
       }},
     { title: '品項摘要', dataIndex: 'items', ellipsis: true,
       render: items => items.map(i => i.productName).join('、') },
@@ -303,7 +331,12 @@ export default function VendorOrders() {
           <Button size="small" icon={<EyeOutlined />} onClick={() => setSelected(r)}>
             查看
           </Button>
-          <Button size="small" icon={<RedoOutlined />} onClick={() => handleReorder(r)}>
+          <Button
+            size="small"
+            icon={<RedoOutlined />}
+            onClick={() => handleReorder(r)}
+            disabled={r.status === 'voided'}
+          >
             重複下單
           </Button>
         </Space>
@@ -312,21 +345,56 @@ export default function VendorOrders() {
 
   return (
     <div style={{ padding: 24 }}>
-      <Title level={4} style={{ marginBottom: 20 }}>B2B訂單紀錄</Title>
+      <Title level={4} style={{ marginBottom: 16 }}>B2B訂單紀錄</Title>
 
       {myOrders.length === 0 ? (
         <Card style={{ textAlign: 'center', padding: 40 }}>
           <Text type="secondary">目前尚無B2B訂單紀錄</Text>
         </Card>
       ) : (
-        <Table
-          dataSource={myOrders}
-          columns={columns}
-          rowKey="id"
-          size="small"
-          pagination={{ pageSize: 10 }}
-          rowClassName={r => (r.status === 'settling' || r.status === 'settled_done') ? 'row-settled-vendor' : ''}
-        />
+        <>
+          {/* ── 篩選列 ── */}
+          <Space wrap style={{ marginBottom: 12 }}>
+            <DatePicker.RangePicker
+              value={dateRange}
+              onChange={v => setDateRange(v ?? [null, null])}
+              placeholder={['開始日期', '結束日期']}
+              allowClear
+              style={{ width: 230 }}
+            />
+            <Space size={4}>
+              {TEMP_OPTIONS.map(({ key, label }) => (
+                <Button
+                  key={key}
+                  size="small"
+                  type={tempFilter === key ? 'primary' : 'default'}
+                  onClick={() => setTempFilter(key)}
+                >
+                  {label}
+                </Button>
+              ))}
+            </Space>
+          </Space>
+
+          {filteredOrders.length === 0 ? (
+            <Card style={{ textAlign: 'center', padding: 32 }}>
+              <Text type="secondary">無符合篩選條件的訂單</Text>
+            </Card>
+          ) : (
+            <Table
+              dataSource={filteredOrders}
+              columns={columns}
+              rowKey="id"
+              size="small"
+              pagination={{ pageSize: 10 }}
+              rowClassName={r => {
+                if (r.status === 'voided') return 'row-voided-vendor'
+                if (r.status === 'settling' || r.status === 'settled_done') return 'row-settled-vendor'
+                return ''
+              }}
+            />
+          )}
+        </>
       )}
 
       <OrderDetailDrawer
@@ -341,6 +409,10 @@ export default function VendorOrders() {
       <style>{`
         .row-settled-vendor td { background: #f9f0ff !important; color: #888; }
         .row-settled-vendor:hover td { background: #efdbff !important; }
+        .row-voided-vendor td { background: #fafafa !important; color: #bfbfbf; text-decoration: line-through; }
+        .row-voided-vendor td .ant-typography { color: #bfbfbf; }
+        .row-voided-vendor:hover td { background: #f0f0f0 !important; }
+        .row-voided-vendor .ant-tag { text-decoration: none; }
       `}</style>
     </div>
   )

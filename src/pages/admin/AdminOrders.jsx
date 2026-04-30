@@ -1,7 +1,7 @@
 import { useState, useMemo } from 'react'
 import {
   Table, Button, Space, Input, Card, Col, Row,
-  Statistic, Tag, Typography, DatePicker, Select, Tooltip, message,
+  Statistic, Tag, Typography, DatePicker, Select, Divider, Tooltip, message,
 } from 'antd'
 import { SearchOutlined, EyeOutlined } from '@ant-design/icons'
 import dayjs from 'dayjs'
@@ -40,6 +40,7 @@ const STATUS_FILTERS = [
   { key: 'arrived',       label: '到貨等待結算' },
   { key: 'settling',      label: '結算中'       },
   { key: 'settled_done',  label: '結算完畢'     },
+  { key: 'voided',        label: '作廢'         },
 ]
 
 function getSettlementMonthOptions(orders) {
@@ -51,6 +52,7 @@ export default function AdminOrders() {
   const [preOrderList, setPreOrderList]       = useState(initPreOrders)
   const [filterText, setFilterText]           = useState('')
   const [activeStatuses, setActiveStatuses]   = useState([])
+  const [tempFilter, setTempFilter]           = useState('all')         // 'all' | 'frozen' | 'ambient'
   const [dateMode, setDateMode]               = useState('createdAt')   // 'createdAt' | 'settlementMonth'
   const [dateRange, setDateRange]             = useState(null)           // [dayjs, dayjs] | null
   const [settlementMonth, setSettlementMonth] = useState(null)
@@ -70,6 +72,11 @@ export default function AdminOrders() {
         const q = filterText.trim()
         const matchText   = !q || o.id.includes(q) || o.channelName.includes(q) || (o.b2b_order_no ?? '').includes(q)
         const matchStatus = activeStatuses.length === 0 || activeStatuses.includes(o.status)
+        const matchTemp   = (() => {
+          if (tempFilter === 'all') return true
+          const zones = new Set(o.items.map(i => productMap[i.productId]?.category).filter(Boolean))
+          return zones.has(tempFilter)
+        })()
         const matchDate   = (() => {
           if (dateMode === 'createdAt' && dateRange) {
             const d = dayjs(o.createdAt)
@@ -80,10 +87,10 @@ export default function AdminOrders() {
           }
           return true
         })()
-        return matchText && matchStatus && matchDate
+        return matchText && matchStatus && matchTemp && matchDate
       })
       .sort((a, b) => b.createdAt.localeCompare(a.createdAt)),
-  [preOrderList, filterText, activeStatuses, dateMode, dateRange, settlementMonth])
+  [preOrderList, filterText, activeStatuses, tempFilter, dateMode, dateRange, settlementMonth])
 
   const toggleStatus = (key, checked) => {
     const next = checked
@@ -109,10 +116,17 @@ export default function AdminOrders() {
         ...(extra?.cs_note            !== undefined ? { cs_note: extra.cs_note }                       : {}),
         ...(extra?.b2b_note           !== undefined ? { b2b_note: extra.b2b_note }                     : {}),
         ...(extra?.settlementMonth    !== undefined ? { settlementMonth: extra.settlementMonth }       : {}),
+        ...(extra?.voided_at          !== undefined ? { voided_at: extra.voided_at }                   : {}),
+        ...(extra?.voided_reason      !== undefined ? { voided_reason: extra.voided_reason }           : {}),
       }
       setSelected(updated)
       return updated
     }))
+  }
+
+  // 重新建單：把新訂單 push 進列表前面
+  const handleRecreate = (newOrder) => {
+    setPreOrderList(prev => [newOrder, ...prev])
   }
 
   const handleSettlementMonthChange = (id, month) => {
@@ -124,25 +138,39 @@ export default function AdminOrders() {
 
   const columns = [
     { title: '訂單編號', dataIndex: 'id', width: 170,
-      render: (v, r) => (
-        <Space direction="vertical" size={0}>
-          <Text code style={{ fontSize: 12 }}>{v}</Text>
-          {r.backendOrderId && <Text style={{ fontSize: 11, color: '#888' }}>{r.backendOrderId}</Text>}
-        </Space>
-      )},
+      render: (v, r) => {
+        const isVoided = r.status === 'voided'
+        return (
+          <Space direction="vertical" size={0}>
+            <Text code style={{ fontSize: 12 }}>{v}</Text>
+            {r.backendOrderId && (
+              <Text style={{ fontSize: 11, ...(isVoided ? null : { color: '#888' }) }}>
+                {r.backendOrderId}
+              </Text>
+            )}
+          </Space>
+        )
+      }},
     { title: '通路', dataIndex: 'channelName', width: 140 },
     { title: '下單日', dataIndex: 'createdAt', width: 100 },
     { title: '溫層', dataIndex: 'items', width: 110,
       render: items => temperatureZoneTag(items) },
     { title: '金額', width: 110,
       render: (_, r) => {
+        const isVoided = r.status === 'voided'
         const items = r.adjustedItems ?? r.salesAdjustedItems ?? r.items
         const t = items.reduce((s, i) => s + i.qty * i.price, 0)
         const disc = r.discount_amount ?? 0
         return (
           <Space direction="vertical" size={0}>
-            <Text strong style={{ color: '#1677ff' }}>${(t - disc).toLocaleString()}</Text>
-            {disc > 0 && <Text style={{ fontSize: 11, color: '#fa8c16' }}>已折扣 ${disc.toLocaleString()}</Text>}
+            <Text strong style={isVoided ? null : { color: '#1677ff' }}>
+              ${(t - disc).toLocaleString()}
+            </Text>
+            {disc > 0 && (
+              <Text style={{ fontSize: 11, ...(isVoided ? null : { color: '#fa8c16' }) }}>
+                已折扣 ${disc.toLocaleString()}
+              </Text>
+            )}
           </Space>
         )
       }},
@@ -216,10 +244,28 @@ export default function AdminOrders() {
           )}
         </Space.Compact>
 
+        {/* 溫層篩選 */}
+        <Space size={4}>
+          {[
+            { key: 'all',     label: '全部溫層' },
+            { key: 'frozen',  label: '❄️ 冷凍'  },
+            { key: 'ambient', label: '🌿 常溫'  },
+          ].map(({ key, label }) => (
+            <Button key={key} size="small"
+              type={tempFilter === key ? 'primary' : 'default'}
+              onClick={() => setTempFilter(key)}
+            >
+              {label}
+            </Button>
+          ))}
+        </Space>
+
+        <Divider type="vertical" style={{ height: 20, margin: '0 4px' }} />
+
         {/* 狀態篩選 */}
         <Space size={4}>
           <Button size="small" type={isAll ? 'primary' : 'default'} onClick={() => setActiveStatuses([])}>
-            全部
+            全部狀態
           </Button>
           {STATUS_FILTERS.map(f => (
             <Tag.CheckableTag
@@ -239,7 +285,11 @@ export default function AdminOrders() {
         rowKey="id"
         size="small"
         pagination={{ pageSize: 20, showSizeChanger: false }}
-        rowClassName={r => (r.status === 'settling' || r.status === 'settled_done') ? 'row-settled' : ''}
+        rowClassName={r => {
+          if (r.status === 'voided') return 'row-voided'
+          if (r.status === 'settling' || r.status === 'settled_done') return 'row-settled'
+          return ''
+        }}
       />
 
       <OrderDetail
@@ -247,11 +297,16 @@ export default function AdminOrders() {
         open={!!selected}
         onClose={() => setSelected(null)}
         onStatusChange={handleStatusChange}
+        onRecreate={handleRecreate}
       />
 
       <style>{`
         .row-settled td { background: #f9f0ff !important; color: #888; }
         .row-settled:hover td { background: #efdbff !important; }
+        .row-voided td { background: #fafafa !important; color: #bfbfbf; text-decoration: line-through; }
+        .row-voided td .ant-typography { color: #bfbfbf; }
+        .row-voided:hover td { background: #f0f0f0 !important; }
+        .row-voided .ant-tag { text-decoration: none; }
       `}</style>
     </div>
   )

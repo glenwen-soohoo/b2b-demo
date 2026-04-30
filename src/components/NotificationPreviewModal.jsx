@@ -70,7 +70,7 @@ export default function NotificationPreviewModal({ open, onClose, onConfirm, typ
           <div style={{ fontSize: 13, lineHeight: 2 }}>
             <div>親愛的 {data.channelName} 您好，</div>
             <div style={{ marginTop: 8 }}>
-              您的B2B訂單 <Text code>{data.orderId}</Text> 已正式成立，後台訂單號：
+              您的B2B訂單 <Text code>{data.orderId}</Text> 已正式成立，後台正式訂單號：
               <Text strong> {data.backendOrderId}</Text>
             </div>
             {hasDiff ? (

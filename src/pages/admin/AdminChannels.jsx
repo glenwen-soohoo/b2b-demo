@@ -1,10 +1,13 @@
 import { useState, useMemo } from 'react'
 import {
   Table, Button, Typography, Badge, Space, Modal, Form, Input,
-  InputNumber, Select, Popconfirm, message, Divider, Row, Col, Tag,
+  InputNumber, Select, Popconfirm, message, Divider, Row, Col, Tag, Dropdown,
 } from 'antd'
-import { EyeOutlined, EditOutlined, DeleteOutlined, PlusOutlined, SearchOutlined } from '@ant-design/icons'
-import { channels as initialChannels, templates } from '../../data/fakeData'
+import {
+  EyeOutlined, EditOutlined, DeleteOutlined, PlusOutlined, SearchOutlined,
+  CheckCircleOutlined, ExclamationCircleOutlined, DownOutlined, ReloadOutlined,
+} from '@ant-design/icons'
+import { channels as initialChannels, templates, members } from '../../data/fakeData'
 import ChannelDetail from '../../components/ChannelDetail'
 
 const { Title } = Typography
@@ -22,6 +25,16 @@ const DELIVERY_TYPE_OPTIONS = [
   { value: 'self_pickup',   label: '廠商自取' },
 ]
 
+const INVOICE_TYPE_OPTIONS = [
+  { value: 'two_part',   label: '二聯式' },
+  { value: 'three_part', label: '三聯式' },
+]
+
+const INVOICE_TYPE_COLOR = {
+  two_part:   'default',
+  three_part: 'cyan',
+}
+
 const INVOICE_MODE_COLOR = {
   per_order:         'default',
   monthly_per_store: 'geekblue',
@@ -30,8 +43,41 @@ const INVOICE_MODE_COLOR = {
 
 function ChannelModal({ open, onClose, onSave, initial }) {
   const [form] = Form.useForm()
+  const [bindStatus, setBindStatus] = useState('none')   // 'none' | 'linked' | 'invalid'
+  const [binding,    setBinding]    = useState(false)
+
+  // TODO_FRUIT_WEB: 串接 GET /api/Volunteers/findByAccount?account=xxx
+  // 上線時改為打 API；找到回傳 { id, name, phone }；找不到回 404 → setBindStatus('invalid')
+  const handleBind = async () => {
+    const account = form.getFieldValue('memberAccount')
+    if (!account) { message.warning('請先輸入會員帳號（Email）'); return }
+    setBinding(true)
+    await new Promise(r => setTimeout(r, 500))   // mock 驗證延遲
+    setBinding(false)
+    const found = members.find(m => m.account.toLowerCase() === account.toLowerCase())
+    if (!found) {
+      setBindStatus('invalid')
+      message.error('查無此會員，請確認帳號是否正確')
+      return
+    }
+    form.setFieldsValue({
+      memberId:   found.id,
+      memberName: found.name,
+    })
+    setBindStatus('linked')
+    message.success(`已綁定會員：${found.name}`)
+  }
+
+  const handleUnlink = () => {
+    form.setFieldsValue({ memberId: undefined, memberName: undefined })
+    setBindStatus('none')
+  }
 
   const handleOk = () => {
+    if (bindStatus !== 'linked') {
+      message.warning('請先完成會員帳號綁定')
+      return
+    }
     form.validateFields().then(values => {
       onSave({ ...initial, ...values })
       onClose()
@@ -44,10 +90,76 @@ function ChannelModal({ open, onClose, onSave, initial }) {
       title={initial?.id ? '編輯通路' : '新增通路'}
       okText="儲存" cancelText="取消" width={640}
       destroyOnClose
-      afterOpenChange={visible => { if (visible) form.setFieldsValue(initial ?? {}) }}
+      afterOpenChange={visible => {
+        if (visible) {
+          form.resetFields()
+          form.setFieldsValue(initial ?? {})
+          setBindStatus(initial?.memberId ? 'linked' : 'none')
+          setBinding(false)
+        }
+      }}
     >
       <Form form={form} layout="vertical" style={{ marginTop: 8 }}>
-        <Divider orientation="left" plain style={{ margin: '0 0 12px' }}>基本資料</Divider>
+        {/* 隱藏欄位：儲存綁定後的會員 ID 和姓名 */}
+        <Form.Item name="memberId" hidden><Input /></Form.Item>
+        <Form.Item name="memberName" hidden><Input /></Form.Item>
+
+        <Divider orientation="left" plain style={{ margin: '0 0 12px' }}>會員綁定</Divider>
+        <Form.Item
+          label={<span>無毒農會員帳號<span style={{ color: '#8c8c8c', fontWeight: 400, fontSize: 11, marginLeft: 4 }}>（通路即由此會員升級而來）</span></span>}
+          name="memberAccount"
+          rules={[
+            { required: true, message: '請輸入會員帳號' },
+            { type: 'email', message: '請輸入正確的 Email 格式' },
+          ]}
+        >
+          <Input
+            placeholder="例：buyer@example.com"
+            disabled={bindStatus === 'linked'}
+            addonAfter={
+              bindStatus === 'linked' ? (
+                <Dropdown
+                  trigger={['click']}
+                  menu={{
+                    items: [
+                      {
+                        key: 'unlink',
+                        icon: <ReloadOutlined />,
+                        label: '重新綁定',
+                        danger: true,
+                        onClick: handleUnlink,
+                      },
+                    ],
+                  }}
+                >
+                  <Button type="link" size="small"
+                    style={{ padding: 0, color: '#52c41a', height: 'auto', fontSize: 12 }}
+                  >
+                    <CheckCircleOutlined style={{ marginRight: 4 }} />
+                    已綁定 {form.getFieldValue('memberName')}
+                    <DownOutlined style={{ fontSize: 9, marginLeft: 3 }} />
+                  </Button>
+                </Dropdown>
+              ) : bindStatus === 'invalid' ? (
+                <Button type="link" size="small" loading={binding}
+                  style={{ padding: 0, color: '#ff4d4f', height: 'auto', fontSize: 12 }}
+                  onClick={handleBind}
+                >
+                  <ExclamationCircleOutlined style={{ marginRight: 4 }} />查無會員，重試
+                </Button>
+              ) : (
+                <Button type="link" size="small" loading={binding}
+                  style={{ padding: 0, color: '#1677ff', height: 'auto' }}
+                  onClick={handleBind}
+                >
+                  {binding ? '' : '綁定'}
+                </Button>
+              )
+            }
+          />
+        </Form.Item>
+
+        <Divider orientation="left" plain style={{ margin: '4px 0 12px' }}>基本資料</Divider>
         <Row gutter={12}>
           <Col span={12}>
             <Form.Item label="通路名稱" name="name" rules={[{ required: true }]}>
@@ -98,8 +210,8 @@ function ChannelModal({ open, onClose, onSave, initial }) {
             </Form.Item>
           </Col>
           <Col span={8}>
-            <Form.Item label="配送方式" name="deliveryType" rules={[{ required: true }]}>
-              <Select options={DELIVERY_TYPE_OPTIONS} />
+            <Form.Item label="發票類型" name="invoice_type" rules={[{ required: true }]}>
+              <Select options={INVOICE_TYPE_OPTIONS} />
             </Form.Item>
           </Col>
         </Row>
@@ -118,7 +230,7 @@ function ChannelModal({ open, onClose, onSave, initial }) {
 
         <Divider orientation="left" plain style={{ margin: '4px 0 12px' }}>備註</Divider>
         <Form.Item
-          label="預設下單備註（通路端亦可填寫）"
+          label={<span>預設下單備註<span style={{ color: '#8c8c8c', fontWeight: 400, fontSize: 11, marginLeft: 4 }}>（通路端亦可填寫）</span></span>}
           name="default_vendor_note"
         >
           <Input.TextArea
@@ -141,7 +253,10 @@ function ChannelModal({ open, onClose, onSave, initial }) {
             </Form.Item>
           </Col>
           <Col span={12}>
-            <Form.Item label="預設客服備註" name="internal_note">
+            <Form.Item
+              label={<span>預設客服備註<span style={{ color: '#8c8c8c', fontWeight: 400, fontSize: 11, marginLeft: 4 }}>（僅正式後台、自配單可見）</span></span>}
+              name="internal_note"
+            >
               <Input.TextArea rows={2} placeholder="僅後台可見..." />
             </Form.Item>
           </Col>
@@ -203,9 +318,11 @@ export default function AdminChannels() {
           </Tag>
         : <span style={{ color: '#bbb' }}>—</span>
     },
-    { title: '配送方式', dataIndex: 'deliveryType', width: 100,
+    { title: '發票類型', dataIndex: 'invoice_type', width: 80,
       render: v => v
-        ? <Tag style={{ fontSize: 11 }}>{DELIVERY_TYPE_OPTIONS.find(o => o.value === v)?.label ?? v}</Tag>
+        ? <Tag color={INVOICE_TYPE_COLOR[v] ?? 'default'} style={{ fontSize: 11 }}>
+            {INVOICE_TYPE_OPTIONS.find(o => o.value === v)?.label ?? v}
+          </Tag>
         : <span style={{ color: '#bbb' }}>—</span>
     },
     { title: '結算日', dataIndex: 'settlementDay', width: 100,

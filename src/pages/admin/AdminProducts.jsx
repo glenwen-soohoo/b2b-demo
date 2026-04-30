@@ -129,7 +129,7 @@ function ProductModal({ open, onClose, onSave, initial, categories }) {
 
         <Row gutter={12}>
           <Col span={12}>
-            <Form.Item label="產品規格 ID (fruitProductDetailId)" name="fruitProductDetailId"
+            <Form.Item label="產品規格 ID" name="fruitProductDetailId"
               rules={[{ required: true, message: '請輸入產品規格 ID' }]}>
               <Input
                 placeholder="例：159476"
@@ -300,27 +300,41 @@ function ProductModal({ open, onClose, onSave, initial, categories }) {
 
         {/* === 國際條碼 === */}
         <Row gutter={12} align="middle">
-          <Col span={10}>
+          <Col span={12}>
             <Form.Item label="EAN-13" name="barcode_ean13" style={{ marginBottom: 0 }}>
               <Input placeholder="12 或 13 碼" maxLength={13} />
             </Form.Item>
           </Col>
-          <Col span={14}>
+          <Col span={12}>
             <Form.Item shouldUpdate={(p, c) => p.barcode_ean13 !== c.barcode_ean13} style={{ marginBottom: 0 }}>
               {({ getFieldValue }) => (
                 <div style={{
-                  padding: 8, background: '#fff', border: '1px solid #f0f0f0',
+                  padding: 6, background: '#fff', border: '1px solid #f0f0f0',
                   borderRadius: 6, display: 'flex', justifyContent: 'center', alignItems: 'center',
-                  minHeight: 80,
+                  minHeight: 64,
                 }}>
-                  <Barcode value={getFieldValue('barcode_ean13')} height={48} moduleWidth={1.6} />
+                  <Barcode value={getFieldValue('barcode_ean13')} height={40} moduleWidth={1.2} />
                 </div>
               )}
             </Form.Item>
           </Col>
         </Row>
 
-        <Divider style={{ margin: '16px 0 12px' }} />
+        {/* === 官網售價 / 通路最低售價 === */}
+        <Row gutter={12} style={{ marginTop: 12 }}>
+          <Col span={12}>
+            <Form.Item label="官網售價" name="retailPrice" style={{ marginBottom: 0 }}>
+              <InputNumber prefix="$" min={0} style={{ width: '100%' }} placeholder="選填" />
+            </Form.Item>
+          </Col>
+          <Col span={12}>
+            <Form.Item label="通路最低售價" name="minRetailPrice" style={{ marginBottom: 0 }}>
+              <InputNumber prefix="$" min={0} style={{ width: '100%' }} placeholder="選填" />
+            </Form.Item>
+          </Col>
+        </Row>
+
+        <Divider style={{ margin: '4px 0 12px' }} />
 
         {/* === 備註 === */}
         <Form.Item label="備註說明" name="remark" style={{ marginBottom: 0 }}>

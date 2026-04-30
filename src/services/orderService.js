@@ -110,7 +110,6 @@ export async function buildWarehouseConfirmPatch(order, adjItems, channel) {
     status: 'arrived',
     adjustedItems: adjItems,
     backendOrderId: fruitOrderNumber,
-    fruitOrderNumber,
     fruit_order_id: fruitOrderId,
     logs: [...(order.logs ?? []), { time: now, action: logMsg }],
   }
@@ -124,6 +123,99 @@ export async function buildWarehouseConfirmPatch(order, adjItems, channel) {
 export function calcSettlementTotal(items, discountAmount = 0) {
   const subtotal = items.reduce((s, i) => s + i.qty * i.price, 0)
   return subtotal - discountAmount
+}
+
+/**
+ * 作廢 B2B 訂單（任一狀態 → voided），並呼叫 fruit_web 刪單 API。
+ *
+ * TODO_FRUIT_WEB: 上線時需在此呼叫 fruit_web 刪單 API
+ *   POST /api/OrdersWebApi/DeleteOrder
+ *   body: { orderId: order.fruit_order_id, userId: <當前後台帳號 ID> }
+ *   檔案：HuashanCRM/Controllers/Api/Orders/OrdersWebApiController.cs:103
+ *
+ *   API 自動處理：
+ *     - Orders.direction = 3（已取消，軟刪除，不實刪資料）
+ *     - OrderDetail 同步軟刪
+ *     - 庫存回補、紅利點數收回、優惠券返還、訂閱取消
+ *
+ *   ⚠️ 不會自動處理（需後台人員手動）：
+ *     - 發票作廢（per_order 模式才會有開過發票，後台「作廢發票」按鈕）
+ *     - 黑貓物流取消（需到黑貓系統直接操作）
+ *
+ *   ⚠️ B2B 庫存對齊：fruit_web 會把品項加回線上庫存，但 B2B 採購商品
+ *     實際是另外進貨，作廢時要視情況決定是否真的回補線上庫存
+ *     （建議後台另設參數控制，或提示人員手動調整）。
+ *
+ * @param {object} order   - B2B 訂單
+ * @param {string} reason  - 作廢原因（可選，記入 logs）
+ * @returns {Promise<object>} 更新後的訂單欄位 patch
+ */
+export async function buildVoidPatch(order, reason = '') {
+  // ── Prototype: 模擬呼叫 fruit_web 刪單 API ──
+  if (order.fruit_order_id) {
+    await new Promise(r => setTimeout(r, 400))
+  }
+
+  const now = new Date().toLocaleString('zh-TW', { hour12: false }).replace(',', '')
+  const logMsg = reason
+    ? `[手動操作] 訂單作廢（${reason}）` + (order.backendOrderId ? `，已呼叫 fruit_web 刪單 ${order.backendOrderId}` : '')
+    : `[手動操作] 訂單作廢` + (order.backendOrderId ? `，已呼叫 fruit_web 刪單 ${order.backendOrderId}` : '')
+
+  return {
+    status: 'voided',
+    voided_at: now,
+    voided_reason: reason || null,
+    logs: [...(order.logs ?? []), { time: now, action: logMsg }],
+  }
+}
+
+/**
+ * 將舊訂單複製成一筆新的 B2B 待業務確認訂單（重新建單）。
+ * 後台正式訂單號清空、業務調整品項清空、備註與折扣全清，重新走流程。
+ *
+ * @param {object} oldOrder - 要被複製的訂單（通常是 voided 狀態）
+ * @returns {object} 新訂單物件（呼叫端負責 push 進 list）
+ */
+export function buildRecreatedOrder(oldOrder) {
+  const now = new Date()
+  const today = now.toISOString().slice(0, 10)
+  const newId = `b2b-${String(Math.floor(Math.random() * 90000) + 10000)}`
+  const newB2bNo = generateB2bOrderNo()
+  const timestamp = now.toLocaleString('zh-TW', { hour12: false }).replace(',', '')
+
+  return {
+    id: newId,
+    channelId:    oldOrder.channelId,
+    channelName:  oldOrder.channelName,
+    items:        oldOrder.items.map(i => ({ ...i })),  // 完整帶入原始品項
+    shippingAddress: oldOrder.shippingAddress,
+    vendorNote:   oldOrder.vendorNote ?? null,
+
+    // 重設所有後續流程欄位
+    status: 'pending_sales',
+    b2b_order_no: newB2bNo,
+    backendOrderId: null,
+    fruit_order_id: null,
+    salesAdjustedItems: null,
+    adjustedItems: null,
+    shipping_note: oldOrder.shipping_note ?? null,
+    warehouse_note: null,
+    cs_note: null,
+    b2b_note: null,
+    discount_amount: 0,
+    discount_note: null,
+    settlementMonth: null,
+    settlementId: null,
+    invoice_mode_snapshot: oldOrder.invoice_mode_snapshot,
+
+    // 溯源紀錄
+    recreated_from: oldOrder.id,
+    createdAt: today,
+    logs: [{
+      time: timestamp,
+      action: `[手動操作] 由訂單 ${oldOrder.id} 重新建單`,
+    }],
+  }
 }
 
 /**

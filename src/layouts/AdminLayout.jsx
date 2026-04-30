@@ -7,14 +7,15 @@ const HEADER_H = 48
 const SIDER_W  = 150
 
 const PAGE_NAMES = {
-  orders:      '訂單管理',
-  settlements: '結算管理',
-  products:    '商品管理',
-  categories:  '分類管理',
-  shipping:    '運費設定',
-  templates:   '品項表模板',
-  channels:    '通路名單',
-  analytics:   '損益分析',
+  orders:         '訂單管理',
+  settlements:    '結算管理',
+  products:       '商品管理',
+  categories:     '分類管理',
+  shipping:       '運費設定',
+  templates:      '品項表模板',
+  channels:       '通路名單',
+  analytics:      '損益分析',
+  announcements:  '公告管理',
 }
 
 const MENU_ITEMS = [
@@ -22,14 +23,15 @@ const MENU_ITEMS = [
     key: 'b2b',
     label: 'B2B管理',
     children: [
-      { key: 'orders',      label: '訂單管理' },
-      { key: 'settlements', label: '結算管理' },
-      { key: 'products',    label: '商品管理' },
-      { key: 'categories',  label: '分類管理' },
-      { key: 'shipping',    label: '運費設定' },
-      { key: 'templates',   label: '品項表模板' },
-      { key: 'channels',    label: '通路名單' },
-      { key: 'analytics',   label: '損益分析' },
+      { key: 'orders',        label: '訂單管理' },
+      { key: 'settlements',   label: '結算管理' },
+      { key: 'products',      label: '商品管理' },
+      { key: 'categories',    label: '分類管理' },
+      { key: 'templates',     label: '品項表模板' },
+      { key: 'shipping',      label: '運費設定' },
+      { key: 'announcements', label: '公告管理' },
+      { key: 'channels',      label: '通路名單' },
+      { key: 'analytics',     label: '損益分析' },
     ],
   },
 ]
