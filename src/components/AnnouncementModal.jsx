@@ -118,7 +118,6 @@ export default function AnnouncementModal({ announcement, open, onClose, onAckno
         }}>
           <span style={{ fontSize: 11, color: '#bbb' }}>
             {announcement.publishedAt?.slice(0, 10)}
-            {announcement.expiresAt ? ` ～ ${announcement.expiresAt.slice(0, 10)}` : ''}
           </span>
           <Button type="primary" onClick={() => startClose(true)}>
             我知道了

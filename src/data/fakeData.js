@@ -5,23 +5,23 @@ import dayjs from 'dayjs';
 // ─────────────────────────────────────────────
 export const products = [
   // ── 冷凍 / 4-6 個月（小寶）
-  { id:'p101', fruitProductDetailId:'158178', name:'小寶-玉米米糊',             spec:'',       unit:'包', cost:16, b2bPrice:33, retailPrice:49, minRetailPrice:43, category:'frozen', subCategory:'4-6個月-小寶', isListed:true, stockMode:'unlimited', stockLimit:null, thumbnailUrl:'', barcode_ean13:'4710101101017', frontend_product_id:'200101' },
+  { id:'p101', fruitProductDetailId:'158178', name:'小寶-玉米米糊',             spec:'',       unit:'包', cost:16, b2bPrice:33, retailPrice:49, minRetailPrice:43, validityPeriod:'六個月', category:'frozen', subCategory:'4-6個月-小寶', isListed:true, stockMode:'unlimited', stockLimit:null, thumbnailUrl:'', barcode_ean13:'4710101101017', frontend_product_id:'200101' },
   { id:'p102', fruitProductDetailId:'158208', name:'小寶-南瓜米糊',             spec:'',       unit:'包', cost:16, b2bPrice:33, category:'frozen', subCategory:'4-6個月-小寶', isListed:true, stockMode:'unlimited', stockLimit:null, thumbnailUrl:'', barcode_ean13:null, frontend_product_id:null },
   { id:'p103', fruitProductDetailId:'158268', name:'小寶-南瓜紅蘿蔔米糊',       spec:'',       unit:'包', cost:16, b2bPrice:33, category:'frozen', subCategory:'4-6個月-小寶', isListed:true, stockMode:'unlimited', stockLimit:null, thumbnailUrl:'', barcode_ean13:null, frontend_product_id:null },
   { id:'p104', fruitProductDetailId:'158298', name:'小寶-甜菜玉米米糊',         spec:'',       unit:'包', cost:16, b2bPrice:33, category:'frozen', subCategory:'4-6個月-小寶', isListed:true, stockMode:'limited',   stockLimit:80,   thumbnailUrl:'', barcode_ean13:null, frontend_product_id:null },
   { id:'p105', fruitProductDetailId:'158769', name:'小寶-釋迦鳳梨米糊',         spec:'季節限定',unit:'包', cost:48, b2bPrice:37, category:'frozen', subCategory:'4-6個月-小寶', isListed:true, stockMode:'out_of_stock', stockLimit:null, thumbnailUrl:'', barcode_ean13:null, frontend_product_id:null },
   // ── 冷凍 / 7-9 個月（中寶）
-  { id:'p201', fruitProductDetailId:'159476', name:'中寶-玉米雞肉粥',           spec:'',       unit:'包', cost:14, b2bPrice:45, retailPrice:65, minRetailPrice:58, category:'frozen', subCategory:'7-9個月-中寶', isListed:true, stockMode:'unlimited', stockLimit:null, thumbnailUrl:'', barcode_ean13:'4710201201010', frontend_product_id:'200201' },
+  { id:'p201', fruitProductDetailId:'159476', name:'中寶-玉米雞肉粥',           spec:'',       unit:'包', cost:14, b2bPrice:45, retailPrice:65, minRetailPrice:58, validityPeriod:'六個月', category:'frozen', subCategory:'7-9個月-中寶', isListed:true, stockMode:'unlimited', stockLimit:null, thumbnailUrl:'', barcode_ean13:'4710201201010', frontend_product_id:'200201' },
   { id:'p202', fruitProductDetailId:'159501', name:'中寶-蔥時蔬牛肉粥PLUS+',   spec:'',       unit:'包', cost:19, b2bPrice:55, category:'frozen', subCategory:'7-9個月-中寶', isListed:true, stockMode:'unlimited', stockLimit:null, thumbnailUrl:'', barcode_ean13:null, frontend_product_id:null },
   { id:'p203', fruitProductDetailId:'159527', name:'中寶-蜆蔬菜魚柳粥PLUS+',   spec:'',       unit:'包', cost:19, b2bPrice:55, category:'frozen', subCategory:'7-9個月-中寶', isListed:true, stockMode:'unlimited', stockLimit:null, thumbnailUrl:'', barcode_ean13:null, frontend_product_id:null },
   { id:'p204', fruitProductDetailId:'159553', name:'中寶-藕紅薯豬肉粥PLUS+',   spec:'',       unit:'包', cost:19, b2bPrice:55, category:'frozen', subCategory:'7-9個月-中寶', isListed:true, stockMode:'unlimited', stockLimit:null, thumbnailUrl:'', barcode_ean13:null, frontend_product_id:null },
-  { id:'p205', fruitProductDetailId:'162969', name:'大富翁-中寶-干貝菇菇香蛋粥',spec:'新品',   unit:'包', cost:27, b2bPrice:60, retailPrice:85, minRetailPrice:75, category:'frozen', subCategory:'7-9個月-中寶', isListed:true, stockMode:'unlimited', stockLimit:null, thumbnailUrl:'', barcode_ean13:'4710205205012', frontend_product_id:'200205' },
+  { id:'p205', fruitProductDetailId:'162969', name:'大富翁-中寶-干貝菇菇香蛋粥',spec:'新品',   unit:'包', cost:27, b2bPrice:60, retailPrice:85, minRetailPrice:75, validityPeriod:'六個月', category:'frozen', subCategory:'7-9個月-中寶', isListed:true, stockMode:'unlimited', stockLimit:null, thumbnailUrl:'', barcode_ean13:'4710205205012', frontend_product_id:'200205' },
   // ── 冷凍 / 10-12 個月（大寶）
   { id:'p301', fruitProductDetailId:'',       name:'大寶-芋頭姑姑豬肉粥',       spec:'200g',   unit:'包', cost:45, b2bPrice:70, category:'frozen', subCategory:'10-12個月-大寶', isListed:true, stockMode:'unlimited', stockLimit:null, thumbnailUrl:'', barcode_ean13:null, frontend_product_id:null },
   { id:'p302', fruitProductDetailId:'',       name:'大寶-番茄蘑菇牛肉粥',       spec:'200g',   unit:'包', cost:45, b2bPrice:70, category:'frozen', subCategory:'10-12個月-大寶', isListed:true, stockMode:'unlimited', stockLimit:null, thumbnailUrl:'', barcode_ean13:null, frontend_product_id:null },
   { id:'p303', fruitProductDetailId:'',       name:'大寶-玉米翡翠虱目魚粥',     spec:'200g',   unit:'包', cost:45, b2bPrice:70, category:'frozen', subCategory:'10-12個月-大寶', isListed:true, stockMode:'limited',   stockLimit:55,   thumbnailUrl:'', barcode_ean13:null, frontend_product_id:null },
   // ── 冷凍 / 一歲以上（燉飯）
-  { id:'p401', fruitProductDetailId:'163521', name:'大富翁-大寶-干貝菇菇翡翠雞蛋粥', spec:'新品', unit:'包', cost:27, b2bPrice:80, category:'frozen', subCategory:'一歲以上-燉飯', isListed:true, stockMode:'unlimited', stockLimit:null, thumbnailUrl:'', barcode_ean13:'4710401401015', frontend_product_id:'200401' },
+  { id:'p401', fruitProductDetailId:'163521', name:'大富翁-大寶-干貝菇菇翡翠雞蛋粥', spec:'新品', unit:'包', cost:27, b2bPrice:80, validityPeriod:'六個月', category:'frozen', subCategory:'一歲以上-燉飯', isListed:true, stockMode:'unlimited', stockLimit:null, thumbnailUrl:'', barcode_ean13:'4710401401015', frontend_product_id:'200401' },
   { id:'p402', fruitProductDetailId:'163522', name:'大富翁-一歲-干貝金玉翡翠蛋燉飯', spec:'新品', unit:'包', cost:45, b2bPrice:80, category:'frozen', subCategory:'一歲以上-燉飯', isListed:true, stockMode:'unlimited', stockLimit:null, thumbnailUrl:'', barcode_ean13:null, frontend_product_id:null },
   { id:'p403', fruitProductDetailId:'162234', name:'黑寶蕈菇豬肉燉飯PLUS+',    spec:'',       unit:'包', cost:45, b2bPrice:70, category:'frozen', subCategory:'一歲以上-燉飯', isListed:true, stockMode:'unlimited', stockLimit:null, thumbnailUrl:'', barcode_ean13:null, frontend_product_id:null },
   { id:'p404', fruitProductDetailId:'',       name:'鮮茄時蔬牛肉燉飯PLUS+',    spec:'',       unit:'包', cost:45, b2bPrice:70, category:'frozen', subCategory:'一歲以上-燉飯', isListed:false, stockMode:'unlimited', stockLimit:null, thumbnailUrl:'', barcode_ean13:null, frontend_product_id:null },
@@ -30,7 +30,7 @@ export const products = [
   { id:'p502', fruitProductDetailId:'',       name:'蔬菜高湯',                  spec:'',       unit:'包', cost:12, b2bPrice:22, category:'frozen', subCategory:'高湯', isListed:true, stockMode:'unlimited', stockLimit:null, thumbnailUrl:'', barcode_ean13:null, frontend_product_id:null },
   { id:'p503', fruitProductDetailId:'',       name:'龍骨高湯',                  spec:'',       unit:'包', cost:12, b2bPrice:22, category:'frozen', subCategory:'高湯', isListed:true, stockMode:'unlimited', stockLimit:null, thumbnailUrl:'', barcode_ean13:null, frontend_product_id:null },
   // ── 冷凍 / 魚塊&海鮮
-  { id:'p601', fruitProductDetailId:'',       name:'寶寶魚塊(10入/包)',         spec:'',       unit:'包', cost:180,b2bPrice:290,category:'frozen', subCategory:'魚塊海鮮', isListed:true, stockMode:'limited',   stockLimit:50,   thumbnailUrl:'', barcode_ean13:'4710601601018', frontend_product_id:'200601' },
+  { id:'p601', fruitProductDetailId:'',       name:'寶寶魚塊(10入/包)',         spec:'',       unit:'包', cost:180,b2bPrice:290,validityPeriod:'六個月', category:'frozen', subCategory:'魚塊海鮮', isListed:true, stockMode:'limited',   stockLimit:50,   thumbnailUrl:'', barcode_ean13:'4710601601018', frontend_product_id:'200601' },
   { id:'p602', fruitProductDetailId:'',       name:'龍膽石斑寶寶魚片(6~8入)',   spec:'',       unit:'包', cost:200,b2bPrice:330,category:'frozen', subCategory:'魚塊海鮮', isListed:true, stockMode:'limited',   stockLimit:30,   thumbnailUrl:'', barcode_ean13:null, frontend_product_id:null },
   { id:'p603', fruitProductDetailId:'',       name:'寶寶綜合海鮮包(12入/包)',   spec:'',       unit:'包', cost:280,b2bPrice:460,category:'frozen', subCategory:'魚塊海鮮', isListed:true, stockMode:'out_of_stock', stockLimit:null, thumbnailUrl:'', barcode_ean13:null, frontend_product_id:null },
   // ── 冷凍 / 烏龍麵
@@ -38,9 +38,9 @@ export const products = [
   { id:'p702', fruitProductDetailId:'',       name:'無鹽寶寶烏龍麵-南瓜',       spec:'',       unit:'包', cost:20, b2bPrice:31, category:'frozen', subCategory:'烏龍麵', isListed:true, stockMode:'unlimited', stockLimit:null, thumbnailUrl:'', barcode_ean13:null, frontend_product_id:null },
 
   // ── 常溫 / 常溫粥（單入）
-  { id:'p801', fruitProductDetailId:'159862', name:'常溫粥-鮮茄綜合菇菇粥',     spec:'',       unit:'包', cost:16, b2bPrice:70, retailPrice:99, minRetailPrice:88, category:'ambient', subCategory:'常溫粥-單入', isListed:true, stockMode:'unlimited', stockLimit:null, thumbnailUrl:'', barcode_ean13:'4710801801013', frontend_product_id:'200801' },
+  { id:'p801', fruitProductDetailId:'159862', name:'常溫粥-鮮茄綜合菇菇粥',     spec:'',       unit:'包', cost:16, b2bPrice:70, retailPrice:99, minRetailPrice:88, validityPeriod:'六個月', category:'ambient', subCategory:'常溫粥-單入', isListed:true, stockMode:'unlimited', stockLimit:null, thumbnailUrl:'', barcode_ean13:'4710801801013', frontend_product_id:'200801' },
   { id:'p802', fruitProductDetailId:'159880', name:'常溫粥-蘋果蔬菜豬寶粥',     spec:'新版',   unit:'包', cost:16, b2bPrice:70, category:'ambient', subCategory:'常溫粥-單入', isListed:true, stockMode:'unlimited', stockLimit:null, thumbnailUrl:'', barcode_ean13:null, frontend_product_id:null },
-  { id:'p803', fruitProductDetailId:'159889', name:'常溫粥-玉米紅蘿蔔鮭魚粥',   spec:'新版',   unit:'包', cost:16, b2bPrice:70, retailPrice:99, minRetailPrice:88, category:'ambient', subCategory:'常溫粥-單入', isListed:true, stockMode:'unlimited', stockLimit:null, thumbnailUrl:'', barcode_ean13:'4710803803011', frontend_product_id:'200803' },
+  { id:'p803', fruitProductDetailId:'159889', name:'常溫粥-玉米紅蘿蔔鮭魚粥',   spec:'新版',   unit:'包', cost:16, b2bPrice:70, retailPrice:99, minRetailPrice:88, validityPeriod:'六個月', category:'ambient', subCategory:'常溫粥-單入', isListed:true, stockMode:'unlimited', stockLimit:null, thumbnailUrl:'', barcode_ean13:'4710803803011', frontend_product_id:'200803' },
   { id:'p804', fruitProductDetailId:'159898', name:'常溫粥-農翠平埔豬寶粥',     spec:'',       unit:'包', cost:16, b2bPrice:70, category:'ambient', subCategory:'常溫粥-單入', isListed:true, stockMode:'unlimited', stockLimit:null, thumbnailUrl:'', barcode_ean13:null, frontend_product_id:null },
   { id:'p805', fruitProductDetailId:'159907', name:'常溫粥-玉拌虱目魚寶粥',     spec:'',       unit:'包', cost:16, b2bPrice:70, category:'ambient', subCategory:'常溫粥-單入', isListed:true, stockMode:'unlimited', stockLimit:null, thumbnailUrl:'', barcode_ean13:null, frontend_product_id:null },
   { id:'p806', fruitProductDetailId:'159916', name:'常溫粥-金瓜山藥雞肉粥',     spec:'新版',   unit:'包', cost:16, b2bPrice:70, category:'ambient', subCategory:'常溫粥-單入', isListed:true, stockMode:'unlimited', stockLimit:null, thumbnailUrl:'', barcode_ean13:null, frontend_product_id:null },
@@ -1036,10 +1036,18 @@ export const b2bReservedInventory = [
 // isVisible: true = 廠商端看得到；false = 隱藏
 // audience: 'all' | channelId[]
 // ─────────────────────────────────────────────
-export const announcement = {
-  id: 'ann-v20260428',
-  title: '母親節限時優惠：寶寶魚塊系列 85 折',
-  content: `## 活動辦法
+// ─────────────────────────────────────────────
+// 公告（多則布告欄）
+//   - priority: 'important' = 廠商首次看到時強制彈窗一次（後續只會在通知中心列出）
+//                'normal'    = 不強制彈窗，靜靜列在通知中心
+//   - audience: 'all' | string[] (channelIds)
+//   - isVisible: false 代表後台暫時隱藏
+// ─────────────────────────────────────────────
+export const announcements = [
+  {
+    id: 'ann-20260430-001',
+    title: '母親節限時優惠：寶寶魚塊系列 85 折',
+    content: `## 活動辦法
 
 限時 **5/1（四）– 5/18（日）**，寶寶魚塊系列全線 85 折。
 
@@ -1052,7 +1060,76 @@ export const announcement = {
 每月結算時自動計算，本通路無需另行申請。
 
 活動期間若有異動，業務將另行通知。`,
-  priority: 'important',
-  isVisible: true,
-  audience: 'all',
-};
+    priority: 'important',
+    isVisible: true,
+    audience: 'all',
+    publishedAt: '2026-04-30 14:00',
+    expiresAt: '2026-05-18',
+    readBy: [],
+  },
+  {
+    id: 'ann-20260420-001',
+    title: '【系統公告】5/3 凌晨 02:00–04:00 系統維護',
+    content: `## 維護時段
+**5/3（六）凌晨 02:00 – 04:00**
+
+維護期間 B2B 採購系統將暫停服務，已成立的訂單與結算單不受影響。
+
+如有緊急訂單需求，請於 5/2（五）下班前送出。造成不便，敬請見諒。`,
+    priority: 'important',
+    isVisible: true,
+    audience: 'all',
+    publishedAt: '2026-04-20 10:00',
+    expiresAt: '2026-05-03',
+    readBy: [],
+  },
+  {
+    id: 'ann-20260415-001',
+    title: '常溫粥系列新增「茄汁紅蘿蔔牛」口味（4 包/盒）',
+    content: `## 新品上架
+
+常溫粥系列新增 **茄汁紅蘿蔔牛**，採 4 包/盒包裝販售。
+
+- 採購價：每盒 280 元
+- 建議售價：每盒 360 元
+- 即日起可在「商品採購」頁面下單
+
+歡迎優先採購搭配既有常溫粥系列銷售。`,
+    priority: 'normal',
+    isVisible: true,
+    audience: 'all',
+    publishedAt: '2026-04-15 11:00',
+    readBy: [],
+  },
+  {
+    id: 'ann-20260410-001',
+    title: '貝比波士林口店：4/12 起入庫時段調整為下午',
+    content: `## 入庫時段調整
+
+林口店因前場動線調整，**4/12（一）起入庫時段一律改為下午 14:00–17:00**。
+
+請物流配合此時段送達，造成不便敬請見諒。`,
+    priority: 'normal',
+    isVisible: true,
+    audience: ['c001'],
+    publishedAt: '2026-04-10 16:30',
+    readBy: [],
+  },
+  {
+    id: 'ann-20260328-001',
+    title: '2026 年度結算流程說明（已過期，僅保留紀錄）',
+    content: `## 結算流程
+
+每月結算單於月底自動產生，請於收到通知後 10 個工作天內完成匯款。
+
+詳細流程請參考廠商手冊。`,
+    priority: 'normal',
+    isVisible: false,    // 後台已隱藏
+    audience: 'all',
+    publishedAt: '2026-03-28 09:00',
+    readBy: [],
+  },
+];
+
+// 向後相容：個別 import announcement 的舊程式碼可暫時繼續用最新一則
+export const announcement = announcements[0];

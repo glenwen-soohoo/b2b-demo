@@ -1,54 +1,91 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { Outlet, useNavigate, useLocation, Navigate } from 'react-router-dom'
-import { Layout, Menu, Button, Space, Tag, Badge } from 'antd'
+import { Layout, Menu, Button, Space, Tag } from 'antd'
 import {
   FormOutlined, HistoryOutlined, AccountBookOutlined,
-  LogoutOutlined, UserOutlined, BellOutlined, BellFilled,
+  LogoutOutlined, UserOutlined,
+  NotificationOutlined,
 } from '@ant-design/icons'
 import { useVendor } from '../context/VendorContext'
-import { announcement as rawAnn } from '../data/fakeData'
-import { getChannelAnnouncement, isAcknowledged, addAckedId } from '../utils/announcementUtils'
+import { announcements } from '../data/fakeData'
+import {
+  getChannelAnnouncements, getUnreadCount, getNextForcePopup,
+  addAckedId, markRead, subscribeReadUpdates,
+} from '../utils/announcementUtils'
 import AnnouncementModal from '../components/AnnouncementModal'
 
 const { Header, Sider, Content } = Layout
-
-const MENU_ITEMS = [
-  { key: 'order',       icon: <FormOutlined />,        label: '商品採購' },
-  { key: 'orders',      icon: <HistoryOutlined />,      label: 'B2B訂單紀錄' },
-  { key: 'settlements', icon: <AccountBookOutlined />,  label: '結算紀錄' },
-  { key: 'profile',     icon: <UserOutlined />,         label: '通路資料' },
-]
 
 export default function VendorLayout() {
   const nav = useNavigate()
   const loc = useLocation()
   const { channel, logout } = useVendor()
-  const [annOpen,     setAnnOpen]     = useState(false)
-  const [ackVersion,  setAckVersion]  = useState(0)   // 強制重算已讀狀態
+  const [annOpen,    setAnnOpen]    = useState(false)
+  const [popupAnn,   setPopupAnn]   = useState(null)   // 強制彈窗的那一則
+  const [ackVersion, setAckVersion] = useState(0)      // 強制重算未讀
 
   if (!channel) return <Navigate to="/login" replace />
 
   const current = loc.pathname.split('/')[1] ?? 'order'
 
-  // 取出該通路看得到的公告
-  const ann      = getChannelAnnouncement(rawAnn, channel.id)
-  const acked    = ann ? isAcknowledged(channel.id, ann.id) : true    // eslint-disable-line react-hooks/exhaustive-deps
-  const hasUnread = ann && !acked
+  // ── 該通路看得到的公告（已讀統計用） ──
+  const visibleAnns = useMemo(
+    () => getChannelAnnouncements(announcements, channel.id),
+    [channel.id, ackVersion]
+  )
+  const unreadCount = useMemo(
+    () => getUnreadCount(announcements, channel.id),
+    [channel.id, ackVersion]
+  )
 
-  // 重要公告 + 未確認 → 進入後 0.8 秒自動彈窗
+  // ── 訂閱已讀變更（VendorAnnouncements 頁標記已讀時，這裡的紅點即時消失） ──
   useEffect(() => {
-    if (ann && ann.priority === 'important' && !isAcknowledged(channel.id, ann.id)) {
-      const t = setTimeout(() => setAnnOpen(true), 800)
+    const unsub = subscribeReadUpdates(() => setAckVersion(v => v + 1))
+    return unsub
+  }, [])
+
+  // ── 進入廠商端 0.8 秒後，若有重要+未讀公告 → 強制彈窗（只彈第一則，避免連續轟炸） ──
+  useEffect(() => {
+    const next = getNextForcePopup(announcements, channel.id)
+    if (next) {
+      const t = setTimeout(() => {
+        setPopupAnn(next)
+        setAnnOpen(true)
+      }, 800)
       return () => clearTimeout(t)
     }
-  }, [ann?.id, channel.id]) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [channel.id])
 
   const handleAcknowledge = () => {
-    if (ann) {
-      addAckedId(channel.id, ann.id)
-      setAckVersion(v => v + 1)  // 觸發重算
+    if (popupAnn) {
+      addAckedId(channel.id, popupAnn.id)          // localStorage：本裝置不再彈窗
+      markRead(announcements, popupAnn.id, channel.id)  // 資料層：標記已讀
+      setAckVersion(v => v + 1)
     }
   }
+
+  // ── 左側選單（包含未讀紅點） ──
+  const MENU_ITEMS = [
+    {
+      key: 'announcements',
+      icon: <NotificationOutlined />,
+      label: (
+        <Space size={6}>
+          最新資訊
+          {unreadCount > 0 && (
+            <span style={{
+              width: 8, height: 8, borderRadius: '50%',
+              background: '#ff4d4f', display: 'inline-block', flexShrink: 0,
+            }} />
+          )}
+        </Space>
+      ),
+    },
+    { key: 'order',         icon: <FormOutlined />,         label: '商品採購' },
+    { key: 'orders',        icon: <HistoryOutlined />,       label: 'B2B訂單紀錄' },
+    { key: 'settlements',   icon: <AccountBookOutlined />,   label: '結算紀錄' },
+    { key: 'profile',       icon: <UserOutlined />,          label: '通路資料' },
+  ]
 
   return (
     <Layout style={{ minHeight: '100vh' }}>
@@ -70,21 +107,6 @@ export default function VendorLayout() {
         </Space>
 
         <Space size={4}>
-          {ann && (
-            <Badge dot={hasUnread} offset={[-4, 4]}>
-              <Button
-                type="text"
-                icon={hasUnread
-                  ? <BellFilled  style={{ fontSize: 18, color: '#fff' }} />
-                  : <BellOutlined style={{ fontSize: 18, color: '#fff' }} />
-                }
-                style={{ width: 36, height: 36, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
-                onClick={() => setAnnOpen(true)}
-                title="最新消息"
-              />
-            </Badge>
-          )}
-
           <Button
             type="text"
             icon={<LogoutOutlined />}
@@ -112,7 +134,7 @@ export default function VendorLayout() {
       </Layout>
 
       <AnnouncementModal
-        announcement={ann}
+        announcement={popupAnn}
         open={annOpen}
         onClose={() => setAnnOpen(false)}
         onAcknowledge={handleAcknowledge}

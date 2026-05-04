@@ -320,14 +320,19 @@ function ProductModal({ open, onClose, onSave, initial, categories }) {
           </Col>
         </Row>
 
-        {/* === 官網售價 / 通路最低售價 === */}
+        {/* === 有效期限 / 官網售價 / 通路最低售價 === */}
         <Row gutter={12} style={{ marginTop: 12 }}>
-          <Col span={12}>
+          <Col span={8}>
+            <Form.Item label="保存期限" name="validityPeriod" style={{ marginBottom: 0 }}>
+              <Input placeholder="選填，例：18 個月" />
+            </Form.Item>
+          </Col>
+          <Col span={8}>
             <Form.Item label="官網售價" name="retailPrice" style={{ marginBottom: 0 }}>
               <InputNumber prefix="$" min={0} style={{ width: '100%' }} placeholder="選填" />
             </Form.Item>
           </Col>
-          <Col span={12}>
+          <Col span={8}>
             <Form.Item label="通路最低售價" name="minRetailPrice" style={{ marginBottom: 0 }}>
               <InputNumber prefix="$" min={0} style={{ width: '100%' }} placeholder="選填" />
             </Form.Item>

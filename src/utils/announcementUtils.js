@@ -3,14 +3,83 @@
 // ─────────────────────────────────────────────
 
 /**
- * 取出該通路應該看到的公告。
- * 回傳 null 代表「無公告顯示」。
+ * （舊版相容）取出該通路應該看到的「單則」公告。
+ * 新程式碼請改用 getChannelAnnouncements。
  */
 export function getChannelAnnouncement(ann, channelId) {
   if (!ann || !ann.isVisible) return null
   if (ann.audience === 'all') return ann
   if (Array.isArray(ann.audience) && ann.audience.includes(channelId)) return ann
   return null
+}
+
+/**
+ * 取出該通路看得到的「公告陣列」。
+ * - 已 isVisible
+ * - audience 對得上（'all' 或包含 channelId）
+ * - 新到舊排序（依 publishedAt）
+ */
+export function getChannelAnnouncements(list, channelId) {
+  if (!Array.isArray(list)) return []
+  return list
+    .filter(a => a.isVisible)
+    .filter(a => a.audience === 'all' || (Array.isArray(a.audience) && a.audience.includes(channelId)))
+    .slice()  // 不直接動到原陣列
+    .sort((a, b) => (b.publishedAt ?? '').localeCompare(a.publishedAt ?? ''))
+}
+
+// ── 資料層已讀追蹤（寫入公告物件的 readBy 陣列） ────────────────
+
+/** 該通路是否已讀此則公告（依資料層 readBy） */
+export function isRead(ann, channelId) {
+  return Array.isArray(ann?.readBy) && ann.readBy.includes(channelId)
+}
+
+// ── 已讀變更 pub/sub（讓 VendorLayout 即時更新紅點） ────────────
+let readUpdateListeners = []
+
+/** 訂閱已讀變更，回傳 unsubscribe 函式 */
+export function subscribeReadUpdates(fn) {
+  readUpdateListeners.push(fn)
+  return () => { readUpdateListeners = readUpdateListeners.filter(f => f !== fn) }
+}
+
+function notifyReadUpdated() {
+  readUpdateListeners.forEach(fn => fn())
+}
+
+/**
+ * 標記已讀：直接 mutate 公告物件的 readBy（與 fakeData 同一個 reference）。
+ * 呼叫後自動廣播，讓所有訂閱者（VendorLayout 等）即時更新計數。
+ * @param {object[]} annList  — 完整公告陣列（fakeData.announcements）
+ * @param {string}   annId    — 公告 id
+ * @param {string}   channelId
+ */
+export function markRead(annList, annId, channelId) {
+  const ann = annList.find(a => a.id === annId)
+  if (!ann) return
+  if (!Array.isArray(ann.readBy)) ann.readBy = []
+  if (!ann.readBy.includes(channelId)) {
+    ann.readBy.push(channelId)
+    notifyReadUpdated()
+  }
+}
+
+/** 該通路在當前公告陣列下，未讀的數量（依資料層 readBy） */
+export function getUnreadCount(list, channelId) {
+  const visible = getChannelAnnouncements(list, channelId)
+  return visible.filter(a => !isRead(a, channelId)).length
+}
+
+/**
+ * 取出第一則「重要 + 本裝置彈窗未確認」的公告。
+ * 彈窗確認與否使用 localStorage（裝置層），與已讀/未讀資料層分開。
+ */
+export function getNextForcePopup(list, channelId) {
+  const visible = getChannelAnnouncements(list, channelId)
+  const popped  = new Set(getAckedIds(channelId))   // localStorage：本裝置已彈過
+  // 從舊到新彈，避免一次彈最新的、忽略還沒看的舊重要公告
+  return [...visible].reverse().find(a => a.priority === 'important' && !popped.has(a.id)) ?? null
 }
 
 // ── localStorage 已讀記錄 ──────────────────────

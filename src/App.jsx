@@ -3,10 +3,11 @@ import HomePage          from './pages/HomePage'
 import AdminLayout       from './layouts/AdminLayout'
 import VendorLayout      from './layouts/VendorLayout'
 import VendorLogin       from './pages/vendor/VendorLogin'
-import VendorOrderForm   from './pages/vendor/VendorOrderForm'
-import VendorOrders      from './pages/vendor/VendorOrders'
-import VendorSettlements from './pages/vendor/VendorSettlements'
-import VendorProfile     from './pages/vendor/VendorProfile'
+import VendorOrderForm     from './pages/vendor/VendorOrderForm'
+import VendorOrders        from './pages/vendor/VendorOrders'
+import VendorSettlements   from './pages/vendor/VendorSettlements'
+import VendorProfile       from './pages/vendor/VendorProfile'
+import VendorAnnouncements from './pages/vendor/VendorAnnouncements'
 import AdminOrders       from './pages/admin/AdminOrders'
 import AdminSettlements  from './pages/admin/AdminSettlements'
 import AdminProducts     from './pages/admin/AdminProducts'
@@ -25,11 +26,12 @@ export default function App() {
       {/* 廠商前台 */}
       <Route path="/login"         element={<VendorLogin />} />
       <Route element={<VendorLayout />}>
-        <Route path="/order"        element={<VendorOrderForm />} />
-        <Route path="/orders"       element={<VendorOrders />} />
-        <Route path="/settlements"  element={<VendorSettlements />} />
-        <Route path="/profile"      element={<VendorProfile />} />
-        <Route path="/history"      element={<Navigate to="/orders" replace />} />
+        <Route path="/order"          element={<VendorOrderForm />} />
+        <Route path="/orders"         element={<VendorOrders />} />
+        <Route path="/settlements"    element={<VendorSettlements />} />
+        <Route path="/announcements"  element={<VendorAnnouncements />} />
+        <Route path="/profile"        element={<VendorProfile />} />
+        <Route path="/history"        element={<Navigate to="/orders" replace />} />
       </Route>
 
       {/* 管理後台 */}
