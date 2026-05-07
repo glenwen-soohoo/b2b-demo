@@ -5,7 +5,7 @@ import {
 } from 'antd'
 import {
   EditOutlined, SaveOutlined, PlusOutlined,
-  DeleteOutlined, EnvironmentOutlined,
+  DeleteOutlined, EnvironmentOutlined, LockOutlined,
 } from '@ant-design/icons'
 import { useVendor } from '../../context/VendorContext'
 
@@ -46,6 +46,80 @@ function AddressModal({ open, onClose, onSave, initial }) {
   )
 }
 
+/**
+ * 修改密碼彈窗
+ *
+ * Demo 行為：開啟彈窗 form，提交後顯示成功訊息（不真的改）
+ * TODO_FRUIT_WEB: 正式版要 POST /api/b2b/auth/change-password { currentPassword, newPassword }
+ *   後端驗證舊密碼後更新 Volunteers.Password
+ */
+function ChangePasswordModal({ open, onClose }) {
+  const [loading, setLoading] = useState(false)
+  const [form] = Form.useForm()
+
+  const onSubmit = () => {
+    form.validateFields().then(() => {
+      setLoading(true)
+      setTimeout(() => {
+        setLoading(false)
+        form.resetFields()
+        message.success('密碼已修改成功')
+        onClose()
+      }, 600)
+    })
+  }
+
+  return (
+    <Modal
+      open={open}
+      onCancel={() => { form.resetFields(); onClose() }}
+      title={<Space><LockOutlined />修改密碼</Space>}
+      okText="儲存" cancelText="取消"
+      confirmLoading={loading}
+      destroyOnClose
+      onOk={onSubmit}
+    >
+      <Form form={form} layout="vertical" style={{ marginTop: 8 }}>
+        <Form.Item
+          label="當前密碼"
+          name="currentPassword"
+          rules={[{ required: true, message: '請輸入當前密碼' }]}
+        >
+          <Input.Password autoComplete="current-password" />
+        </Form.Item>
+        <Form.Item
+          label="新密碼"
+          name="newPassword"
+          rules={[
+            { required: true, message: '請輸入新密碼' },
+            { min: 8, message: '密碼至少 8 個字元' },
+          ]}
+        >
+          <Input.Password autoComplete="new-password" placeholder="至少 8 字元" />
+        </Form.Item>
+        <Form.Item
+          label="確認新密碼"
+          name="confirmPassword"
+          dependencies={['newPassword']}
+          rules={[
+            { required: true, message: '請再次輸入新密碼' },
+            ({ getFieldValue }) => ({
+              validator(_, value) {
+                if (!value || getFieldValue('newPassword') === value) {
+                  return Promise.resolve()
+                }
+                return Promise.reject(new Error('兩次輸入的密碼不一致'))
+              },
+            }),
+          ]}
+        >
+          <Input.Password autoComplete="new-password" />
+        </Form.Item>
+      </Form>
+    </Modal>
+  )
+}
+
 export default function VendorProfile() {
   const { channel, login } = useVendor()
 
@@ -58,6 +132,9 @@ export default function VendorProfile() {
   const [addrList, setAddrList]       = useState(channel.addresses ?? [])
   const [addrModal, setAddrModal]     = useState(false)
   const [editingAddr, setEditingAddr] = useState(null)
+
+  // 修改密碼彈窗
+  const [pwdModalOpen, setPwdModalOpen] = useState(false)
 
   const startEdit = () => {
     form.setFieldsValue(info)
@@ -120,7 +197,10 @@ export default function VendorProfile() {
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
         <Title level={4} style={{ margin: 0 }}>通路資料</Title>
         {!editing
-          ? <Button icon={<EditOutlined />} onClick={startEdit}>編輯資料</Button>
+          ? <Space>
+              <Button icon={<LockOutlined />} onClick={() => setPwdModalOpen(true)}>修改密碼</Button>
+              <Button icon={<EditOutlined />} onClick={startEdit}>編輯資料</Button>
+            </Space>
           : <Space>
               <Button onClick={() => setEditing(false)}>取消</Button>
               <Button type="primary" icon={<SaveOutlined />} onClick={saveInfo}>儲存</Button>
@@ -243,6 +323,11 @@ export default function VendorProfile() {
         onClose={() => setAddrModal(false)}
         onSave={saveAddr}
         initial={editingAddr}
+      />
+
+      <ChangePasswordModal
+        open={pwdModalOpen}
+        onClose={() => setPwdModalOpen(false)}
       />
     </div>
   )

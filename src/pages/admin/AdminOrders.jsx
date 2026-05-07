@@ -137,12 +137,14 @@ export default function AdminOrders() {
   }
 
   const columns = [
-    { title: '訂單編號', dataIndex: 'id', width: 170,
+    { title: 'B2B訂單號', dataIndex: 'b2b_order_no', width: 170,
       render: (v, r) => {
         const isVoided = r.status === 'voided'
         return (
           <Space direction="vertical" size={0}>
-            <Text code style={{ fontSize: 12 }}>{v}</Text>
+            {v
+              ? <Text code style={{ fontSize: 12 }}>{v}</Text>
+              : <Text type="secondary">—</Text>}
             {r.backendOrderId && (
               <Text style={{ fontSize: 11, ...(isVoided ? null : { color: '#888' }) }}>
                 {r.backendOrderId}

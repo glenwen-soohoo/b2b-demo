@@ -17,8 +17,10 @@ function PreOrdersPane({ channelId }) {
   const myOrders = preOrders.filter(o => o.channelId === channelId)
 
   const columns = [
-    { title: 'B2B訂單號', dataIndex: 'id', width: 170,
-      render: v => <Text code style={{ fontSize: 12 }}>{v}</Text> },
+    { title: 'B2B訂單號', dataIndex: 'b2b_order_no', width: 170,
+      render: v => v
+        ? <Text code style={{ fontSize: 12 }}>{v}</Text>
+        : <Text type="secondary">—</Text> },
     { title: '結算月', dataIndex: 'settlementMonth', width: 100 },
     { title: '品項數', dataIndex: 'items', width: 80, align: 'center',
       render: items => items.length },
@@ -29,7 +31,7 @@ function PreOrdersPane({ channelId }) {
       }},
     { title: '建立日期', dataIndex: 'createdAt', width: 110 },
     { title: '狀態', dataIndex: 'status', width: 140,
-      render: (s, r) => (
+      render: (s) => (
         <Space size={4}>
           <StatusTag status={s} />
           {s === 'ordered' && <Tag color="cyan" style={{ fontSize: 11 }}>已出貨</Tag>}
@@ -132,8 +134,10 @@ function SettlementsPane({ channelId, channelName, defaultBankLast5 }) {
                 return preOrders.filter(o => ids.includes(o.id))
               })()}
               columns={[
-                { title: 'B2B訂單號', dataIndex: 'id', width: 140,
-                  render: v => <Tag color="purple" style={{ fontSize: 11 }}>{v}</Tag> },
+                { title: 'B2B訂單號', dataIndex: 'b2b_order_no', width: 170,
+                  render: v => v
+                    ? <Tag color="purple" style={{ fontSize: 11 }}>{v}</Tag>
+                    : <Text type="secondary">—</Text> },
                 { title: '下單日期', dataIndex: 'createdAt', width: 100 },
                 { title: '正式編號', dataIndex: 'backendOrderId', width: 130,
                   render: v => v ? <Text code style={{ fontSize: 11 }}>{v}</Text> : <Text type="secondary">—</Text> },

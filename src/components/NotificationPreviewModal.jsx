@@ -260,6 +260,49 @@ export default function NotificationPreviewModal({ open, onClose, onConfirm, typ
       };
     }
 
+    if (type === 'password_reset_email') {
+      // 廠商在 ForgotPassword 頁送出後，系統寄重設密碼信
+      const token = data.resetToken ?? 'demo-token-xxx'
+      const resetUrl = `https://b2b.greenbox.tw/reset-password?token=${token}`
+      // demo 點按鈕模擬「在郵件中點連結」→ 開新分頁進 reset-password 頁
+      const handleClickReset = () => {
+        window.open(`/reset-password?token=${token}`, '_blank', 'noopener,noreferrer')
+      }
+      return {
+        title: '重設密碼信件',
+        to: data.contactEmail ?? data.account ?? '廠商聯絡信箱',
+        subject: '【無毒農 B2B】重設密碼連結',
+        body: (
+          <div style={{ fontSize: 13, lineHeight: 2 }}>
+            <div>親愛的 {data.contactName ?? '通路窗口'} 您好，</div>
+            <div style={{ marginTop: 8 }}>
+              您剛剛在 B2B 前台申請重設密碼，請點擊下方連結設定新密碼：
+            </div>
+            <div style={{ marginTop: 16, padding: '12px 16px', background: TEMP.frozen.bg, borderRadius: 6, border: `1px solid ${TEMP.frozen.border}` }}>
+              <div style={{ fontWeight: 600, marginBottom: 8 }}>
+                <LinkOutlined style={{ marginRight: 6 }} />點擊下方按鈕進入重設密碼頁面
+              </div>
+              <Button type="primary" size="small" icon={<LinkOutlined />} onClick={handleClickReset}>
+                重設密碼
+              </Button>
+              <Text type="secondary" style={{ marginLeft: 8, fontSize: 11 }}>
+                （連結 30 分鐘內有效，僅可使用一次）
+              </Text>
+            </div>
+            <div style={{ marginTop: 8, fontSize: 12, color: '#888', wordBreak: 'break-all' }}>
+              連結網址：<Text code style={{ fontSize: 11 }}>{resetUrl}</Text>
+            </div>
+            <div style={{ marginTop: 12, padding: '8px 12px', background: '#fff7e6', border: '1px solid #ffd591', borderRadius: 6 }}>
+              ⚠️ 此連結 <Text strong>30 分鐘內</Text>有效，僅可使用一次。
+            </div>
+            <div style={{ marginTop: 12, color: '#888', fontSize: 12 }}>
+              若非您本人申請，請忽略此封信，您的帳號目前安全。
+            </div>
+          </div>
+        ),
+      };
+    }
+
     if (type === 'payment_received') {
       return {
         title: '廠商已匯款通知',

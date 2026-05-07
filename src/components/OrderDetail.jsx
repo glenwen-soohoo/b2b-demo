@@ -10,6 +10,7 @@ import { generateB2bOrderNo, getConfirmedItems, buildVoidPatch, buildRecreatedOr
 import { useOrderDetailColumns } from '../hooks/useOrderDetailColumns';
 import StatusTag from './StatusTag';
 import OrderStateMachine from './OrderStateMachine';
+import ShippingCell from './ShippingCell';
 import { productMap, channelMap, systemSettings } from '../data/fakeData';
 
 const { Text } = Typography;
@@ -363,6 +364,12 @@ export default function OrderDetail({ order, open, onClose, onStatusChange, onRe
         </Row>
 
         <Descriptions bordered size="small" column={2} style={{ marginBottom: 20 }}>
+          <Descriptions.Item label="B2B訂單號" span={2}>
+            {order.b2b_order_no
+              ? <Tag color="blue">{order.b2b_order_no}</Tag>
+              : <Text type="secondary">—</Text>
+            }
+          </Descriptions.Item>
           <Descriptions.Item label="通路名稱">{order.channelName}</Descriptions.Item>
           <Descriptions.Item label="結算月份">
             {!isSettled && !isVoided
@@ -378,16 +385,11 @@ export default function OrderDetail({ order, open, onClose, onStatusChange, onRe
           </Descriptions.Item>
           <Descriptions.Item label="建立日期">{order.createdAt}</Descriptions.Item>
           <Descriptions.Item label="出貨地址">{order.shippingAddress}</Descriptions.Item>
-          {order.b2b_order_no && (
-            <Descriptions.Item label="B2B訂單號" span={2}>
-              <Tag color="blue">{order.b2b_order_no}</Tag>
-            </Descriptions.Item>
-          )}
-          <Descriptions.Item label="後台正式訂單號" span={2}>
-            {order.backendOrderId
-              ? <Tag color="cyan">{order.backendOrderId}</Tag>
-              : <Text type="secondary">—</Text>
-            }
+          <Descriptions.Item label="後台正式訂單號">
+            {order.backendOrderId || <Text type="secondary">—</Text>}
+          </Descriptions.Item>
+          <Descriptions.Item label="物流單號">
+            <ShippingCell shippingNumber={order.shippingNumber} />
           </Descriptions.Item>
           <Descriptions.Item label="發票模式" span={2}>
             <Tag>{INVOICE_MODE_LABEL[order.invoice_mode_snapshot] ?? order.invoice_mode_snapshot ?? '—'}</Tag>

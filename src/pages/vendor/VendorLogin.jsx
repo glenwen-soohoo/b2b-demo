@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import { Card, Form, Input, Button, Typography, Alert } from 'antd'
 import { LoginOutlined, InfoCircleOutlined } from '@ant-design/icons'
 import { channels } from '../../data/fakeData'
@@ -70,11 +70,17 @@ export default function VendorLogin() {
           >
             登入
           </Button>
+
+          <div style={{ textAlign: 'right', marginTop: 12 }}>
+            <Link to="/forgot-password" style={{ fontSize: 13, color: '#52c41a' }}>
+              忘記密碼？
+            </Link>
+          </div>
         </Form>
 
       </Card>
 
-      {/* 右下角 Demo 說明卡片 */}
+      {/* 右下角 Demo 說明卡片（保留至交付前最後一批移除）*/}
       <Card
         size="small"
         style={{

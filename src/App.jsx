@@ -3,6 +3,8 @@ import HomePage          from './pages/HomePage'
 import AdminLayout       from './layouts/AdminLayout'
 import VendorLayout      from './layouts/VendorLayout'
 import VendorLogin       from './pages/vendor/VendorLogin'
+import ForgotPassword    from './pages/vendor/ForgotPassword'
+import ResetPassword     from './pages/vendor/ResetPassword'
 import VendorOrderForm     from './pages/vendor/VendorOrderForm'
 import VendorOrders        from './pages/vendor/VendorOrders'
 import VendorSettlements   from './pages/vendor/VendorSettlements'
@@ -24,7 +26,9 @@ export default function App() {
       <Route path="/"        element={<HomePage />} />
 
       {/* 廠商前台 */}
-      <Route path="/login"         element={<VendorLogin />} />
+      <Route path="/login"            element={<VendorLogin />} />
+      <Route path="/forgot-password"  element={<ForgotPassword />} />
+      <Route path="/reset-password"   element={<ResetPassword />} />
       <Route element={<VendorLayout />}>
         <Route path="/order"          element={<VendorOrderForm />} />
         <Route path="/orders"         element={<VendorOrders />} />

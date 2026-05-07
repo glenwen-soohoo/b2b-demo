@@ -30,8 +30,10 @@ function generateB2bOrderNo() {
  * @param {object} channel  - 通路物件（含 taxId、title 等）
  * @returns {Promise<{ fruitOrderNumber: string, fruitOrderId: number }>}
  */
+// eslint-disable-next-line no-unused-vars
 export async function createFruitOrderFromB2B(b2bOrder, channel) {
   // ── Prototype: 模擬 API 延遲 + 產生假的 fruitOrderNumber ─────────
+  // 註：channel 參數保留給正式版傳給 fruit_web API 用（買受人抬頭/統編等資訊）
   await new Promise(r => setTimeout(r, 600))
 
   const items = b2bOrder.adjustedItems ?? b2bOrder.salesAdjustedItems ?? b2bOrder.items ?? []
@@ -81,39 +83,11 @@ export function buildSalesConfirmPatch(order, adjItems, b2bNote) {
   }
 }
 
-/**
- * 倉庫確認 B2B 訂單（ordered → arrived）並呼叫 createFruitOrderFromB2B。
- *
- * @param {object} order     - B2B 訂單
- * @param {Array}  adjItems  - 倉庫確認後的品項
- * @param {object} channel   - 通路
- * @returns {Promise<object>} 更新後的訂單欄位 patch
- */
-export async function buildWarehouseConfirmPatch(order, adjItems, channel) {
-  const { fruitOrderNumber, fruitOrderId } = await createFruitOrderFromB2B(
-    { ...order, adjustedItems: adjItems }, channel
-  )
-
-  const now = new Date().toLocaleString('zh-TW', { hour12: false }).replace(',', '')
-  const diffs = adjItems
-    .map(it => {
-      const orig = (order.salesAdjustedItems ?? order.items).find(o => o.productId === it.productId)
-      return orig && it.qty !== orig.qty ? `${it.productName}: ${orig.qty}→${it.qty}` : null
-    })
-    .filter(Boolean)
-
-  const logMsg = diffs.length > 0
-    ? `[倉庫操作] 確認並轉入後台（${diffs.join('、')}），建單 ${fruitOrderNumber}`
-    : `[倉庫操作] 確認並轉入後台（數量無變動），建單 ${fruitOrderNumber}`
-
-  return {
-    status: 'arrived',
-    adjustedItems: adjItems,
-    backendOrderId: fruitOrderNumber,
-    fruit_order_id: fruitOrderId,
-    logs: [...(order.logs ?? []), { time: now, action: logMsg }],
-  }
-}
+// 註：原 buildWarehouseConfirmPatch（倉庫端確認轉入後台）已於倉庫端移除後刪除。
+// 正式版改由：
+//   1. 業務在後台手動匯單 → 呼叫 createFruitOrderFromB2B
+//   2. arrived 狀態由主站黑貓貨態爬蟲（BlackCatHelper.ScratchOrdersState）自動推進
+// 詳見《B2B 發票流程設計》6.4 節 + 《現況排查報告》R-9。
 
 /**
  * 計算結算應收金額（含折扣）。

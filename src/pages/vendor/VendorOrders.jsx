@@ -306,8 +306,10 @@ export default function VendorOrders() {
   }
 
   const columns = [
-    { title: 'B2B訂單號', dataIndex: 'id', width: 130,
-      render: v => <Text code style={{ fontSize: 12 }}>{v}</Text> },
+    { title: 'B2B訂單號', dataIndex: 'b2b_order_no', width: 170,
+      render: v => v
+        ? <Text code style={{ fontSize: 12 }}>{v}</Text>
+        : <Text type="secondary">—</Text> },
     { title: '下單日期', dataIndex: 'createdAt', width: 110 },
     { title: '溫層', dataIndex: 'items', width: 120,
       render: items => temperatureZoneTag(items) },

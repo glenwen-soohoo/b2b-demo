@@ -56,8 +56,10 @@ function GenerateSettlementModal({ open, onClose, preOrderList, onGenerate }) {
   }
 
   const orderCols = [
-    { title: 'B2B訂單號', dataIndex: 'id',
-      render: v => <Text code style={{ fontSize: 11 }}>{v}</Text> },
+    { title: 'B2B訂單號', dataIndex: 'b2b_order_no',
+      render: v => v
+        ? <Text code style={{ fontSize: 11 }}>{v}</Text>
+        : <Text type="secondary">—</Text> },
     { title: '門市', dataIndex: 'store_label', width: 90,
       render: v => v ? <Tag>{v}</Tag> : <Text type="secondary">—</Text> },
     { title: '結算月份', dataIndex: 'settlementMonth', width: 95 },
@@ -218,8 +220,10 @@ function SettlementDrawer({ settlement, preOrderList, open, onClose, onStatusCha
             dataSource={relatedOrders} rowKey="id" size="small"
             pagination={false} style={{ marginBottom: 20 }}
             columns={[
-              { title: 'B2B訂單號', dataIndex: 'id', width: 170,
-                render: v => <Tag color="purple" style={{ fontSize: 11 }}>{v}</Tag> },
+              { title: 'B2B訂單號', dataIndex: 'b2b_order_no', width: 170,
+                render: v => v
+                  ? <Tag color="purple" style={{ fontSize: 11 }}>{v}</Tag>
+                  : <Text type="secondary">—</Text> },
               { title: '下單日期', dataIndex: 'createdAt', width: 100 },
               { title: '出貨地址', dataIndex: 'shippingAddress', ellipsis: true },
               { title: '金額小計', width: 110,

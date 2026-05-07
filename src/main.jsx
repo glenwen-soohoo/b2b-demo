@@ -3,7 +3,6 @@ import { createRoot } from 'react-dom/client'
 import { BrowserRouter } from 'react-router-dom'
 import { ConfigProvider } from 'antd'
 import { VendorProvider } from './context/VendorContext'
-import { WarehouseProvider } from './context/WarehouseContext'
 import App from './App.jsx'
 import { BASE_URL } from './config'
 import 'antd/dist/reset.css'
@@ -20,9 +19,7 @@ createRoot(document.getElementById('root')).render(
     <BrowserRouter basename={BASE_URL}>
       <ConfigProvider theme={antdTheme}>
         <VendorProvider>
-          <WarehouseProvider>
-            <App />
-          </WarehouseProvider>
+          <App />
         </VendorProvider>
       </ConfigProvider>
     </BrowserRouter>

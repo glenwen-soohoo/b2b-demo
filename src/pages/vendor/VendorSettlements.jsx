@@ -100,8 +100,10 @@ export default function VendorSettlements() {
                 return allPreOrders.filter(o => ids.includes(o.id))
               })()}
               columns={[
-                { title: 'B2B訂單號', dataIndex: 'id', width: 140,
-                  render: v => <Tag color="purple" style={{ fontSize: 11 }}>{v}</Tag> },
+                { title: 'B2B訂單號', dataIndex: 'b2b_order_no', width: 170,
+                  render: v => v
+                    ? <Tag color="purple" style={{ fontSize: 11 }}>{v}</Tag>
+                    : <Text type="secondary">—</Text> },
                 { title: '下單日期', dataIndex: 'createdAt', width: 100 },
                 { title: '正式編號', dataIndex: 'backendOrderId', width: 130,
                   render: v => v ? <Text code style={{ fontSize: 11 }}>{v}</Text> : <Text type="secondary">—</Text> },
