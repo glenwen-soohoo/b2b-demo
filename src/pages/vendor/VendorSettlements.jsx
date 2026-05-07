@@ -4,11 +4,12 @@ import {
   Table, Tag, Typography, Card, Space, Timeline, Drawer,
   Button, Descriptions, Divider, message, Input,
 } from 'antd'
-import { EyeOutlined, DollarOutlined } from '@ant-design/icons'
+import { EyeOutlined, DollarOutlined, FilePdfOutlined } from '@ant-design/icons'
 import { formalOrders, preOrders as allPreOrders } from '../../data/fakeData'
 import StatusTag from '../../components/StatusTag'
 import { useVendor } from '../../context/VendorContext'
 import NotificationPreviewModal from '../../components/NotificationPreviewModal'
+import { exportSettlementPdf } from '../../utils/exportSettlementPdf'
 
 const { Title, Text } = Typography
 
@@ -225,6 +226,24 @@ export default function VendorSettlements() {
                 >回報已匯款</Button>
               </Card>
             )}
+
+            <div style={{ marginBottom: 16 }}>
+              <Button
+                icon={<FilePdfOutlined />}
+                onClick={async () => {
+                  try {
+                    message.loading({ content: 'PDF 產生中…', key: 'settle-pdf', duration: 0 })
+                    await exportSettlementPdf({ settlement: selected, relatedOrders })
+                    message.success({ content: '結算單已下載', key: 'settle-pdf' })
+                  } catch (err) {
+                    console.error(err)
+                    message.error({ content: err.message || '匯出失敗', key: 'settle-pdf' })
+                  }
+                }}
+              >
+                匯出 PDF
+              </Button>
+            </div>
 
             <Divider orientation="left" plain>進度紀錄</Divider>
             <Timeline

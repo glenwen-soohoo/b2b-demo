@@ -135,18 +135,12 @@ function buildSettlementPageHtml({ settlement, pageOrders, channel, pageInfo, me
       </div>
     </div>
 
-    <!-- 簽章 -->
+    <!-- 簽章（僅廠商核對簽章） -->
     <div style="margin-top:10px;padding:5px 10px;background:${COLOR.bgHeader};border:1px solid ${COLOR.borderGray};text-align:center;font-size:10px;color:${COLOR.textMuted};">
       請<span style="color:${COLOR.red};font-weight:700;">核對</span>並<span style="color:${COLOR.red};font-weight:700;">簽章</span>後回傳，以利後續匯款作業
     </div>
-    <div style="display:flex;">
-      <div style="flex:1;height:80px;border:1px solid ${COLOR.borderGray};border-top:none;border-right:none;"></div>
-      <div style="flex:1;height:80px;border:1px solid ${COLOR.borderGray};border-top:none;"></div>
-    </div>
-    <div style="display:flex;">
-      <div style="flex:1;padding:4px 10px;border:1px solid ${COLOR.borderGray};border-top:none;border-right:none;text-align:center;font-size:10px;color:${COLOR.textMuted};">財務確認簽章</div>
-      <div style="flex:1;padding:4px 10px;border:1px solid ${COLOR.borderGray};border-top:none;text-align:center;font-size:10px;color:${COLOR.textMuted};">廠商確認簽章</div>
-    </div>
+    <div style="height:80px;border:1px solid ${COLOR.borderGray};border-top:none;"></div>
+    <div style="padding:4px 10px;border:1px solid ${COLOR.borderGray};border-top:none;text-align:center;font-size:10px;color:${COLOR.textMuted};">廠商確認簽章</div>
   ` : ''
 
   return `
