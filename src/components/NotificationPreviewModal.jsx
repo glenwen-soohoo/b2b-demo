@@ -260,6 +260,33 @@ export default function NotificationPreviewModal({ open, onClose, onConfirm, typ
       };
     }
 
+    if (type === 'admin_password_reset') {
+      // 後台業務按「重設密碼」→ 系統產生新密碼寄到 ContactEmail
+      return {
+        title: '密碼重設通知（系統產生新密碼）',
+        to: data.contactEmail ?? '通路聯絡信箱',
+        subject: `【無毒農 B2B】您的密碼已被後台重設 — ${data.channelName ?? ''}`,
+        body: (
+          <div style={{ fontSize: 13, lineHeight: 2 }}>
+            <div>親愛的 {data.contactName ?? '通路窗口'} 您好，</div>
+            <div style={{ marginTop: 8 }}>
+              您的 B2B 通路帳號密碼已由業務窗口重設：
+            </div>
+            <div style={{ marginTop: 12, padding: '12px 16px', background: '#fff7e6', border: '1px solid #ffd591', borderRadius: 6 }}>
+              <div>帳號：<Text code>{data.account}</Text></div>
+              <div>新密碼：<Text strong style={{ fontSize: 14, color: '#d46b08' }}>{data.newPassword}</Text></div>
+            </div>
+            <div style={{ marginTop: 12 }}>
+              請於下次登入時使用新密碼，並於登入後至「通路資料 → 修改密碼」自行變更。
+            </div>
+            <div style={{ marginTop: 12, color: '#888', fontSize: 12 }}>
+              如非您本人申請重設，請立即聯繫業務窗口。
+            </div>
+          </div>
+        ),
+      };
+    }
+
     if (type === 'password_reset_email') {
       // 廠商在 ForgotPassword 頁送出後，系統寄重設密碼信
       const token = data.resetToken ?? 'demo-token-xxx'

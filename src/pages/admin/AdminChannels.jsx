@@ -1,22 +1,38 @@
 import { useState, useMemo } from 'react'
 import {
   Table, Button, Typography, Badge, Space, Modal, Form, Input,
-  InputNumber, Select, Popconfirm, message, Divider, Row, Col, Tag, Dropdown,
+  InputNumber, Select, Popconfirm, message, Divider, Row, Col, Tag, Alert,
 } from 'antd'
 import {
-  EyeOutlined, EditOutlined, DeleteOutlined, PlusOutlined, SearchOutlined,
-  CheckCircleOutlined, ExclamationCircleOutlined, DownOutlined, ReloadOutlined,
+  EyeOutlined, EditOutlined, PlusOutlined, SearchOutlined,
+  KeyOutlined, StopOutlined, PlayCircleOutlined, InfoCircleOutlined,
 } from '@ant-design/icons'
-import { channels as initialChannels, templates, members } from '../../data/fakeData'
+import { channels as initialChannels, templates } from '../../data/fakeData'
 import ChannelDetail from '../../components/ChannelDetail'
+import NotificationPreviewModal from '../../components/NotificationPreviewModal'
 
-const { Title } = Typography
+const { Title, Text } = Typography
 
-const INVOICE_MODE_OPTIONS = [
-  { value: 'per_order',         label: '訂單單筆開票' },
-  { value: 'monthly_per_store', label: '門市分開月結' },
-  { value: 'monthly_combined',  label: '整合月結' },
+// 發票模式（時機 + 是否依門市分流）合併成 4 個選項
+//
+// 各模式語意（demo / 文件 / 後端註解用，UI 不顯示說明文字）：
+//   combined                  → 整合月結。一張發票，使用通路統一統編（公司戶）
+//   per_store                 → 門市月結。每門市一張發票，可分開設定不同統編
+//   per_order                 → 訂單開票。每張訂單一張發票，全部用通路統一統編
+//   per_order_with_store_tax  → 訂單開票 + 門市統編。每張訂單一張，依該訂單收件門市對應統編
+const INVOICE_TIMING_OPTIONS = [
+  { value: 'combined',                 label: '整合月結' },
+  { value: 'per_store',                label: '門市月結' },
+  { value: 'per_order',                label: '訂單開票' },
+  { value: 'per_order_with_store_tax', label: '訂單開票 + 門市統編' },
 ]
+
+const INVOICE_TIMING_SHORT_LABEL = {
+  combined:                 '整合月結',
+  per_store:                '門市月結',
+  per_order:                '訂單開票',
+  per_order_with_store_tax: '訂單+門市統編',
+}
 
 const DELIVERY_TYPE_OPTIONS = [
   { value: 'own_logistics', label: '自有物流' },
@@ -25,139 +41,106 @@ const DELIVERY_TYPE_OPTIONS = [
   { value: 'self_pickup',   label: '廠商自取' },
 ]
 
-const INVOICE_TYPE_OPTIONS = [
-  { value: 'two_part',   label: '二聯式' },
-  { value: 'three_part', label: '三聯式' },
+const INVOICE_MODE_OPTIONS = [
+  { value: 'two_copy',   label: '二聯式' },
+  { value: 'three_copy', label: '三聯式' },
 ]
 
-const INVOICE_TYPE_COLOR = {
-  two_part:   'default',
-  three_part: 'cyan',
-}
-
 const INVOICE_MODE_COLOR = {
-  per_order:         'default',
-  monthly_per_store: 'geekblue',
-  monthly_combined:  'purple',
+  two_copy:   'default',
+  three_copy: 'cyan',
 }
 
-function ChannelModal({ open, onClose, onSave, initial }) {
+const INVOICE_TIMING_COLOR = {
+  combined:                 'purple',
+  per_store:                'geekblue',
+  per_order:                'default',
+  per_order_with_store_tax: 'magenta',
+}
+
+function ChannelModal({ open, onClose, onSave, onResetPassword, onDisable, onEnable, initial }) {
   const [form] = Form.useForm()
-  const [bindStatus, setBindStatus] = useState('none')   // 'none' | 'linked' | 'invalid'
-  const [binding,    setBinding]    = useState(false)
-
-  // TODO_FRUIT_WEB: 串接 GET /api/Volunteers/findByAccount?account=xxx
-  // 上線時改為打 API；找到回傳 { id, name, phone }；找不到回 404 → setBindStatus('invalid')
-  const handleBind = async () => {
-    const account = form.getFieldValue('memberAccount')
-    if (!account) { message.warning('請先輸入會員帳號（Email）'); return }
-    setBinding(true)
-    await new Promise(r => setTimeout(r, 500))   // mock 驗證延遲
-    setBinding(false)
-    const found = members.find(m => m.account.toLowerCase() === account.toLowerCase())
-    if (!found) {
-      setBindStatus('invalid')
-      message.error('查無此會員，請確認帳號是否正確')
-      return
-    }
-    form.setFieldsValue({
-      memberId:   found.id,
-      memberName: found.name,
-    })
-    setBindStatus('linked')
-    message.success(`已綁定會員：${found.name}`)
-  }
-
-  const handleUnlink = () => {
-    form.setFieldsValue({ memberId: undefined, memberName: undefined })
-    setBindStatus('none')
-  }
+  const isEdit = !!initial?.id
+  const isDisabled = initial?.enabled === false
 
   const handleOk = () => {
-    if (bindStatus !== 'linked') {
-      message.warning('請先完成會員帳號綁定')
-      return
-    }
     form.validateFields().then(values => {
       onSave({ ...initial, ...values })
       onClose()
     })
   }
 
+  // 編輯彈窗左下角的「重設密碼」「停用 / 啟用」（只在編輯模式顯示）
+  const footerExtra = isEdit ? (
+    <Space size={8}>
+      <Popconfirm
+        title="重設密碼"
+        description={`系統將產生新密碼並寄至 ${initial?.email}。確認執行？`}
+        okText="確認重設" cancelText="取消"
+        onConfirm={() => onResetPassword?.(initial)}
+      >
+        <Button danger icon={<KeyOutlined />} disabled={isDisabled}>重設密碼</Button>
+      </Popconfirm>
+      {isDisabled ? (
+        <Popconfirm
+          title="重新啟用通路？"
+          okText="啟用" cancelText="取消"
+          onConfirm={() => { onEnable?.(initial.id); onClose() }}
+        >
+          <Button type="primary" icon={<PlayCircleOutlined />}>啟用通路</Button>
+        </Popconfirm>
+      ) : (
+        <Popconfirm
+          title="確認停用此通路？"
+          description="停用後廠商將無法登入，但歷史訂單與結算紀錄保留。"
+          okText="停用" okButtonProps={{ danger: true }} cancelText="取消"
+          onConfirm={() => { onDisable?.(initial.id); onClose() }}
+        >
+          <Button danger icon={<StopOutlined />}>停用通路</Button>
+        </Popconfirm>
+      )}
+    </Space>
+  ) : null
+
   return (
     <Modal
       open={open} onCancel={onClose} onOk={handleOk}
-      title={initial?.id ? '編輯通路' : '新增通路'}
+      title={isEdit ? '編輯通路' : '新增通路'}
       okText="儲存" cancelText="取消" width={640}
       destroyOnClose
+      footer={
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <div>{footerExtra}</div>
+          <Space>
+            <Button onClick={onClose}>取消</Button>
+            <Button type="primary" onClick={handleOk}>儲存</Button>
+          </Space>
+        </div>
+      }
       afterOpenChange={visible => {
         if (visible) {
           form.resetFields()
-          form.setFieldsValue(initial ?? {})
-          setBindStatus(initial?.memberId ? 'linked' : 'none')
-          setBinding(false)
+          form.setFieldsValue(initial ?? { invoiceMode: 'three_copy', invoiceTiming: 'combined' })
         }
       }}
     >
       <Form form={form} layout="vertical" style={{ marginTop: 8 }}>
-        {/* 隱藏欄位：儲存綁定後的會員 ID 和姓名 */}
-        <Form.Item name="memberId" hidden><Input /></Form.Item>
-        <Form.Item name="memberName" hidden><Input /></Form.Item>
-
-        <Divider orientation="left" plain style={{ margin: '0 0 12px' }}>會員綁定</Divider>
-        <Form.Item
-          label={<span>無毒農會員帳號<span style={{ color: '#8c8c8c', fontWeight: 400, fontSize: 11, marginLeft: 4 }}>（通路即由此會員升級而來）</span></span>}
-          name="memberAccount"
-          rules={[
-            { required: true, message: '請輸入會員帳號' },
-            { type: 'email', message: '請輸入正確的 Email 格式' },
-          ]}
-        >
-          <Input
-            placeholder="例：buyer@example.com"
-            disabled={bindStatus === 'linked'}
-            addonAfter={
-              bindStatus === 'linked' ? (
-                <Dropdown
-                  trigger={['click']}
-                  menu={{
-                    items: [
-                      {
-                        key: 'unlink',
-                        icon: <ReloadOutlined />,
-                        label: '重新綁定',
-                        danger: true,
-                        onClick: handleUnlink,
-                      },
-                    ],
-                  }}
-                >
-                  <Button type="link" size="small"
-                    style={{ padding: 0, color: '#52c41a', height: 'auto', fontSize: 12 }}
-                  >
-                    <CheckCircleOutlined style={{ marginRight: 4 }} />
-                    已綁定 {form.getFieldValue('memberName')}
-                    <DownOutlined style={{ fontSize: 9, marginLeft: 3 }} />
-                  </Button>
-                </Dropdown>
-              ) : bindStatus === 'invalid' ? (
-                <Button type="link" size="small" loading={binding}
-                  style={{ padding: 0, color: '#ff4d4f', height: 'auto', fontSize: 12 }}
-                  onClick={handleBind}
-                >
-                  <ExclamationCircleOutlined style={{ marginRight: 4 }} />查無會員，重試
-                </Button>
-              ) : (
-                <Button type="link" size="small" loading={binding}
-                  style={{ padding: 0, color: '#1677ff', height: 'auto' }}
-                  onClick={handleBind}
-                >
-                  {binding ? '' : '綁定'}
-                </Button>
-              )
+        {!isEdit && (
+          <Alert
+            type="info"
+            showIcon
+            icon={<InfoCircleOutlined />}
+            message="儲存後系統將自動產生 B2B 帳號"
+            description={
+              <div style={{ fontSize: 12 }}>
+                帳號格式：<Text code>b2b_channel_001</Text>（依序產生）；預設密碼將寄至下方填寫的「聯繫信箱」。
+                <br />
+                通路代表會員（Volunteers 假人）由系統自動建立並綁定，後台無需手動指定。
+              </div>
             }
+            style={{ marginBottom: 16 }}
           />
-        </Form.Item>
+        )}
 
         <Divider orientation="left" plain style={{ margin: '4px 0 12px' }}>基本資料</Divider>
         <Row gutter={12}>
@@ -205,13 +188,13 @@ function ChannelModal({ open, onClose, onSave, initial }) {
             </Form.Item>
           </Col>
           <Col span={8}>
-            <Form.Item label="發票模式" name="invoice_mode" rules={[{ required: true }]}>
-              <Select options={INVOICE_MODE_OPTIONS} />
+            <Form.Item label="發票模式" name="invoiceTiming" rules={[{ required: true }]}>
+              <Select options={INVOICE_TIMING_OPTIONS} />
             </Form.Item>
           </Col>
           <Col span={8}>
-            <Form.Item label="發票類型" name="invoice_type" rules={[{ required: true }]}>
-              <Select options={INVOICE_TYPE_OPTIONS} />
+            <Form.Item label="發票類型" name="invoiceMode" rules={[{ required: true }]}>
+              <Select options={INVOICE_MODE_OPTIONS} />
             </Form.Item>
           </Col>
         </Row>
@@ -273,6 +256,10 @@ export default function AdminChannels() {
   const [editing,   setEditing]   = useState(null)
   const [modalOpen, setModalOpen] = useState(false)
 
+  // 重設密碼信件預覽
+  const [pwdPreviewOpen, setPwdPreviewOpen] = useState(false)
+  const [pwdPreviewData, setPwdPreviewData] = useState(null)
+
   const openAdd    = ()  => { setEditing({});  setModalOpen(true) }
   const openEdit   = (c) => { setEditing(c);   setModalOpen(true) }
   const closeModal = ()  => { setModalOpen(false); setEditing(null) }
@@ -282,14 +269,43 @@ export default function AdminChannels() {
       setChannelList(prev => prev.map(c => c.id === values.id ? { ...c, ...values } : c))
       message.success('通路資料已更新')
     } else {
-      setChannelList(prev => [...prev, { ...values, id: `c${Date.now()}`, addresses: [] }])
-      message.success('通路已新增')
+      // 新增通路：自動產生 b2b_channel_xxx 帳號 + 模擬寄送預設密碼
+      const seq = String(channelList.length + 1).padStart(3, '0')
+      const account = `b2b_channel_${seq}`
+      setChannelList(prev => [...prev, {
+        ...values,
+        id: `c${Date.now()}`,
+        addresses: [],
+        memberAccount: account,    // demo 模擬自動產生帳號
+        enabled: true,             // 預設啟用
+      }])
+      message.success(`通路已新增；系統自動產生帳號 ${account}，預設密碼已寄至 ${values.email}`)
     }
   }
 
-  const handleDelete = (id) => {
-    setChannelList(prev => prev.filter(c => c.id !== id))
-    message.success('通路已刪除')
+  // 重設密碼：先彈出信件預覽，確認後才寄送
+  const handleResetPassword = (channel) => {
+    const newPwd = Math.random().toString(36).slice(2, 14)  // 12 碼亂數密碼（demo）
+    setPwdPreviewData({
+      account: channel.memberAccount ?? 'b2b_channel_xxx',
+      contactName: channel.contact ?? '通路窗口',
+      contactEmail: channel.email,
+      newPassword: newPwd,
+      channelName: channel.name,
+    })
+    setPwdPreviewOpen(true)
+  }
+
+  // 停用通路（soft delete）：channel.enabled = false
+  const handleDisable = (id) => {
+    setChannelList(prev => prev.map(c => c.id === id ? { ...c, enabled: false } : c))
+    message.success('通路已停用')
+  }
+
+  // 重新啟用通路
+  const handleEnable = (id) => {
+    setChannelList(prev => prev.map(c => c.id === id ? { ...c, enabled: true } : c))
+    message.success('通路已重新啟用')
   }
 
   const filteredList = useMemo(() => {
@@ -305,23 +321,26 @@ export default function AdminChannels() {
   const columns = [
     { title: '通路名稱', dataIndex: 'name',
       render: (v, r) => (
-        <Button type="link" style={{ padding: 0 }} onClick={() => setViewing(r)}>{v}</Button>
+        <Space size={6}>
+          <Button type="link" style={{ padding: 0 }} onClick={() => setViewing(r)}>{v}</Button>
+          {r.enabled === false && <Tag color="default" style={{ fontSize: 10, margin: 0 }}>已停用</Tag>}
+        </Space>
       )},
     { title: '統一編號', dataIndex: 'taxId', width: 110 },
     { title: '聯繫信箱', dataIndex: 'email' },
     { title: '聯繫窗口', dataIndex: 'contact', width: 150,
       render: (v, r) => `${v ?? ''}　${r.contactPhone ?? ''}` },
-    { title: '發票模式', dataIndex: 'invoice_mode', width: 110,
+    { title: '發票模式', dataIndex: 'invoiceTiming', width: 130,
       render: v => v
-        ? <Tag color={INVOICE_MODE_COLOR[v] ?? 'default'} style={{ fontSize: 11 }}>
-            {INVOICE_MODE_OPTIONS.find(o => o.value === v)?.label ?? v}
+        ? <Tag color={INVOICE_TIMING_COLOR[v] ?? 'default'} style={{ fontSize: 11 }}>
+            {INVOICE_TIMING_SHORT_LABEL[v] ?? v}
           </Tag>
         : <span style={{ color: '#bbb' }}>—</span>
     },
-    { title: '發票類型', dataIndex: 'invoice_type', width: 80,
+    { title: '發票類型', dataIndex: 'invoiceMode', width: 80,
       render: v => v
-        ? <Tag color={INVOICE_TYPE_COLOR[v] ?? 'default'} style={{ fontSize: 11 }}>
-            {INVOICE_TYPE_OPTIONS.find(o => o.value === v)?.label ?? v}
+        ? <Tag color={INVOICE_MODE_COLOR[v] ?? 'default'} style={{ fontSize: 11 }}>
+            {INVOICE_MODE_OPTIONS.find(o => o.value === v)?.label ?? v}
           </Tag>
         : <span style={{ color: '#bbb' }}>—</span>
     },
@@ -329,18 +348,11 @@ export default function AdminChannels() {
       render: v => `每月 ${v} 日` },
     { title: '收件地址', dataIndex: 'addresses', width: 80, align: 'center',
       render: arr => <Badge count={arr?.length ?? 0} color="#1677ff" /> },
-    { title: '操作', width: 150, align: 'center',
+    { title: '操作', width: 130, align: 'center',
       render: (_, r) => (
         <Space size={4}>
           <Button size="small" icon={<EyeOutlined />} onClick={() => setViewing(r)}>詳情</Button>
           <Button size="small" icon={<EditOutlined />} onClick={() => openEdit(r)}>編輯</Button>
-          <Popconfirm
-            title="確認刪除此通路？" okText="刪除"
-            okButtonProps={{ danger: true }} cancelText="取消"
-            onConfirm={() => handleDelete(r.id)}
-          >
-            <Button size="small" danger icon={<DeleteOutlined />} />
-          </Popconfirm>
         </Space>
       )},
   ]
@@ -367,7 +379,22 @@ export default function AdminChannels() {
 
       <ChannelModal
         open={modalOpen} onClose={closeModal}
-        onSave={handleSave} initial={editing}
+        onSave={handleSave}
+        onResetPassword={handleResetPassword}
+        onDisable={handleDisable}
+        onEnable={handleEnable}
+        initial={editing}
+      />
+
+      <NotificationPreviewModal
+        open={pwdPreviewOpen}
+        type="admin_password_reset"
+        data={pwdPreviewData}
+        onClose={() => setPwdPreviewOpen(false)}
+        onConfirm={() => {
+          setPwdPreviewOpen(false)
+          message.success(`新密碼已寄至 ${pwdPreviewData?.contactEmail}`)
+        }}
       />
     </div>
   )

@@ -15,12 +15,6 @@ import { productMap, channelMap, systemSettings } from '../data/fakeData';
 
 const { Text } = Typography;
 
-const INVOICE_MODE_LABEL = {
-  per_order:         '訂單單筆開票',
-  monthly_per_store: '門市分開月結',
-  monthly_combined:  '整合月結',
-};
-
 function getSettlementMonthOptions(settlementDay, currentValue) {
   const now = dayjs()
   const months = [now, now.add(1, 'month'), now.add(2, 'month')]
@@ -390,9 +384,6 @@ export default function OrderDetail({ order, open, onClose, onStatusChange, onRe
           </Descriptions.Item>
           <Descriptions.Item label="物流單號">
             <ShippingCell shippingNumber={order.shippingNumber} />
-          </Descriptions.Item>
-          <Descriptions.Item label="發票模式" span={2}>
-            <Tag>{INVOICE_MODE_LABEL[order.invoice_mode_snapshot] ?? order.invoice_mode_snapshot ?? '—'}</Tag>
           </Descriptions.Item>
         </Descriptions>
 

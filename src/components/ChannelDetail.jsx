@@ -4,16 +4,23 @@ import { templates } from '../data/fakeData';
 
 const { Text } = Typography;
 
+// 發票模式（4 種）
+//  - combined                 整合月結：每月一張發票（帶通路預設統編 / 抬頭）
+//  - per_store                門市月結：每月每門市一張發票（依各門市設定統編 / 抬頭）
+//  - per_order                訂單開票：每筆訂單到貨後開一張發票（帶通路預設統編 / 抬頭）
+//  - per_order_with_store_tax 訂單開票 + 門市統編：每筆訂單依門市統編開立發票
 const INVOICE_MODE_LABEL = {
-  per_order:         '訂單單筆開票',
-  monthly_per_store: '門市分開月結',
-  monthly_combined:  '整合月結',
+  combined:                 '整合月結',
+  per_store:                '門市月結',
+  per_order:                '訂單開票',
+  per_order_with_store_tax: '訂單開票 + 門市統編',
 };
 
 const INVOICE_MODE_COLOR = {
-  per_order:         'default',
-  monthly_per_store: 'geekblue',
-  monthly_combined:  'purple',
+  combined:                 'purple',
+  per_store:                'geekblue',
+  per_order:                'default',
+  per_order_with_store_tax: 'magenta',
 };
 
 export default function ChannelDetail({ channel, open, onClose }) {
@@ -61,14 +68,14 @@ export default function ChannelDetail({ channel, open, onClose }) {
         <Descriptions.Item label="統一編號">{channel.taxId}</Descriptions.Item>
         <Descriptions.Item label="結算日">每月 {channel.settlementDay} 日</Descriptions.Item>
         <Descriptions.Item label="發票模式">
-          <Tag color={INVOICE_MODE_COLOR[channel.invoice_mode] ?? 'default'}>
-            {INVOICE_MODE_LABEL[channel.invoice_mode] ?? '—'}
+          <Tag color={INVOICE_MODE_COLOR[channel.invoiceTiming] ?? 'default'}>
+            {INVOICE_MODE_LABEL[channel.invoiceTiming] ?? '—'}
           </Tag>
         </Descriptions.Item>
         <Descriptions.Item label="發票類型">
-          {channel.invoice_type === 'three_part'
+          {channel.invoiceMode === 'three_copy'
             ? <><Tag color="cyan">三聯式</Tag><Text type="secondary" style={{ fontSize: 11 }}>寄送至聯繫信箱</Text></>
-            : channel.invoice_type === 'two_part'
+            : channel.invoiceMode === 'two_copy'
             ? <Tag>二聯式</Tag>
             : <Text type="secondary">—</Text>
           }

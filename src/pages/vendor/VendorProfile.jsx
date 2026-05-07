@@ -9,15 +9,34 @@ import {
 } from '@ant-design/icons'
 import { useVendor } from '../../context/VendorContext'
 
+// 發票模式（時機）label
+//
+// 各模式語意（demo / 文件用，UI 不顯示說明文字）：
+//   combined                  → 整合月結。一張發票，使用通路統一統編
+//   per_store                 → 門市月結。每門市一張，可分開設定不同統編
+//   per_order                 → 訂單開票。每張訂單一張，統一統編
+//   per_order_with_store_tax  → 訂單開票 + 門市統編。每張訂單依門市對應統編
+const INVOICE_TIMING_LABEL = {
+  combined:                  '整合月結',
+  per_store:                 '門市月結',
+  per_order:                 '訂單開票',
+  per_order_with_store_tax:  '訂單開票 + 門市統編',
+}
+
+// 票面類型 label
 const INVOICE_MODE_LABEL = {
-  per_order:         '訂單單筆開票',
-  monthly_per_store: '門市分開月結',
-  monthly_combined:  '整合月結',
+  three_copy: '三聯式',
+  two_copy:   '二聯式',
+}
+
+// 該 invoiceTiming 是否允許各門市分開統編
+function allowsStoreTaxId(invoiceTiming) {
+  return invoiceTiming === 'per_store' || invoiceTiming === 'per_order_with_store_tax'
 }
 
 const { Title, Text } = Typography
 
-function AddressModal({ open, onClose, onSave, initial }) {
+function AddressModal({ open, onClose, onSave, initial, showStoreTaxFields }) {
   const [form] = Form.useForm()
   return (
     <Modal
@@ -41,6 +60,22 @@ function AddressModal({ open, onClose, onSave, initial }) {
         <Form.Item label="收件地址" name="address" rules={[{ required: true }]}>
           <Input />
         </Form.Item>
+        {showStoreTaxFields && (
+          <>
+            <Divider plain style={{ margin: '8px 0 12px', fontSize: 12, color: '#999' }}>
+              發票買受人（選填）
+            </Divider>
+            <div style={{ marginBottom: 12, fontSize: 11, color: '#999' }}>
+              填寫此門市專屬的發票抬頭與統編；未填則沿用通路統一抬頭。
+            </div>
+            <Form.Item label="發票抬頭" name="buyerName">
+              <Input placeholder="選填，例：分公司或加盟主名稱" />
+            </Form.Item>
+            <Form.Item label="統一編號" name="buyerTaxId">
+              <Input placeholder="選填，8 碼" maxLength={8} />
+            </Form.Item>
+          </>
+        )}
       </Form>
     </Modal>
   )
@@ -157,34 +192,49 @@ export default function VendorProfile() {
   const saveAddr = (values) => {
     let next
     if (editingAddr) {
-      next = addrList.map(a => a.label === editingAddr.label ? { ...a, ...values } : a)
+      next = addrList.map(a =>
+        a.storeId === editingAddr.storeId ? { ...a, ...values } : a
+      )
     } else {
-      next = [...addrList, values]
+      // 新增地址自動產生 storeId（demo 模擬）
+      const newStoreId = `s${Date.now().toString(36).slice(-4)}`
+      next = [...addrList, { ...values, storeId: newStoreId }]
     }
     setAddrList(next)
     login({ ...info, addresses: next })
     message.success('地址已更新')
   }
 
-  const deleteAddr = (label) => {
-    const next = addrList.filter(a => a.label !== label)
+  const deleteAddr = (storeId) => {
+    const next = addrList.filter(a => a.storeId !== storeId)
     setAddrList(next)
     login({ ...info, addresses: next })
     message.success('地址已刪除')
   }
 
+  const showStoreTax = allowsStoreTaxId(info.invoiceTiming)
   const addrCols = [
-    { title: '門市/倉別', dataIndex: 'label', width: 110 },
-    { title: '收件人',   dataIndex: 'recipient', width: 140 },
-    { title: '電話',     dataIndex: 'phone', width: 130 },
-    { title: '地址',     dataIndex: 'address', ellipsis: true },
+    { title: '門市/倉別', dataIndex: 'label', width: 110, ellipsis: true },
+    { title: '收件人',   dataIndex: 'recipient', width: 110, ellipsis: true },
+    { title: '電話',     dataIndex: 'phone', width: 110 },
+    // 顯示門市統編時，地址欄改用較窄的固定寬 + ellipsis；不顯示時撐滿剩餘空間
+    ...(showStoreTax
+      ? [{ title: '地址', dataIndex: 'address', width: 160, ellipsis: true }]
+      : [{ title: '地址', dataIndex: 'address', ellipsis: true }]),
+    // 條件顯示：channel 允許各門市分開設定統編時才顯示
+    ...(showStoreTax ? [
+      { title: '發票抬頭', dataIndex: 'buyerName', width: 130, ellipsis: true,
+        render: v => v || <Text type="secondary" style={{ fontSize: 11 }}>沿用通路</Text> },
+      { title: '統編', dataIndex: 'buyerTaxId', width: 90,
+        render: v => v || <Text type="secondary" style={{ fontSize: 11 }}>沿用通路</Text> },
+    ] : []),
     {
-      title: '操作', width: 100, align: 'center',
+      title: '操作', width: 80, align: 'center', fixed: showStoreTax ? 'right' : undefined,
       render: (_, r) => (
         <Space size={4}>
           <Button size="small" icon={<EditOutlined />} onClick={() => openEditAddr(r)} />
           <Popconfirm title="確認刪除此地址？" okText="刪除" okButtonProps={{ danger: true }}
-            cancelText="取消" onConfirm={() => deleteAddr(r.label)}>
+            cancelText="取消" onConfirm={() => deleteAddr(r.storeId)}>
             <Button size="small" danger icon={<DeleteOutlined />} />
           </Popconfirm>
         </Space>
@@ -296,8 +346,8 @@ export default function VendorProfile() {
           {[
             { label: '結算日',  value: `每月 ${info.settlementDay} 日` },
             { label: '匯款帳號', value: '00709001170（兆豐銀行）' },
-            { label: '發票模式', value: INVOICE_MODE_LABEL[info.invoice_mode] ?? '—' },
-            { label: '發票類型', value: info.invoice_type === 'three_part' ? '三聯式' : info.invoice_type === 'two_part' ? '二聯式' : '—' },
+            { label: '發票模式', value: INVOICE_TIMING_LABEL[info.invoiceTiming] ?? '—' },
+            { label: '發票類型', value: INVOICE_MODE_LABEL[info.invoiceMode] ?? '—' },
           ].map(f => (
             <div key={f.label}>
               <div style={{ fontSize: 12, color: '#999', marginBottom: 2 }}>{f.label}</div>
@@ -314,7 +364,11 @@ export default function VendorProfile() {
       >
         {addrList.length === 0
           ? <Text type="secondary">尚未設定收件地址，請點擊「新增地址」新增。</Text>
-          : <Table dataSource={addrList} columns={addrCols} rowKey="label" size="small" pagination={false} />
+          : <Table
+              dataSource={addrList} columns={addrCols} rowKey="storeId"
+              size="small" pagination={false}
+              scroll={showStoreTax ? { x: 'max-content' } : undefined}
+            />
         }
       </Card>
 
@@ -323,6 +377,7 @@ export default function VendorProfile() {
         onClose={() => setAddrModal(false)}
         onSave={saveAddr}
         initial={editingAddr}
+        showStoreTaxFields={allowsStoreTaxId(info.invoiceTiming)}
       />
 
       <ChangePasswordModal

@@ -9,9 +9,27 @@ import { EyeOutlined, PlusOutlined, CheckOutlined, SearchOutlined, FilePdfOutlin
 import { exportSettlementPdf } from '../../utils/exportSettlementPdf'
 import StatusTag from '../../components/StatusTag'
 import NotificationPreviewModal from '../../components/NotificationPreviewModal'
-import { preOrders as initPreOrders, formalOrders as initFormalOrders, channels } from '../../data/fakeData'
+import { preOrders as initPreOrders, formalOrders as initFormalOrders, channels, channelMap } from '../../data/fakeData'
 
 const { Text } = Typography
+
+const INVOICE_TIMING_LABEL = {
+  combined:                 '整合月結',
+  per_store:                '門市月結',
+  per_order:                '訂單開票',
+  per_order_with_store_tax: '訂單+門市統編',
+}
+
+const INVOICE_TIMING_COLOR = {
+  combined:                 'purple',
+  per_store:                'geekblue',
+  per_order:                'default',
+  per_order_with_store_tax: 'magenta',
+}
+
+// 該模式下，發票/結算是否分門市
+const isPerStoreLevel = (timing) =>
+  timing === 'per_store' || timing === 'per_order_with_store_tax'
 
 // ── 生成結算單 Modal ───────────────────────────────
 function GenerateSettlementModal({ open, onClose, preOrderList, onGenerate }) {
@@ -133,15 +151,23 @@ function GenerateSettlementModal({ open, onClose, preOrderList, onGenerate }) {
 }
 
 // ── 結算單詳情 Drawer ──────────────────────────────
-function SettlementDrawer({ settlement, preOrderList, open, onClose, onStatusChange }) {
+function SettlementDrawer({ settlement, preOrderList, open, onClose, onStatusChange, onInvoiceNoteChange }) {
   const [financeNotifOpen,   setFinanceNotifOpen]   = useState(false)
   const [financeNotifData,   setFinanceNotifData]   = useState(null)
   const [reminderNotifOpen,  setReminderNotifOpen]  = useState(false)
   const [reminderNotifData,  setReminderNotifData]  = useState(null)
+  const [editingInvoiceNote, setEditingInvoiceNote] = useState(false)
+  const [invoiceNoteDraft,   setInvoiceNoteDraft]   = useState('')
 
   if (!settlement) return null
 
   const relatedOrders = preOrderList.filter(o => settlement.preOrderIds?.includes(o.id))
+  const channel = channelMap[settlement.channelId]
+  const timing = channel?.invoiceTiming
+  const showStoreCol = isPerStoreLevel(timing)
+  // 訂單級開票（per_order / per_order_with_store_tax）：發票跟著訂單跑，結算單不需 invoiceNote
+  // 通路級開票（combined / per_store）：發票由業務 / 財務手動開立，存在 settlement.invoiceNote
+  const isOrderLevelInvoice = timing === 'per_order' || timing === 'per_order_with_store_tax'
 
   const showFinanceNotif = () => {
     setFinanceNotifData({
@@ -191,6 +217,60 @@ function SettlementDrawer({ settlement, preOrderList, open, onClose, onStatusCha
     })
   }
 
+  // per_store 模式：各門市結算金額彙整（業務 / 財務據此開發票）
+  const perStoreSummary = (timing === 'per_store' && relatedOrders.length > 0) ? (() => {
+    const groups = new Map()
+    relatedOrders.forEach(o => {
+      const key = o.storeId ?? o.store_label ?? '未知門市'
+      const items = o.adjustedItems ?? o.items
+      const subtotal = items.reduce((s, i) => s + i.qty * i.price, 0)
+      if (!groups.has(key)) {
+        const addr = channel?.addresses?.find(a => a.storeId === o.storeId)
+        groups.set(key, {
+          storeId: o.storeId,
+          label: addr?.label ?? o.store_label ?? '—',
+          buyerName:  addr?.buyerName  ?? channel?.title ?? '—',
+          buyerTaxId: addr?.buyerTaxId ?? channel?.taxId ?? '—',
+          amount: 0,
+          orderCount: 0,
+        })
+      }
+      const g = groups.get(key)
+      g.amount += subtotal
+      g.orderCount += 1
+    })
+    const groupList = Array.from(groups.values())
+
+    return (
+      <Card
+        size="small"
+        style={{ marginBottom: 20, background: '#fafafa', border: '1px solid #e5e5e5' }}
+      >
+        <div style={{ fontSize: 13, color: '#262626', marginBottom: 12, fontWeight: 600 }}>
+          各門市結算金額彙整
+          <span style={{ fontSize: 12, color: '#8c8c8c', fontWeight: 400, marginLeft: 8 }}>
+            業務 / 財務據此開立 {groupList.length} 張發票
+          </span>
+        </div>
+        <Table
+          dataSource={groupList} rowKey="storeId" size="small" pagination={false}
+          columns={[
+            { title: '門市', dataIndex: 'label', width: 130, ellipsis: true,
+              render: v => <span style={{ fontSize: 13, fontWeight: 500 }}>{v}</span> },
+            { title: '應開抬頭', dataIndex: 'buyerName', ellipsis: true,
+              render: v => <span style={{ fontSize: 13 }}>{v}</span> },
+            { title: '統編', dataIndex: 'buyerTaxId', width: 100,
+              render: v => <Text code style={{ fontSize: 12, whiteSpace: 'nowrap' }}>{v}</Text> },
+            { title: '訂單數', dataIndex: 'orderCount', width: 75, align: 'center',
+              render: v => <span style={{ fontSize: 13, whiteSpace: 'nowrap' }}>{v} 筆</span> },
+            { title: '小計', dataIndex: 'amount', align: 'right', width: 100,
+              render: v => <span style={{ fontSize: 14, fontWeight: 600, whiteSpace: 'nowrap' }}>${v.toLocaleString()}</span> },
+          ]}
+        />
+      </Card>
+    )
+  })() : null
+
   return (
     <>
       <Drawer
@@ -205,12 +285,56 @@ function SettlementDrawer({ settlement, preOrderList, open, onClose, onStatusCha
       >
         <Descriptions bordered size="small" column={2} style={{ marginBottom: 20 }}>
           <Descriptions.Item label="通路名稱">{settlement.channelName}</Descriptions.Item>
+          <Descriptions.Item label="結算模式">
+            {timing
+              ? <Tag color={INVOICE_TIMING_COLOR[timing] ?? 'default'}>
+                  {INVOICE_TIMING_LABEL[timing] ?? timing}
+                </Tag>
+              : <Text type="secondary">—</Text>
+            }
+          </Descriptions.Item>
           <Descriptions.Item label="結算月份">{settlement.settlementMonth}</Descriptions.Item>
           <Descriptions.Item label="結算日期">{settlement.createdAt}</Descriptions.Item>
-          <Descriptions.Item label="結算總金額">
+          <Descriptions.Item label="結算總金額" span={2}>
             <Text strong style={{ color: '#1677ff', fontSize: 16 }}>
               ${(settlement.totalAmount ?? 0).toLocaleString()}
             </Text>
+          </Descriptions.Item>
+          <Descriptions.Item label="電子發票號碼" span={2}>
+            {isOrderLevelInvoice ? (
+              <Text type="secondary">依訂單開票（請看下方各訂單發票號碼）</Text>
+            ) : editingInvoiceNote ? (
+              <div>
+                <Input.TextArea
+                  value={invoiceNoteDraft}
+                  onChange={e => setInvoiceNoteDraft(e.target.value)}
+                  autoSize={{ minRows: 2, maxRows: 6 }}
+                  placeholder={timing === 'per_store'
+                    ? '可換行填寫，例：\n信義旗艦店：IV-202603-0080\n大安分店：IV-202603-0081'
+                    : '請輸入發票號碼，例：IV-202603-0050'}
+                  style={{ marginBottom: 8 }}
+                />
+                <Space>
+                  <Button size="small" type="primary" onClick={() => {
+                    onInvoiceNoteChange?.(settlement.id, invoiceNoteDraft.trim() || null)
+                    setEditingInvoiceNote(false)
+                  }}>儲存</Button>
+                  <Button size="small" onClick={() => setEditingInvoiceNote(false)}>取消</Button>
+                </Space>
+              </div>
+            ) : (
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 8 }}>
+                <div style={{ whiteSpace: 'pre-wrap', flex: 1, fontSize: 13 }}>
+                  {settlement.invoiceNote
+                    ? settlement.invoiceNote
+                    : <Text type="secondary">尚未開發票</Text>}
+                </div>
+                <Button size="small" onClick={() => {
+                  setInvoiceNoteDraft(settlement.invoiceNote ?? '')
+                  setEditingInvoiceNote(true)
+                }}>編輯</Button>
+              </div>
+            )}
           </Descriptions.Item>
         </Descriptions>
 
@@ -220,28 +344,44 @@ function SettlementDrawer({ settlement, preOrderList, open, onClose, onStatusCha
             dataSource={relatedOrders} rowKey="id" size="small"
             pagination={false} style={{ marginBottom: 20 }}
             columns={[
-              { title: 'B2B訂單號', dataIndex: 'b2b_order_no', width: 170,
+              { title: 'B2B訂單號', dataIndex: 'b2b_order_no', width: 150,
                 render: v => v
                   ? <Tag color="purple" style={{ fontSize: 11 }}>{v}</Tag>
                   : <Text type="secondary">—</Text> },
               { title: '下單日期', dataIndex: 'createdAt', width: 100 },
-              { title: '出貨地址', dataIndex: 'shippingAddress', ellipsis: true },
+              ...(showStoreCol ? [
+                { title: '門市', dataIndex: 'store_label', width: 140,
+                  render: v => v ? <Tag color="cyan">{v}</Tag> : <Text type="secondary">—</Text> },
+              ] : [
+                { title: '出貨地址', dataIndex: 'shippingAddress', ellipsis: true },
+              ]),
+              // 只有「訂單開票」/「訂單開票+門市統編」才在訂單表上顯示發票號碼
+              ...(isOrderLevelInvoice ? [
+                { title: '發票號碼', width: 140,
+                  render: (_, o) => o.invoiceNumber
+                    ? <Text code style={{ fontSize: 11 }}>{o.invoiceNumber}</Text>
+                    : <Text type="secondary">未開立</Text> },
+              ] : []),
               { title: '金額小計', width: 110,
                 render: (_, o) => {
                   const t = (o.adjustedItems ?? o.items).reduce((s, i) => s + i.qty * i.price, 0)
                   return <Text strong>${t.toLocaleString()}</Text>
                 }},
             ]}
-            summary={() => (
-              <Table.Summary.Row>
-                <Table.Summary.Cell colSpan={3} align="right"><strong>合計</strong></Table.Summary.Cell>
-                <Table.Summary.Cell>
-                  <strong style={{ color: '#1677ff' }}>
-                    ${(settlement.totalAmount ?? 0).toLocaleString()}
-                  </strong>
-                </Table.Summary.Cell>
-              </Table.Summary.Row>
-            )}
+            summary={() => {
+              // 列：訂單號 + 下單日期 + 第三欄(門市 or 出貨地址) + (可能的發票號碼) = 3 或 4 欄
+              const colCount = 3 + (isOrderLevelInvoice ? 1 : 0)
+              return (
+                <Table.Summary.Row>
+                  <Table.Summary.Cell colSpan={colCount} align="right"><strong>合計</strong></Table.Summary.Cell>
+                  <Table.Summary.Cell>
+                    <strong style={{ color: '#1677ff' }}>
+                      ${(settlement.totalAmount ?? 0).toLocaleString()}
+                    </strong>
+                  </Table.Summary.Cell>
+                </Table.Summary.Row>
+              )
+            }}
           />
         ) : (
           <Text type="secondary" style={{ display: 'block', marginBottom: 20 }}>
@@ -353,6 +493,9 @@ function SettlementDrawer({ settlement, preOrderList, open, onClose, onStatusCha
           </div>
         )}
 
+        {/* per_store 模式：各門市彙整移到操作按鈕下方，方便業務開發票時對照 */}
+        {perStoreSummary}
+
         <Divider orientation="left" plain>操作紀錄</Divider>
         <Timeline
           style={{ marginBottom: 24 }}
@@ -405,11 +548,17 @@ export default function AdminSettlements() {
 
   const filteredList = useMemo(() => {
     const q = filterText.trim()
-    return settlementList.filter(o => {
-      const matchText   = !q || o.id.includes(q) || o.channelName.includes(q)
-      const matchStatus = activeStatuses.length === 0 || activeStatuses.includes(o.status)
-      return matchText && matchStatus
-    })
+    return settlementList
+      .filter(o => {
+        const matchText   = !q || o.id.includes(q) || o.channelName.includes(q)
+        const matchStatus = activeStatuses.length === 0 || activeStatuses.includes(o.status)
+        return matchText && matchStatus
+      })
+      // 依結算日期降序，新的在上面（同日期則用 id 降序保持穩定）
+      .sort((a, b) => {
+        const cmp = (b.createdAt ?? '').localeCompare(a.createdAt ?? '')
+        return cmp !== 0 ? cmp : (b.id ?? '').localeCompare(a.id ?? '')
+      })
   }, [settlementList, filterText, activeStatuses])
 
   const toggleStatus = (key, checked) => {
@@ -474,16 +623,29 @@ export default function AdminSettlements() {
     }))
   }
 
+  const handleInvoiceNoteChange = (id, note) => {
+    const now = new Date().toLocaleString('zh-TW', { hour12: false }).replace(',', '')
+    setSettlementList(prev => prev.map(o => {
+      if (o.id !== id) return o
+      const updated = {
+        ...o,
+        invoiceNote: note,
+        logs: [...o.logs, { time: now, action: '[手動操作] 編輯電子發票號碼' }],
+      }
+      setSelected(updated)
+      return updated
+    }))
+    message.success('電子發票號碼已更新')
+  }
+
   const columns = [
-    { title: '結算單號', dataIndex: 'id', width: 190,
+    { title: '結算單號', dataIndex: 'id', width: 180,
       render: v => <Text code style={{ fontSize: 12 }}>{v}</Text> },
-    { title: '通路', dataIndex: 'channelName', width: 130 },
-    { title: '門市', dataIndex: 'store_label', width: 90,
-      render: v => v ? <Tag>{v}</Tag> : <Text type="secondary">—</Text> },
-    { title: '結算日期', dataIndex: 'createdAt', width: 100 },
-    { title: '涵蓋B2B訂單', dataIndex: 'preOrderIds', width: 95,
+    { title: '通路', dataIndex: 'channelName', width: 150 },
+    { title: '結算日期', dataIndex: 'createdAt', width: 110 },
+    { title: '涵蓋B2B訂單', dataIndex: 'preOrderIds', width: 100,
       render: ids => <Tag color="purple">{ids?.length ?? 0} 筆</Tag> },
-    { title: '結算金額', dataIndex: 'totalAmount', width: 110,
+    { title: '結算金額', dataIndex: 'totalAmount', width: 120,
       render: v => <Text strong style={{ color: '#1677ff' }}>${(v ?? 0).toLocaleString()}</Text> },
     { title: '狀態', dataIndex: 'status', width: 100, render: s => <StatusTag status={s} /> },
     { title: '', width: 70, align: 'center',
@@ -556,6 +718,7 @@ export default function AdminSettlements() {
         settlement={selected} preOrderList={preOrderList}
         open={!!selected} onClose={() => setSelected(null)}
         onStatusChange={handleStatusChange}
+        onInvoiceNoteChange={handleInvoiceNoteChange}
       />
 
       {/* 生成結算單後的廠商通知 */}

@@ -180,7 +180,7 @@ export function buildRecreatedOrder(oldOrder) {
     discount_note: null,
     settlementMonth: null,
     settlementId: null,
-    invoice_mode_snapshot: oldOrder.invoice_mode_snapshot,
+    invoiceTimingSnapshot: oldOrder.invoiceTimingSnapshot,
 
     // 溯源紀錄
     recreated_from: oldOrder.id,

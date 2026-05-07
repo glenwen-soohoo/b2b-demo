@@ -12,6 +12,16 @@ import NotificationPreviewModal from '../../components/NotificationPreviewModal'
 
 const { Title, Text } = Typography
 
+// 結算單顯示的「電子發票號碼」文字
+function renderInvoiceNoteRO(settlement, timing) {
+  if (timing === 'per_order' || timing === 'per_order_with_store_tax') {
+    return <Text type="secondary">依訂單開票（請看下方各訂單發票號碼）</Text>
+  }
+  return settlement.invoiceNote
+    ? <span style={{ whiteSpace: 'pre-wrap' }}>{settlement.invoiceNote}</span>
+    : <Text type="secondary">尚未開發票</Text>
+}
+
 // ── B2B訂單紀錄 Tab ───────────────────────────────
 function PreOrdersPane({ channelId }) {
   const myOrders = preOrders.filter(o => o.channelId === channelId)
@@ -64,7 +74,11 @@ function PreOrdersPane({ channelId }) {
 }
 
 // ── 結算紀錄 Tab ───────────────────────────────
-function SettlementsPane({ channelId, channelName, defaultBankLast5 }) {
+function SettlementsPane({ channel }) {
+  const channelId = channel.id
+  const channelName = channel.name
+  const defaultBankLast5 = channel.default_bank_last5
+  const timing = channel.invoiceTiming
   const [settlements, setSettlements] = useState(formalOrders.filter(o => o.channelId === channelId))
   const [selected, setSelected]   = useState(null)
   const [notifOpen, setNotifOpen] = useState(false)
@@ -110,9 +124,14 @@ function SettlementsPane({ channelId, channelName, defaultBankLast5 }) {
         title={selected
           ? <Space><Text strong>{selected.id}</Text><StatusTag status={selected.status} /></Space>
           : ''}
-        width={640}
+        width={720}
       >
-        {selected && (
+        {selected && (() => {
+          const relatedOrders = (() => {
+            const ids = selected.preOrderIds ?? []
+            return preOrders.filter(o => ids.includes(o.id))
+          })()
+          return (
           <>
             <Descriptions bordered size="small" column={2} style={{ marginBottom: 16 }}>
               <Descriptions.Item label="結算日期">{selected.createdAt}</Descriptions.Item>
@@ -120,6 +139,9 @@ function SettlementsPane({ channelId, channelName, defaultBankLast5 }) {
                 <Text strong style={{ color: '#1677ff', fontSize: 16 }}>
                   ${(selected.totalAmount ?? 0).toLocaleString()}
                 </Text>
+              </Descriptions.Item>
+              <Descriptions.Item label="電子發票號碼" span={2}>
+                {renderInvoiceNoteRO(selected, timing)}
               </Descriptions.Item>
             </Descriptions>
 
@@ -129,26 +151,88 @@ function SettlementsPane({ channelId, channelName, defaultBankLast5 }) {
               pagination={false}
               style={{ marginBottom: 20 }}
               rowKey="id"
-              dataSource={(() => {
-                const ids = selected.preOrderIds ?? []
-                return preOrders.filter(o => ids.includes(o.id))
-              })()}
+              dataSource={relatedOrders}
               columns={[
-                { title: 'B2B訂單號', dataIndex: 'b2b_order_no', width: 170,
+                { title: 'B2B訂單號', dataIndex: 'b2b_order_no', width: 140,
                   render: v => v
-                    ? <Tag color="purple" style={{ fontSize: 11 }}>{v}</Tag>
+                    ? <Tag color="purple" style={{ fontSize: 11, margin: 0 }}>{v}</Tag>
                     : <Text type="secondary">—</Text> },
-                { title: '下單日期', dataIndex: 'createdAt', width: 100 },
-                { title: '正式編號', dataIndex: 'backendOrderId', width: 130,
-                  render: v => v ? <Text code style={{ fontSize: 11 }}>{v}</Text> : <Text type="secondary">—</Text> },
-                { title: '金額', align: 'right',
+                { title: '下單日期', dataIndex: 'createdAt', width: 95 },
+                ...(timing === 'per_store' || timing === 'per_order_with_store_tax' ? [
+                  { title: '門市', dataIndex: 'store_label', ellipsis: true,
+                    render: v => v
+                      ? <Tag color="cyan" style={{ margin: 0, maxWidth: '100%', overflow: 'hidden', textOverflow: 'ellipsis', display: 'inline-block', whiteSpace: 'nowrap', verticalAlign: 'middle' }}>{v}</Tag>
+                      : <Text type="secondary">—</Text> },
+                ] : []),
+                { title: '正式編號', dataIndex: 'backendOrderId', width: 110,
+                  render: v => v ? <Text code style={{ fontSize: 11, whiteSpace: 'nowrap' }}>{v}</Text> : <Text type="secondary">—</Text> },
+                ...(timing === 'per_order' || timing === 'per_order_with_store_tax' ? [
+                  { title: '發票號碼', dataIndex: 'invoiceNumber', width: 125,
+                    render: v => v
+                      ? <Text code style={{ fontSize: 11, whiteSpace: 'nowrap' }}>{v}</Text>
+                      : <Text type="secondary">未開立</Text> },
+                ] : []),
+                { title: '金額', align: 'right', width: 85,
                   render: (_, o) => {
                     const items = o.adjustedItems ?? o.salesAdjustedItems ?? o.items
                     const t = items.reduce((s, i) => s + i.qty * i.price, 0)
-                    return <Text strong>${t.toLocaleString()}</Text>
+                    return <Text strong style={{ whiteSpace: 'nowrap' }}>${t.toLocaleString()}</Text>
                   }},
               ]}
             />
+
+            {/* per_store：各門市結算金額彙整 */}
+            {timing === 'per_store' && relatedOrders.length > 0 && (() => {
+              const groups = new Map()
+              relatedOrders.forEach(o => {
+                const key = o.storeId ?? o.store_label ?? '未知門市'
+                const items = o.adjustedItems ?? o.items
+                const subtotal = items.reduce((s, i) => s + i.qty * i.price, 0)
+                if (!groups.has(key)) {
+                  const addr = channel?.addresses?.find(a => a.storeId === o.storeId)
+                  groups.set(key, {
+                    storeId: o.storeId,
+                    label: addr?.label ?? o.store_label ?? '—',
+                    buyerName:  addr?.buyerName  ?? channel?.title ?? '—',
+                    buyerTaxId: addr?.buyerTaxId ?? channel?.taxId ?? '—',
+                    amount: 0,
+                    orderCount: 0,
+                  })
+                }
+                const g = groups.get(key)
+                g.amount += subtotal
+                g.orderCount += 1
+              })
+              const groupList = Array.from(groups.values())
+              return (
+                <Card
+                  size="small"
+                  style={{ marginBottom: 20, background: '#fafafa', border: '1px solid #e5e5e5' }}
+                >
+                  <div style={{ fontSize: 13, color: '#262626', marginBottom: 12, fontWeight: 600 }}>
+                    各門市結算金額彙整
+                    <span style={{ fontSize: 12, color: '#8c8c8c', fontWeight: 400, marginLeft: 8 }}>
+                      共 {groupList.length} 張發票
+                    </span>
+                  </div>
+                  <Table
+                    dataSource={groupList} rowKey="storeId" size="small" pagination={false}
+                    columns={[
+                      { title: '門市', dataIndex: 'label', width: 120, ellipsis: true,
+                        render: v => <span style={{ fontSize: 13, fontWeight: 500 }}>{v}</span> },
+                      { title: '抬頭', dataIndex: 'buyerName', ellipsis: true,
+                        render: v => <span style={{ fontSize: 13 }}>{v}</span> },
+                      { title: '統編', dataIndex: 'buyerTaxId', width: 100,
+                        render: v => <Text code style={{ fontSize: 12, whiteSpace: 'nowrap' }}>{v}</Text> },
+                      { title: '訂單數', dataIndex: 'orderCount', width: 70, align: 'center',
+                        render: v => <span style={{ fontSize: 13, whiteSpace: 'nowrap' }}>{v} 筆</span> },
+                      { title: '小計', dataIndex: 'amount', align: 'right', width: 95,
+                        render: v => <span style={{ fontSize: 14, fontWeight: 600, whiteSpace: 'nowrap' }}>${v.toLocaleString()}</span> },
+                    ]}
+                  />
+                </Card>
+              )
+            })()}
 
             {selected.status === 'awaiting_payment' && (
               <Card style={{ marginTop: 4, background: '#fffbe6', border: '1px solid #ffe58f', marginBottom: 20 }}>
@@ -199,7 +283,8 @@ function SettlementsPane({ channelId, channelName, defaultBankLast5 }) {
               }))}
             />
           </>
-        )}
+          )
+        })()}
       </Drawer>
 
       <NotificationPreviewModal
@@ -261,7 +346,7 @@ export default function VendorHistory() {
           {settlementCount > 0 && <Badge count={settlementCount} color="purple" size="small" />}
         </Space>
       ),
-      children: <SettlementsPane channelId={channel.id} channelName={channel.name} defaultBankLast5={channel.default_bank_last5} />,
+      children: <SettlementsPane channel={channel} />,
     },
   ]
 

@@ -12,18 +12,6 @@ import { preOrders as initPreOrders, productMap, channelMap } from '../../data/f
 const { Text } = Typography
 const { RangePicker } = DatePicker
 
-const INVOICE_MODE_LABEL = {
-  per_order:         '單筆開票',
-  monthly_per_store: '門市月結',
-  monthly_combined:  '整合月結',
-}
-
-const INVOICE_MODE_COLOR = {
-  per_order:         'default',
-  monthly_per_store: 'geekblue',
-  monthly_combined:  'purple',
-}
-
 function temperatureZoneTag(items) {
   const zones = new Set(items.map(i => productMap[i.productId]?.category).filter(Boolean))
   return (
@@ -176,10 +164,6 @@ export default function AdminOrders() {
           </Space>
         )
       }},
-    { title: '發票模式', dataIndex: 'invoice_mode_snapshot', width: 95,
-      render: v => v
-        ? <Tag color={INVOICE_MODE_COLOR[v] ?? 'default'} style={{ fontSize: 11 }}>{INVOICE_MODE_LABEL[v] ?? v}</Tag>
-        : <Text type="secondary">—</Text> },
     { title: '品項摘要', dataIndex: 'items', ellipsis: true,
       render: items => items.map(i => i.productName).join('、') },
     { title: '狀態', dataIndex: 'status', width: 130,
