@@ -1696,8 +1696,11 @@ export const b2bActionTokens = [
 ];
 
 // ─────────────────────────────────────────────
-// B2B 通知歷史紀錄（對應正式版 B2BNotificationLog 表）
-// 每寄出一封通知信都記錄一筆，供後台 AdminNotificationLog 頁面查詢與重寄
+// B2B 通知歷史紀錄
+//
+// 正式版規劃：每寄出一封通知信都記錄一筆，存放於主站 MongoDB 的 log 集合
+// （沿用主站既有的 log 機制，不另建 B2B 專屬後台頁面）。
+// 這份 demo 假資料保留作為設計參考、欄位結構說明用。
 // ─────────────────────────────────────────────
 export const b2bNotificationLog = [
   { id: 'log-00021', sentAt: '2026-03-25 09:01:30', type: 'settlement_created',     channelId: 'c001', toEmail: 'injoin83563069@gmail.com', subject: '【無毒農 B2B】2026-03 結算單已產生（FO-20260325-C001）',     status: 'delivered', relatedId: 'FO-20260325-C001', errorMessage: null },

@@ -51,6 +51,24 @@ function ChannelModal({ open, onClose, onSave, onResetPassword, onDisable, onEna
 
   const handleOk = () => {
     form.validateFields().then(values => {
+      // 新增通路：帳號建立後不能修改，先彈出確認
+      if (!isEdit) {
+        Modal.confirm({
+          title: '確認建立通路？',
+          content: (
+            <div style={{ fontSize: 13, lineHeight: 1.8 }}>
+              帳號 <Text code>{values.account}</Text> 一經建立後<strong style={{ color: '#cf1322' }}>無法修改</strong>，請確認無誤。
+            </div>
+          ),
+          okText: '確認建立',
+          cancelText: '回去檢查',
+          onOk: () => {
+            onSave({ ...initial, ...values })
+            onClose()
+          },
+        })
+        return
+      }
       onSave({ ...initial, ...values })
       onClose()
     })
@@ -120,12 +138,22 @@ function ChannelModal({ open, onClose, onSave, onResetPassword, onDisable, onEna
             type="info"
             showIcon
             icon={<InfoCircleOutlined />}
-            message="儲存後系統將自動產生 B2B 帳號"
+            message="新增通路：請填寫帳號"
             description={
               <div style={{ fontSize: 12 }}>
-                帳號格式：<Text code>b2b_channel_001</Text>（依序產生）；預設密碼將寄至下方填寫的「聯繫信箱」。
-                <br />
-                通路代表會員（Volunteers 假人）由系統自動建立並綁定，後台無需手動指定。
+                <Form.Item
+                  name="account"
+                  rules={[
+                    { required: true, message: '請輸入帳號' },
+                    { pattern: /^[a-z0-9_]{4,30}$/, message: '請使用 4–30 字英數小寫或底線' },
+                  ]}
+                  style={{ margin: '8px 0 4px', width: '50%' }}
+                >
+                  <Input placeholder="例：b2b_channel_001" />
+                </Form.Item>
+                <div style={{ color: '#595959' }}>
+                  預設密碼將寄至下方填寫的「聯繫信箱」。
+                </div>
               </div>
             }
             style={{ marginBottom: 16 }}
@@ -170,42 +198,41 @@ function ChannelModal({ open, onClose, onSave, onResetPassword, onDisable, onEna
           </Col>
         </Row>
 
-        <Divider orientation="left" plain style={{ margin: '4px 0 12px' }}>結算 &amp; 發票設定</Divider>
-        <Row gutter={12}>
-          <Col span={8}>
-            <Form.Item label="結算日" name="settlementDay" rules={[{ required: true }]}>
-              <InputNumber min={1} max={31} addonBefore={<span style={{ whiteSpace: 'nowrap' }}>每月</span>} addonAfter="日" style={{ width: '100%' }} />
-            </Form.Item>
-          </Col>
-          <Col span={8}>
-            <Form.Item label="發票類型" name="invoiceMode" rules={[{ required: true }]}>
-              <Select options={INVOICE_MODE_OPTIONS} />
-            </Form.Item>
-          </Col>
-        </Row>
         <Row gutter={12}>
           <Col span={12}>
-            <Form.Item label="結算頻率" name="invoicePeriod" rules={[{ required: true }]}
-              tooltip="決定多久開一張發票：月結 = 彙總到月底結算單；單筆開票 = 每筆訂單到貨即開">
-              <Select options={INVOICE_PERIOD_OPTIONS} />
+            <Form.Item label="常用匯款末五碼" name="default_bank_last5">
+              <Input placeholder="選填，5碼" maxLength={5} />
             </Form.Item>
           </Col>
-          <Col span={12}>
-            <Form.Item label="發票統編" name="invoiceTaxScope" rules={[{ required: true }]}
-              tooltip="決定每張發票的買受人：通路統一統編 = 全部用通路抬頭；依門市分別 = 各門市可設不同統編">
-              <Select options={INVOICE_TAX_SCOPE_OPTIONS} />
-            </Form.Item>
-          </Col>
-        </Row>
-        <Row gutter={12}>
           <Col span={12}>
             <Form.Item label="套用品項表模板" name="templateId" rules={[{ required: true }]}>
               <Select options={templates.map(t => ({ value: t.id, label: t.name }))} />
             </Form.Item>
           </Col>
+        </Row>
+
+        <Divider orientation="left" plain style={{ margin: '4px 0 12px' }}>結算 &amp; 發票設定</Divider>
+        <Row gutter={12}>
           <Col span={12}>
-            <Form.Item label="常用匯款末五碼" name="default_bank_last5">
-              <Input placeholder="選填，5碼" maxLength={5} />
+            <Form.Item label="結算日" name="settlementDay" rules={[{ required: true }]}>
+              <InputNumber min={1} max={31} addonBefore={<span style={{ whiteSpace: 'nowrap' }}>每月</span>} addonAfter="日" style={{ width: '100%' }} />
+            </Form.Item>
+          </Col>
+          <Col span={12}>
+            <Form.Item label="結算頻率" name="invoicePeriod" rules={[{ required: true }]}>
+              <Select options={INVOICE_PERIOD_OPTIONS} />
+            </Form.Item>
+          </Col>
+        </Row>
+        <Row gutter={12}>
+          <Col span={12}>
+            <Form.Item label="發票統編" name="invoiceTaxScope" rules={[{ required: true }]}>
+              <Select options={INVOICE_TAX_SCOPE_OPTIONS} />
+            </Form.Item>
+          </Col>
+          <Col span={12}>
+            <Form.Item label="發票類型" name="invoiceMode" rules={[{ required: true }]}>
+              <Select options={INVOICE_MODE_OPTIONS} />
             </Form.Item>
           </Col>
         </Row>
@@ -268,17 +295,16 @@ export default function AdminChannels() {
       setChannelList(prev => prev.map(c => c.id === values.id ? { ...c, ...values } : c))
       message.success('通路資料已更新')
     } else {
-      // 新增通路：自動產生 b2b_channel_xxx 帳號 + 模擬寄送預設密碼
-      const seq = String(channelList.length + 1).padStart(3, '0')
-      const account = `b2b_channel_${seq}`
+      // 新增通路：帳號由業務輸入（建立後不可修改），模擬寄送預設密碼
+      const account = values.account
       setChannelList(prev => [...prev, {
         ...values,
         id: `c${Date.now()}`,
         addresses: [],
-        memberAccount: account,    // demo 模擬自動產生帳號
+        memberAccount: account,
         enabled: true,             // 預設啟用
       }])
-      message.success(`通路已新增；系統自動產生帳號 ${account}，預設密碼已寄至 ${values.contactEmail}`)
+      message.success(`通路已新增；帳號 ${account}，預設密碼已寄至 ${values.contactEmail}`)
     }
   }
 

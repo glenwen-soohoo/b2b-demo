@@ -56,7 +56,7 @@ export default function VendorLogin() {
         <Form layout="vertical" onFinish={onFinish} onValuesChange={() => setError('')}>
           <Form.Item label="帳號" name="account"
             rules={[{ required: true, message: '請輸入帳號' }]}>
-            <Input size="large" placeholder="帳號（例：b2b_channel_001）" autoComplete="username" />
+            <Input size="large" placeholder="帳號" autoComplete="username" />
           </Form.Item>
 
           <Form.Item label="密碼" name="password"
