@@ -1,27 +1,9 @@
 import { Drawer, Descriptions, Tabs, Tag, Table, Typography, Space, Divider } from 'antd';
 import { EnvironmentOutlined, FileTextOutlined, BankOutlined, UserOutlined, CheckCircleOutlined } from '@ant-design/icons';
 import { templates } from '../data/fakeData';
+import { invoiceModeLabel, invoiceModeColor } from '../utils/invoiceMode';
 
 const { Text } = Typography;
-
-// 發票模式（4 種）
-//  - combined                 整合月結：每月一張發票（帶通路預設統編 / 抬頭）
-//  - per_store                門市月結：每月每門市一張發票（依各門市設定統編 / 抬頭）
-//  - per_order                訂單開票：每筆訂單到貨後開一張發票（帶通路預設統編 / 抬頭）
-//  - per_order_with_store_tax 訂單開票 + 門市統編：每筆訂單依門市統編開立發票
-const INVOICE_MODE_LABEL = {
-  combined:                 '整合月結',
-  per_store:                '門市月結',
-  per_order:                '訂單開票',
-  per_order_with_store_tax: '訂單開票 + 門市統編',
-};
-
-const INVOICE_MODE_COLOR = {
-  combined:                 'purple',
-  per_store:                'geekblue',
-  per_order:                'default',
-  per_order_with_store_tax: 'magenta',
-};
 
 export default function ChannelDetail({ channel, open, onClose }) {
   if (!channel) return null;
@@ -61,16 +43,18 @@ export default function ChannelDetail({ channel, open, onClose }) {
           }
         </Descriptions.Item>
         <Descriptions.Item label="通路名稱">{channel.name}</Descriptions.Item>
-        <Descriptions.Item label="聯絡信箱">{channel.email}</Descriptions.Item>
-        <Descriptions.Item label="聯繫窗口">{channel.contact}</Descriptions.Item>
+        <Descriptions.Item label="聯絡信箱">{channel.contactEmail}</Descriptions.Item>
+        <Descriptions.Item label="聯繫窗口">{channel.contactName}</Descriptions.Item>
         <Descriptions.Item label="聯繫電話">{channel.contactPhone}</Descriptions.Item>
         <Descriptions.Item label="公司抬頭">{channel.title}</Descriptions.Item>
         <Descriptions.Item label="統一編號">{channel.taxId}</Descriptions.Item>
         <Descriptions.Item label="結算日">每月 {channel.settlementDay} 日</Descriptions.Item>
         <Descriptions.Item label="發票模式">
-          <Tag color={INVOICE_MODE_COLOR[channel.invoiceTiming] ?? 'default'}>
-            {INVOICE_MODE_LABEL[channel.invoiceTiming] ?? '—'}
-          </Tag>
+          {channel.invoicePeriod && channel.invoiceTaxScope ? (
+            <Tag color={invoiceModeColor(channel.invoicePeriod, channel.invoiceTaxScope)}>
+              {invoiceModeLabel(channel.invoicePeriod, channel.invoiceTaxScope)}
+            </Tag>
+          ) : <Text type="secondary">—</Text>}
         </Descriptions.Item>
         <Descriptions.Item label="發票類型">
           {channel.invoiceMode === 'three_copy'

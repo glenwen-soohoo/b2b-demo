@@ -53,7 +53,7 @@ export default function ForgotPassword() {
       setPreviewData({
         account: acc,
         contactName: ch?.contact ?? '通路窗口',
-        contactEmail: ch?.email ?? 'contact@example.com',
+        contactEmail: ch?.contactEmail ?? 'contact@example.com',
         resetToken: `demo-${Math.random().toString(36).slice(2, 10)}`,
       })
       setPreviewOpen(true)

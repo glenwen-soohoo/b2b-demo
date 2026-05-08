@@ -10,26 +10,9 @@ import { exportSettlementPdf } from '../../utils/exportSettlementPdf'
 import StatusTag from '../../components/StatusTag'
 import NotificationPreviewModal from '../../components/NotificationPreviewModal'
 import { preOrders as initPreOrders, formalOrders as initFormalOrders, channels, channelMap } from '../../data/fakeData'
+import { invoiceModeLabel, invoiceModeColor, isOrderLevelInvoice as isOrderLevel, allowsStoreTaxId } from '../../utils/invoiceMode'
 
 const { Text } = Typography
-
-const INVOICE_TIMING_LABEL = {
-  combined:                 '整合月結',
-  per_store:                '門市月結',
-  per_order:                '訂單開票',
-  per_order_with_store_tax: '訂單+門市統編',
-}
-
-const INVOICE_TIMING_COLOR = {
-  combined:                 'purple',
-  per_store:                'geekblue',
-  per_order:                'default',
-  per_order_with_store_tax: 'magenta',
-}
-
-// 該模式下，發票/結算是否分門市
-const isPerStoreLevel = (timing) =>
-  timing === 'per_store' || timing === 'per_order_with_store_tax'
 
 // ── 生成結算單 Modal ───────────────────────────────
 function GenerateSettlementModal({ open, onClose, preOrderList, onGenerate }) {
@@ -163,11 +146,13 @@ function SettlementDrawer({ settlement, preOrderList, open, onClose, onStatusCha
 
   const relatedOrders = preOrderList.filter(o => settlement.preOrderIds?.includes(o.id))
   const channel = channelMap[settlement.channelId]
-  const timing = channel?.invoiceTiming
-  const showStoreCol = isPerStoreLevel(timing)
-  // 訂單級開票（per_order / per_order_with_store_tax）：發票跟著訂單跑，結算單不需 invoiceNote
-  // 通路級開票（combined / per_store）：發票由業務 / 財務手動開立，存在 settlement.invoiceNote
-  const isOrderLevelInvoice = timing === 'per_order' || timing === 'per_order_with_store_tax'
+  const period   = channel?.invoicePeriod
+  const taxScope = channel?.invoiceTaxScope
+  // 該模式下訂單表是否要顯示「門市」欄（taxScope = per_store 才需要）
+  const showStoreCol = allowsStoreTaxId(taxScope)
+  // 訂單級開票（period = per_order）：發票跟著訂單跑，結算單不需 invoiceNote
+  // 月結（period = monthly）：發票由業務手動開立，存在 settlement.invoiceNote
+  const isOrderLevelInvoice = isOrderLevel(period)
 
   const showFinanceNotif = () => {
     setFinanceNotifData({
@@ -218,7 +203,8 @@ function SettlementDrawer({ settlement, preOrderList, open, onClose, onStatusCha
   }
 
   // per_store 模式：各門市結算金額彙整（業務 / 財務據此開發票）
-  const perStoreSummary = (timing === 'per_store' && relatedOrders.length > 0) ? (() => {
+  // 月結 + 依門市分別統編：才需要顯示「各門市彙整」表（業務開 N 張發票）
+  const perStoreSummary = (period === 'monthly' && taxScope === 'per_store' && relatedOrders.length > 0) ? (() => {
     const groups = new Map()
     relatedOrders.forEach(o => {
       const key = o.storeId ?? o.store_label ?? '未知門市'
@@ -286,9 +272,9 @@ function SettlementDrawer({ settlement, preOrderList, open, onClose, onStatusCha
         <Descriptions bordered size="small" column={2} style={{ marginBottom: 20 }}>
           <Descriptions.Item label="通路名稱">{settlement.channelName}</Descriptions.Item>
           <Descriptions.Item label="結算模式">
-            {timing
-              ? <Tag color={INVOICE_TIMING_COLOR[timing] ?? 'default'}>
-                  {INVOICE_TIMING_LABEL[timing] ?? timing}
+            {period && taxScope
+              ? <Tag color={invoiceModeColor(period, taxScope)}>
+                  {invoiceModeLabel(period, taxScope)}
                 </Tag>
               : <Text type="secondary">—</Text>
             }
@@ -309,7 +295,7 @@ function SettlementDrawer({ settlement, preOrderList, open, onClose, onStatusCha
                   value={invoiceNoteDraft}
                   onChange={e => setInvoiceNoteDraft(e.target.value)}
                   autoSize={{ minRows: 2, maxRows: 6 }}
-                  placeholder={timing === 'per_store'
+                  placeholder={taxScope === 'per_store'
                     ? '可換行填寫，例：\n信義旗艦店：IV-202603-0080\n大安分店：IV-202603-0081'
                     : '請輸入發票號碼，例：IV-202603-0050'}
                   style={{ marginBottom: 8 }}
@@ -514,7 +500,7 @@ function SettlementDrawer({ settlement, preOrderList, open, onClose, onStatusCha
       <NotificationPreviewModal
         open={financeNotifOpen}
         onClose={() => setFinanceNotifOpen(false)}
-        type="payment_received"
+        type="payment_confirmed"
         onlyTab="business"
         data={financeNotifData}
       />
@@ -606,7 +592,7 @@ export default function AdminSettlements() {
 
     setNotifData({
       orderId: foId, channelName,
-      channelEmail: ch?.email ?? null,
+      channelEmail: ch?.contactEmail ?? null,
       settlementMonth: month, totalAmount,
       discount: false,
       preOrderIds: orders.map(o => o.id),

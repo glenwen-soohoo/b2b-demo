@@ -385,6 +385,18 @@ export default function OrderDetail({ order, open, onClose, onStatusChange, onRe
           <Descriptions.Item label="物流單號">
             <ShippingCell shippingNumber={order.shippingNumber} />
           </Descriptions.Item>
+          {/* 訂單級開票模式：顯示寫入主站 Orders.CompanyName / TaxId 的快照值 */}
+          {order.buyerNameSnapshot && (
+            <Descriptions.Item label="發票買受人" span={2}>
+              <Space size={6} wrap>
+                <span>{order.buyerNameSnapshot}</span>
+                <Text code style={{ fontSize: 11 }}>{order.buyerTaxIdSnapshot}</Text>
+                {order.taxTypeSnapshot && (
+                  <Tag style={{ fontSize: 10 }}>{order.taxTypeSnapshot}</Tag>
+                )}
+              </Space>
+            </Descriptions.Item>
+          )}
         </Descriptions>
 
         {/* pending_sales：確認數量與單價 */}

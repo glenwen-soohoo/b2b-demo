@@ -153,11 +153,12 @@ export const channels = [
     name: '貝比波士有限公司',
     taxId: '90453215',
     title: '貝比波士有限公司',
-    email: 'injoin83563069@gmail.com',
-    contact: '黃宥榕',
+    contactEmail: 'injoin83563069@gmail.com',
+    contactName: '黃宥榕',
     contactPhone: '0956-950725',
     settlementDay: 25,
-    invoiceTiming: 'combined',
+    invoicePeriod: 'monthly',      // 月結
+    invoiceTaxScope: 'channel',    // 通路統一統編 → 對應舊 invoiceTiming='combined'（整合月結）
     invoiceMode: 'three_copy',
     deliveryType: 'third_party',
     default_bank_last5: null,
@@ -192,11 +193,12 @@ export const channels = [
     name: '綠色小農超市',
     taxId: '54321678',
     title: '綠色小農超市股份有限公司',
-    email: 'order@greenfarm.com.tw',
-    contact: '林采璇',
+    contactEmail: 'order@greenfarm.com.tw',
+    contactName: '林采璇',
     contactPhone: '02-2781-5566',
     settlementDay: 15,
-    invoiceTiming: 'per_store',
+    invoicePeriod: 'monthly',      // 月結
+    invoiceTaxScope: 'per_store',  // 依門市分別統編 → 對應舊 invoiceTiming='per_store'（門市月結）
     invoiceMode: 'three_copy',
     deliveryType: 'own_logistics',
     default_bank_last5: '34521',
@@ -234,11 +236,12 @@ export const channels = [
     name: '好自然健康館',
     taxId: '87654321',
     title: '好自然有機生活股份有限公司',
-    email: 'purchase@haoran.com.tw',
-    contact: '陳雅婷',
+    contactEmail: 'purchase@haoran.com.tw',
+    contactName: '陳雅婷',
     contactPhone: '04-2328-8899',
     settlementDay: 20,
-    invoiceTiming: 'per_order_with_store_tax',
+    invoicePeriod: 'per_order',    // 單筆開票
+    invoiceTaxScope: 'per_store',  // 依門市分別統編 → 對應舊 invoiceTiming='per_order_with_store_tax'
     invoiceMode: 'three_copy',
     deliveryType: 'outsource',
     default_bank_last5: '88156',
@@ -339,12 +342,17 @@ export const preOrders = [
     discount_amount: 0,
     discount_note: null,
     cs_note: null, b2b_note: null,
-    invoiceTimingSnapshot: 'per_order_with_store_tax',
+    invoicePeriodSnapshot: 'per_order',
+    invoiceTaxScopeSnapshot: 'per_store',
     fruit_order_id: null,
     settlementMonth: '2026-03',
     createdAt: dayjs('2026-03-05').format('YYYY-MM-DD'),
     shippingAddress: '台中市西屯區工業區一路100號',
     store_label: '台中總倉',
+    storeId: 's005',
+    buyerNameSnapshot: '好自然有機生活股份有限公司',
+    buyerTaxIdSnapshot: '87654321',
+    taxTypeSnapshot: '三聯式',
     logs: [
       { time: '2026-03-05 11:30', action: '廠商送出B2B訂單' },
     ],
@@ -378,7 +386,8 @@ export const preOrders = [
     discount_note: '配合春季新品上架，本次訂單折讓150元作為陳列費。',
     cs_note: '綠色小農為長期合作通路，出貨時段可彈性安排。',
     b2b_note: '業務已告知中寶牛肉粥庫存情況，通路接受調整；春季新品折扣已套用。',
-    invoiceTimingSnapshot: 'per_store',
+    invoicePeriodSnapshot: 'monthly',
+    invoiceTaxScopeSnapshot: 'per_store',
     fruit_order_id: null,
     status: 'settled_done',
     settlementMonth: '2026-03',
@@ -426,7 +435,8 @@ export const preOrders = [
     discount_note: null,
     cs_note: '蘋果豬寶粥本次數量略減，下月補足，已與門市確認。',
     b2b_note: null,
-    invoiceTimingSnapshot: 'per_store',
+    invoicePeriodSnapshot: 'monthly',
+    invoiceTaxScopeSnapshot: 'per_store',
     fruit_order_id: 260308008835,
     status: 'settled_done',
     settlementMonth: '2026-03',
@@ -471,7 +481,8 @@ export const preOrders = [
     discount_note: '貝比波士為長期合作，本月額外折讓300元感謝支持。',
     cs_note: '林口店新倉管習慣於早上收貨，下午可能無人簽收。',
     b2b_note: '下月將上架新款一歲燉飯系列，歡迎提前詢問進貨。',
-    invoiceTimingSnapshot: 'combined',
+    invoicePeriodSnapshot: 'monthly',
+    invoiceTaxScopeSnapshot: 'channel',
     fruit_order_id: null,
     status: 'arrived',
     settlementMonth: '2026-03',
@@ -512,7 +523,8 @@ export const preOrders = [
     invoiceNumber: '發票月結',
     discount_amount: 0, discount_note: null,
     cs_note: null, b2b_note: null,
-    invoiceTimingSnapshot: 'combined',
+    invoicePeriodSnapshot: 'monthly',
+    invoiceTaxScopeSnapshot: 'channel',
     fruit_order_id: null,
     status: 'arrived',
     settlementMonth: '2026-03',
@@ -553,7 +565,8 @@ export const preOrders = [
     discount_note: '米餅新品首次進貨折讓500元鼓勵陳列。',
     cs_note: null,
     b2b_note: '米餅新品試賣價已套用，如有銷售數據歡迎回饋。',
-    invoiceTimingSnapshot: 'per_store',
+    invoicePeriodSnapshot: 'monthly',
+    invoiceTaxScopeSnapshot: 'per_store',
     fruit_order_id: null,
     status: 'arrived',
     settlementMonth: '2026-03',
@@ -583,7 +596,7 @@ export const preOrders = [
     warehouse_note: null, shipping_note: null,
     backendOrderId: '260212008815', settlementId: 'FO-20260225-C001',
     b2b_order_no: 'B2B-202602-0007', discount_amount: 0, discount_note: null,
-    cs_note: null, b2b_note: null, invoiceTimingSnapshot: 'combined', fruit_order_id: 260212008815,
+    cs_note: null, b2b_note: null, invoicePeriodSnapshot: 'monthly', invoiceTaxScopeSnapshot: 'channel', fruit_order_id: 260212008815,
     status: 'settled_done', settlementMonth: '2026-02',
     createdAt: dayjs('2026-02-10').format('YYYY-MM-DD'),
     shippingAddress: '新北市林口區仁愛路一段346號1樓',
@@ -610,7 +623,7 @@ export const preOrders = [
     warehouse_note: null, shipping_note: null,
     backendOrderId: '260212008815b', settlementId: 'FO-20260225-C001',
     b2b_order_no: 'B2B-202602-0008', discount_amount: 200, discount_note: '本月常溫量大，折讓200元。',
-    cs_note: null, b2b_note: null, invoiceTimingSnapshot: 'combined', fruit_order_id: 260212008815,
+    cs_note: null, b2b_note: null, invoicePeriodSnapshot: 'monthly', invoiceTaxScopeSnapshot: 'channel', fruit_order_id: 260212008815,
     status: 'settled_done', settlementMonth: '2026-02',
     createdAt: dayjs('2026-02-10').format('YYYY-MM-DD'),
     shippingAddress: '新北市林口區仁愛路一段346號1樓',
@@ -634,7 +647,7 @@ export const preOrders = [
     warehouse_note: null, shipping_note: null,
     backendOrderId: '260217008816', settlementId: 'FO-20260225-C001',
     b2b_order_no: 'B2B-202602-0009', discount_amount: 0, discount_note: null,
-    cs_note: null, b2b_note: null, invoiceTimingSnapshot: 'combined', fruit_order_id: 260217008816,
+    cs_note: null, b2b_note: null, invoicePeriodSnapshot: 'monthly', invoiceTaxScopeSnapshot: 'channel', fruit_order_id: 260217008816,
     status: 'settled_done', settlementMonth: '2026-02',
     createdAt: dayjs('2026-02-15').format('YYYY-MM-DD'),
     shippingAddress: '新北市林口區仁愛路一段346號1樓',
@@ -662,7 +675,7 @@ export const preOrders = [
     warehouse_note: null, shipping_note: null,
     backendOrderId: '260114008790', settlementId: 'FO-20260125-C001',
     b2b_order_no: 'B2B-202601-0001', discount_amount: 0, discount_note: null,
-    cs_note: null, b2b_note: null, invoiceTimingSnapshot: 'combined', fruit_order_id: 260114008790,
+    cs_note: null, b2b_note: null, invoicePeriodSnapshot: 'monthly', invoiceTaxScopeSnapshot: 'channel', fruit_order_id: 260114008790,
     status: 'settled_done', settlementMonth: '2026-01',
     createdAt: dayjs('2026-01-12').format('YYYY-MM-DD'),
     shippingAddress: '新北市林口區仁愛路一段346號1樓',
@@ -691,7 +704,7 @@ export const preOrders = [
     warehouse_note: null, shipping_note: null,
     backendOrderId: '260110008756', settlementId: 'FO-20260115-C002',
     b2b_order_no: 'B2B-202601-0002', discount_amount: 0, discount_note: null,
-    cs_note: null, b2b_note: null, invoiceTimingSnapshot: 'per_store', fruit_order_id: 260110008756,
+    cs_note: null, b2b_note: null, invoicePeriodSnapshot: 'monthly', invoiceTaxScopeSnapshot: 'per_store', fruit_order_id: 260110008756,
     status: 'settled_done', settlementMonth: '2026-01',
     createdAt: dayjs('2026-01-08').format('YYYY-MM-DD'),
     shippingAddress: '台北市大安區仁愛路四段1號',
@@ -725,11 +738,15 @@ export const preOrders = [
     warehouse_note: null, shipping_note: null,
     backendOrderId: '260211008822', settlementId: 'FO-20260220-C003',
     b2b_order_no: 'B2B-202602-0001', discount_amount: 0, discount_note: null,
-    cs_note: null, b2b_note: null, invoiceTimingSnapshot: 'per_order_with_store_tax', fruit_order_id: 260211008822,
+    cs_note: null, b2b_note: null, invoicePeriodSnapshot: 'per_order', invoiceTaxScopeSnapshot: 'per_store', fruit_order_id: 260211008822,
     status: 'settled_done', settlementMonth: '2026-02',
     createdAt: dayjs('2026-02-08').format('YYYY-MM-DD'),
     shippingAddress: '台中市西屯區工業區一路100號',
     store_label: '台中總倉',
+    storeId: 's005',
+    buyerNameSnapshot: '好自然有機生活股份有限公司',
+    buyerTaxIdSnapshot: '87654321',
+    taxTypeSnapshot: '三聯式',
     shippingNumber: '9012345681',
     blackCatStatus: '順利送達',
     arrivedAt: '2026-02-11 14:30',
@@ -768,7 +785,8 @@ export const preOrders = [
     discount_amount: 0,
     discount_note: null,
     cs_note: null, b2b_note: null,
-    invoiceTimingSnapshot: 'combined',
+    invoicePeriodSnapshot: 'monthly',
+    invoiceTaxScopeSnapshot: 'channel',
     fruit_order_id: null,
     status: 'ordered',
     settlementMonth: '2026-03',
@@ -807,13 +825,18 @@ export const preOrders = [
     discount_amount: 0,
     discount_note: null,
     cs_note: null, b2b_note: null,
-    invoiceTimingSnapshot: 'per_order_with_store_tax',
+    invoicePeriodSnapshot: 'per_order',
+    invoiceTaxScopeSnapshot: 'per_store',
     fruit_order_id: null,
     status: 'ordered',
     settlementMonth: '2026-03',
     createdAt: dayjs('2026-03-07').format('YYYY-MM-DD'),
     shippingAddress: '台中市西屯區工業區一路100號',
     store_label: '台中總倉',
+    storeId: 's005',
+    buyerNameSnapshot: '好自然有機生活股份有限公司',
+    buyerTaxIdSnapshot: '87654321',
+    taxTypeSnapshot: '三聯式',
     shippingNumber: '9012345676',
     blackCatStatus: '配送中',
     logs: [
@@ -842,7 +865,8 @@ export const preOrders = [
     invoiceNumber: '發票月結',
     discount_amount: 0,
     discount_note: null,
-    invoiceTimingSnapshot: 'combined',
+    invoicePeriodSnapshot: 'monthly',
+    invoiceTaxScopeSnapshot: 'channel',
     fruit_order_id: null,
     status: 'pending_sales',
     settlementMonth: '2026-03',
@@ -876,7 +900,8 @@ export const preOrders = [
     discount_amount: 0,
     discount_note: null,
     cs_note: null, b2b_note: null,
-    invoiceTimingSnapshot: 'per_store',
+    invoicePeriodSnapshot: 'monthly',
+    invoiceTaxScopeSnapshot: 'per_store',
     fruit_order_id: null,
     status: 'pending_sales',
     settlementMonth: '2026-03',
@@ -908,13 +933,17 @@ export const preOrders = [
     b2b_order_no: 'B2B-202603-0020',
     discount_amount: 0, discount_note: null,
     cs_note: null, b2b_note: null,
-    invoiceTimingSnapshot: 'per_order_with_store_tax',
+    invoicePeriodSnapshot: 'per_order',
+    invoiceTaxScopeSnapshot: 'per_store',
     fruit_order_id: null,
     status: 'ordered',
     settlementMonth: '2026-03',
     createdAt: dayjs('2026-03-20').format('YYYY-MM-DD'),
     shippingAddress: '台中市西屯區市政路100號',
     store_label: '台中七期店',
+    buyerNameSnapshot: '好自然有機生活股份有限公司',
+    buyerTaxIdSnapshot: '87654321',
+    taxTypeSnapshot: '三聯式',
     storeId: 's006',
     shippingNumber: '9012345690',
     blackCatStatus: '配送中',
@@ -947,13 +976,17 @@ export const preOrders = [
     discount_amount: 0, discount_note: null,
     cs_note: '加盟主訂單，注意統編對應。',
     b2b_note: null,
-    invoiceTimingSnapshot: 'per_order_with_store_tax',
+    invoicePeriodSnapshot: 'per_order',
+    invoiceTaxScopeSnapshot: 'per_store',
     fruit_order_id: null,
     status: 'arrived',
     settlementMonth: '2026-03',
     createdAt: dayjs('2026-03-15').format('YYYY-MM-DD'),
     shippingAddress: '台北市信義區松壽路50號',
     store_label: '台北信義店（加盟主）',
+    buyerNameSnapshot: '健新生活商行',
+    buyerTaxIdSnapshot: '23456789',
+    taxTypeSnapshot: '三聯式',
     storeId: 's007',
     shippingNumber: '9012345691',
     blackCatStatus: '順利送達',
@@ -985,13 +1018,17 @@ export const preOrders = [
     invoiceNumber: 'IV-202602-0030',
     discount_amount: 0, discount_note: null,
     cs_note: null, b2b_note: null,
-    invoiceTimingSnapshot: 'per_order_with_store_tax',
+    invoicePeriodSnapshot: 'per_order',
+    invoiceTaxScopeSnapshot: 'per_store',
     fruit_order_id: null,
     status: 'settled_done',
     settlementMonth: '2026-02',
     createdAt: dayjs('2026-02-18').format('YYYY-MM-DD'),
     shippingAddress: '高雄市左營區博愛二路100號',
     store_label: '高雄左營店（加盟主）',
+    buyerNameSnapshot: '南方健康企業社',
+    buyerTaxIdSnapshot: '34567890',
+    taxTypeSnapshot: '三聯式',
     storeId: 's008',
     shippingNumber: '9012345692',
     blackCatStatus: '順利送達',
@@ -1024,13 +1061,17 @@ export const preOrders = [
     invoiceNumber: 'IV-202602-0015',
     discount_amount: 0, discount_note: null,
     cs_note: null, b2b_note: null,
-    invoiceTimingSnapshot: 'per_order_with_store_tax',
+    invoicePeriodSnapshot: 'per_order',
+    invoiceTaxScopeSnapshot: 'per_store',
     fruit_order_id: null,
     status: 'settled_done',
     settlementMonth: '2026-02',
     createdAt: dayjs('2026-02-02').format('YYYY-MM-DD'),
     shippingAddress: '台中市西屯區市政路100號',
     store_label: '台中七期店',
+    buyerNameSnapshot: '好自然有機生活股份有限公司',
+    buyerTaxIdSnapshot: '87654321',
+    taxTypeSnapshot: '三聯式',
     storeId: 's006',
     shippingNumber: '9012345693',
     blackCatStatus: '順利送達',
@@ -1057,7 +1098,7 @@ export const preOrders = [
     b2b_order_no: 'B2B-202602-0050',
     invoiceNumber: '發票月結',
     discount_amount: 0, discount_note: null,
-    cs_note: null, b2b_note: null, invoiceTimingSnapshot: 'per_store', fruit_order_id: 260208008900,
+    cs_note: null, b2b_note: null, invoicePeriodSnapshot: 'monthly', invoiceTaxScopeSnapshot: 'per_store', fruit_order_id: 260208008900,
     status: 'settled_done', settlementMonth: '2026-02',
     createdAt: dayjs('2026-02-05').format('YYYY-MM-DD'),
     shippingAddress: '台北市信義區松仁路100號1樓',
@@ -1087,7 +1128,7 @@ export const preOrders = [
     b2b_order_no: 'B2B-202602-0051',
     invoiceNumber: '發票月結',
     discount_amount: 0, discount_note: null,
-    cs_note: null, b2b_note: null, invoiceTimingSnapshot: 'per_store', fruit_order_id: 260218008910,
+    cs_note: null, b2b_note: null, invoicePeriodSnapshot: 'monthly', invoiceTaxScopeSnapshot: 'per_store', fruit_order_id: 260218008910,
     status: 'settled_done', settlementMonth: '2026-02',
     createdAt: dayjs('2026-02-15').format('YYYY-MM-DD'),
     shippingAddress: '台北市信義區松仁路100號1樓',
@@ -1119,7 +1160,7 @@ export const preOrders = [
     b2b_order_no: 'B2B-202602-0052',
     invoiceNumber: '發票月結',
     discount_amount: 0, discount_note: null,
-    cs_note: null, b2b_note: null, invoiceTimingSnapshot: 'per_store', fruit_order_id: 260212008905,
+    cs_note: null, b2b_note: null, invoicePeriodSnapshot: 'monthly', invoiceTaxScopeSnapshot: 'per_store', fruit_order_id: 260212008905,
     status: 'settled_done', settlementMonth: '2026-02',
     createdAt: dayjs('2026-02-09').format('YYYY-MM-DD'),
     shippingAddress: '台北市大安區仁愛路四段1號',
@@ -1159,7 +1200,8 @@ export const preOrders = [
     invoiceNumber: '發票月結',
     discount_amount: 0, discount_note: null,
     cs_note: null, b2b_note: null,
-    invoiceTimingSnapshot: 'per_store',
+    invoicePeriodSnapshot: 'monthly',
+    invoiceTaxScopeSnapshot: 'per_store',
     fruit_order_id: null,
     status: 'arrived',
     settlementMonth: '2026-03',
@@ -1198,7 +1240,8 @@ export const preOrders = [
     invoiceNumber: '發票月結',
     discount_amount: 0, discount_note: null,
     cs_note: null, b2b_note: null,
-    invoiceTimingSnapshot: 'per_store',
+    invoicePeriodSnapshot: 'monthly',
+    invoiceTaxScopeSnapshot: 'per_store',
     fruit_order_id: null,
     status: 'ordered',
     settlementMonth: '2026-03',
@@ -1278,6 +1321,10 @@ export const formalOrders = [
     channelName: '好自然健康館',
     preOrderIds: ['b2b-00011'],
     store_label: '台中總倉',
+    storeId: 's005',
+    buyerNameSnapshot: '好自然有機生活股份有限公司',
+    buyerTaxIdSnapshot: '87654321',
+    taxTypeSnapshot: '三聯式',
     items: [
       { productId:'p901', productName:'常溫燉飯-金瓜玉米雞肉', unit:'包', qty:30, price:75, cost:50 },
       { productId:'pa02', productName:'拌醬-青蔬總匯吻仔魚',   unit:'包', qty:20, price:75, cost:41 },
@@ -1492,14 +1539,58 @@ export const b2bReservedInventory = [
 // ─────────────────────────────────────────────
 // ─────────────────────────────────────────────
 // 公告（多則布告欄）
+//   - type:     'general'    = 業務手動發布的公告（預設）
+//               'settlement' = 結算通知（業務產生結算單時自動 insert，audience 限定該通路）
 //   - priority: 'important' = 廠商首次看到時強制彈窗一次（後續只會在通知中心列出）
-//                'normal'    = 不強制彈窗，靜靜列在通知中心
+//               'normal'    = 不強制彈窗，靜靜列在通知中心
 //   - audience: 'all' | string[] (channelIds)
 //   - isVisible: false 代表後台暫時隱藏
+//   - relatedId: type='settlement' 時對應 formalOrders.id（結算單編號）
 // ─────────────────────────────────────────────
 export const announcements = [
+  // ── 結算通知（系統自動產生，audience 限定該通路）──
+  {
+    id: 'ann-settlement-FO-20260325-C001',
+    type: 'settlement',
+    relatedId: 'FO-20260325-C001',
+    title: '【結算通知】2026-03 結算單已產生（FO-20260325-C001）',
+    content: `## 結算單已產生
+
+您本月份（2026-03）的結算單已產生，請至「結算紀錄」頁查看明細並完成匯款。
+
+- **結算單號**：FO-20260325-C001
+- **結算金額**：NT$ 10,800
+- **匯款期限**：請於收到通知後 10 個工作天內完成匯款
+
+如有對帳疑義，請聯繫業務窗口。`,
+    priority: 'important',
+    isVisible: true,
+    audience: ['c001'],
+    publishedAt: '2026-03-25 09:01',
+    readBy: [],
+  },
+  {
+    id: 'ann-settlement-FO-20260315-C002',
+    type: 'settlement',
+    relatedId: 'FO-20260315-C002',
+    title: '【結算通知】2026-03 結算單已產生（FO-20260315-C002）',
+    content: `## 結算單已產生
+
+您本月份（2026-03）的結算單已產生（涵蓋信義旗艦店 + 大安分店兩個門市），請至「結算紀錄」頁查看明細並完成匯款。
+
+- **結算單號**：FO-20260315-C002
+- **結算金額**：NT$ 17,335
+- **匯款期限**：請於收到通知後 10 個工作天內完成匯款`,
+    priority: 'important',
+    isVisible: true,
+    audience: ['c002'],
+    publishedAt: '2026-03-15 09:01',
+    readBy: [],
+  },
+  // ── 一般公告 ──
   {
     id: 'ann-20260430-001',
+    type: 'general',
     title: '母親節限時優惠：寶寶魚塊系列 85 折',
     content: `## 活動辦法
 
@@ -1587,3 +1678,42 @@ export const announcements = [
 
 // 向後相容：個別 import announcement 的舊程式碼可暫時繼續用最新一則
 export const announcement = announcements[0];
+
+// ─────────────────────────────────────────────
+// B2B 一次性動作 Token（對應正式版 B2BActionTokens 表）
+// 寄出的 email 嵌入一次性連結，讓廠商不用登入就能完成特定動作
+// 詳見《B2B 通知系統設計》第 6 節
+// ─────────────────────────────────────────────
+export const b2bActionTokens = [
+  // 已使用：好自然 b2b-00001 訂單確認連結
+  { token: 'a8f3c92e1d4b7689f0e2a5c8d1b4e7f3', action: 'confirm_order',  relatedId: 'b2b-00001',         channelId: 'c003', expiresAt: '2026-03-19 23:59:59', usedAt: '2026-03-06 10:15:22', createdAt: '2026-03-05 11:31:00' },
+  // 未使用 / 未過期：FO-20260315-C002 待匯款的回報連結
+  { token: '5c1e9b73a2f8d04e1a9c3b6e8f2d7a1b', action: 'report_payment', relatedId: 'FO-20260315-C002',  channelId: 'c002', expiresAt: '2026-03-29 23:59:59', usedAt: null,                  createdAt: '2026-03-15 09:01:30' },
+  // 未使用 / 未過期：FO-20260225-C001 催繳款連結
+  { token: '3d8f4a1c6e9b2d7f0a4c8e1b5d9f2a6e', action: 'report_payment', relatedId: 'FO-20260225-C001',  channelId: 'c001', expiresAt: '2026-03-11 23:59:59', usedAt: null,                  createdAt: '2026-02-25 09:01:45' },
+  // 已過期未使用：示範過期 token 樣態
+  { token: '7b2a5c8e1d4f9a3c6b8e2d5f1a4c7e9b', action: 'confirm_order',  relatedId: 'b2b-00007',         channelId: 'c001', expiresAt: '2026-02-24 23:59:59', usedAt: null,                  createdAt: '2026-02-10 10:01:15' },
+];
+
+// ─────────────────────────────────────────────
+// B2B 通知歷史紀錄（對應正式版 B2BNotificationLog 表）
+// 每寄出一封通知信都記錄一筆，供後台 AdminNotificationLog 頁面查詢與重寄
+// ─────────────────────────────────────────────
+export const b2bNotificationLog = [
+  { id: 'log-00021', sentAt: '2026-03-25 09:01:30', type: 'settlement_created',     channelId: 'c001', toEmail: 'injoin83563069@gmail.com', subject: '【無毒農 B2B】2026-03 結算單已產生（FO-20260325-C001）',     status: 'delivered', relatedId: 'FO-20260325-C001', errorMessage: null },
+  { id: 'log-00020', sentAt: '2026-03-15 09:01:45', type: 'settlement_created',     channelId: 'c002', toEmail: 'order@greenfarm.com.tw',    subject: '【無毒農 B2B】2026-03 結算單已產生（FO-20260315-C002）',     status: 'delivered', relatedId: 'FO-20260315-C002', errorMessage: null },
+  { id: 'log-00019', sentAt: '2026-03-09 14:35:12', type: 'order_confirmed',        channelId: 'c002', toEmail: 'order@greenfarm.com.tw',    subject: '【無毒農 B2B】您的訂單已成立（B2B-202603-0003）',                  status: 'delivered', relatedId: 'b2b-00003',        errorMessage: null },
+  { id: 'log-00018', sentAt: '2026-03-08 11:32:00', type: 'order_confirmed',        channelId: 'c002', toEmail: 'order@greenfarm.com.tw',    subject: '【無毒農 B2B】您的訂單已成立（B2B-202603-0003）',                  status: 'delivered', relatedId: 'b2b-00003',        errorMessage: null },
+  { id: 'log-00017', sentAt: '2026-03-05 11:31:15', type: 'order_received',         channelId: 'c003', toEmail: 'purchase@haoran.com.tw',    subject: '【無毒農 B2B】我們收到您的採購單（B2B-202603-0001）',              status: 'delivered', relatedId: 'b2b-00001',        errorMessage: null },
+  { id: 'log-00016', sentAt: '2026-02-28 16:00:30', type: 'invoice_issued',         channelId: 'c003', toEmail: 'purchase@haoran.com.tw',    subject: '【無毒農 B2B】2026-02 發票已開立（共 2 張）',                       status: 'delivered', relatedId: 'FO-20260228-C003', errorMessage: null },
+  { id: 'log-00015', sentAt: '2026-02-27 14:00:15', type: 'payment_confirmed',      channelId: 'c002', toEmail: 'order@greenfarm.com.tw',    subject: '【無毒農 B2B】2026-02 匯款已確認',                                 status: 'delivered', relatedId: 'FO-20260225-C002', errorMessage: null },
+  { id: 'log-00014', sentAt: '2026-02-25 09:01:30', type: 'settlement_created',     channelId: 'c002', toEmail: 'order@greenfarm.com.tw',    subject: '【無毒農 B2B】2026-02 結算單已產生（FO-20260225-C002）',     status: 'delivered', relatedId: 'FO-20260225-C002', errorMessage: null },
+  { id: 'log-00013', sentAt: '2026-02-25 09:01:00', type: 'settlement_created',     channelId: 'c001', toEmail: 'injoin83563069@gmail.com', subject: '【無毒農 B2B】2026-02 結算單已產生（FO-20260225-C001）',     status: 'delivered', relatedId: 'FO-20260225-C001', errorMessage: null },
+  { id: 'log-00012', sentAt: '2026-02-22 15:31:30', type: 'payment_confirmed',      channelId: 'c003', toEmail: 'purchase@haoran.com.tw',    subject: '【無毒農 B2B】2026-02 匯款已確認',                                 status: 'delivered', relatedId: 'FO-20260220-C003', errorMessage: null },
+  { id: 'log-00011', sentAt: '2026-02-20 09:01:30', type: 'settlement_created',     channelId: 'c003', toEmail: 'purchase@haoran.com.tw',    subject: '【無毒農 B2B】2026-02 結算單已產生（FO-20260220-C003）',     status: 'delivered', relatedId: 'FO-20260220-C003', errorMessage: null },
+  // 失敗範例：信箱拼錯導致退信
+  { id: 'log-00010', sentAt: '2026-02-15 10:30:00', type: 'order_received',         channelId: 'c001', toEmail: 'wrong-email@invalid.tw',    subject: '【無毒農 B2B】我們收到您的採購單（B2B-202602-0009）',              status: 'failed',    relatedId: 'b2b-00008',        errorMessage: 'SMTP 550 5.1.1 The email account does not exist' },
+  { id: 'log-00009', sentAt: '2026-01-28 10:00:30', type: 'invoice_issued',         channelId: 'c001', toEmail: 'injoin83563069@gmail.com', subject: '【無毒農 B2B】2026-01 發票已開立（IV-202601-0050）',               status: 'delivered', relatedId: 'FO-20260125-C001', errorMessage: null },
+  { id: 'log-00008', sentAt: '2026-01-27 16:44:30', type: 'payment_confirmed',      channelId: 'c001', toEmail: 'injoin83563069@gmail.com', subject: '【無毒農 B2B】2026-01 匯款已確認',                                 status: 'delivered', relatedId: 'FO-20260125-C001', errorMessage: null },
+  { id: 'log-00007', sentAt: '2026-01-25 09:03:15', type: 'settlement_created',     channelId: 'c001', toEmail: 'injoin83563069@gmail.com', subject: '【無毒農 B2B】2026-01 結算單已產生（FO-20260125-C001）',     status: 'delivered', relatedId: 'FO-20260125-C001', errorMessage: null },
+];

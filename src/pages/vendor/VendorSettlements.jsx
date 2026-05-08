@@ -14,10 +14,10 @@ import { exportSettlementPdf } from '../../utils/exportSettlementPdf'
 const { Title, Text } = Typography
 
 // 結算單顯示的「電子發票號碼」文字
-//  - 訂單開票 / 訂單開票+門市統編：固定「依訂單開票」
-//  - 整合月結 / 門市月結：顯示業務手填的 invoiceNote，否則「尚未開發票」
-function renderInvoiceNoteRO(settlement, timing) {
-  if (timing === 'per_order' || timing === 'per_order_with_store_tax') {
+//  - 單筆開票（period='per_order'）：固定「依訂單開票」
+//  - 月結（period='monthly'）：顯示業務手填的 invoiceNote，否則「尚未開發票」
+function renderInvoiceNoteRO(settlement, period) {
+  if (period === 'per_order') {
     return <Text type="secondary">依訂單開票（請看下方各訂單發票號碼）</Text>
   }
   return settlement.invoiceNote
@@ -92,7 +92,8 @@ export default function VendorSettlements() {
         width={680}
       >
         {selected && (() => {
-          const timing = channel?.invoiceTiming
+          const period   = channel?.invoicePeriod
+          const taxScope = channel?.invoiceTaxScope
           const relatedOrders = (() => {
             const ids = selected.preOrderIds ?? []
             return allPreOrders.filter(o => ids.includes(o.id))
@@ -107,7 +108,7 @@ export default function VendorSettlements() {
                 </Text>
               </Descriptions.Item>
               <Descriptions.Item label="電子發票號碼" span={2}>
-                {renderInvoiceNoteRO(selected, timing)}
+                {renderInvoiceNoteRO(selected, period)}
               </Descriptions.Item>
             </Descriptions>
 
@@ -124,7 +125,7 @@ export default function VendorSettlements() {
                     ? <Tag color="purple" style={{ fontSize: 11, margin: 0 }}>{v}</Tag>
                     : <Text type="secondary">—</Text> },
                 { title: '下單日期', dataIndex: 'createdAt', width: 95 },
-                ...(timing === 'per_store' || timing === 'per_order_with_store_tax' ? [
+                ...(taxScope === 'per_store' ? [
                   { title: '門市', dataIndex: 'store_label', ellipsis: true,
                     render: v => v
                       ? <Tag color="cyan" style={{ margin: 0, maxWidth: '100%', overflow: 'hidden', textOverflow: 'ellipsis', display: 'inline-block', whiteSpace: 'nowrap', verticalAlign: 'middle' }}>{v}</Tag>
@@ -132,7 +133,7 @@ export default function VendorSettlements() {
                 ] : []),
                 { title: '正式編號', dataIndex: 'backendOrderId', width: 105,
                   render: v => v ? <Text code style={{ fontSize: 11, whiteSpace: 'nowrap' }}>{v}</Text> : <Text type="secondary">—</Text> },
-                ...(timing === 'per_order' || timing === 'per_order_with_store_tax' ? [
+                ...(period === 'per_order' ? [
                   { title: '發票號碼', dataIndex: 'invoiceNumber', width: 120,
                     render: v => v
                       ? <Text code style={{ fontSize: 11, whiteSpace: 'nowrap' }}>{v}</Text>
@@ -148,7 +149,7 @@ export default function VendorSettlements() {
             />
 
             {/* per_store：各門市結算金額彙整（廠商也能對帳） */}
-            {timing === 'per_store' && relatedOrders.length > 0 && (() => {
+            {period === 'monthly' && taxScope === 'per_store' && relatedOrders.length > 0 && (() => {
               const groups = new Map()
               relatedOrders.forEach(o => {
                 const key = o.storeId ?? o.store_label ?? '未知門市'

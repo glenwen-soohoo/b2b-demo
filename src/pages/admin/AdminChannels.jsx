@@ -10,29 +10,22 @@ import {
 import { channels as initialChannels, templates } from '../../data/fakeData'
 import ChannelDetail from '../../components/ChannelDetail'
 import NotificationPreviewModal from '../../components/NotificationPreviewModal'
+import { invoiceModeLabel, invoiceModeColor } from '../../utils/invoiceMode'
 
 const { Title, Text } = Typography
 
-// 發票模式（時機 + 是否依門市分流）合併成 4 個選項
-//
-// 各模式語意（demo / 文件 / 後端註解用，UI 不顯示說明文字）：
-//   combined                  → 整合月結。一張發票，使用通路統一統編（公司戶）
-//   per_store                 → 門市月結。每門市一張發票，可分開設定不同統編
-//   per_order                 → 訂單開票。每張訂單一張發票，全部用通路統一統編
-//   per_order_with_store_tax  → 訂單開票 + 門市統編。每張訂單一張，依該訂單收件門市對應統編
-const INVOICE_TIMING_OPTIONS = [
-  { value: 'combined',                 label: '整合月結' },
-  { value: 'per_store',                label: '門市月結' },
-  { value: 'per_order',                label: '訂單開票' },
-  { value: 'per_order_with_store_tax', label: '訂單開票 + 門市統編' },
+// 發票模式為兩個正交軸（語意說明見 utils/invoiceMode.js）：
+//   invoicePeriod   = 結算頻率（monthly / per_order）
+//   invoiceTaxScope = 統編範圍（channel / per_store）
+const INVOICE_PERIOD_OPTIONS = [
+  { value: 'monthly',   label: '月結（彙總到月底結算單）' },
+  { value: 'per_order', label: '單筆開票（每筆訂單到貨即開）' },
 ]
 
-const INVOICE_TIMING_SHORT_LABEL = {
-  combined:                 '整合月結',
-  per_store:                '門市月結',
-  per_order:                '訂單開票',
-  per_order_with_store_tax: '訂單+門市統編',
-}
+const INVOICE_TAX_SCOPE_OPTIONS = [
+  { value: 'channel',   label: '通路統一統編' },
+  { value: 'per_store', label: '依門市分別統編' },
+]
 
 const DELIVERY_TYPE_OPTIONS = [
   { value: 'own_logistics', label: '自有物流' },
@@ -49,13 +42,6 @@ const INVOICE_MODE_OPTIONS = [
 const INVOICE_MODE_COLOR = {
   two_copy:   'default',
   three_copy: 'cyan',
-}
-
-const INVOICE_TIMING_COLOR = {
-  combined:                 'purple',
-  per_store:                'geekblue',
-  per_order:                'default',
-  per_order_with_store_tax: 'magenta',
 }
 
 function ChannelModal({ open, onClose, onSave, onResetPassword, onDisable, onEnable, initial }) {
@@ -75,7 +61,7 @@ function ChannelModal({ open, onClose, onSave, onResetPassword, onDisable, onEna
     <Space size={8}>
       <Popconfirm
         title="重設密碼"
-        description={`系統將產生新密碼並寄至 ${initial?.email}。確認執行？`}
+        description={`系統將產生新密碼並寄至 ${initial?.contactEmail}。確認執行？`}
         okText="確認重設" cancelText="取消"
         onConfirm={() => onResetPassword?.(initial)}
       >
@@ -120,7 +106,11 @@ function ChannelModal({ open, onClose, onSave, onResetPassword, onDisable, onEna
       afterOpenChange={visible => {
         if (visible) {
           form.resetFields()
-          form.setFieldsValue(initial ?? { invoiceMode: 'three_copy', invoiceTiming: 'combined' })
+          form.setFieldsValue(initial ?? {
+            invoiceMode: 'three_copy',
+            invoicePeriod: 'monthly',
+            invoiceTaxScope: 'channel',
+          })
         }
       }}
     >
@@ -150,14 +140,14 @@ function ChannelModal({ open, onClose, onSave, onResetPassword, onDisable, onEna
             </Form.Item>
           </Col>
           <Col span={12}>
-            <Form.Item label="聯繫信箱" name="email" rules={[{ required: true, type: 'email' }]}>
+            <Form.Item label="聯繫信箱" name="contactEmail" rules={[{ required: true, type: 'email' }]}>
               <Input />
             </Form.Item>
           </Col>
         </Row>
         <Row gutter={12}>
           <Col span={12}>
-            <Form.Item label="聯繫窗口" name="contact" rules={[{ required: true }]}>
+            <Form.Item label="聯繫窗口" name="contactName" rules={[{ required: true }]}>
               <Input placeholder="姓名" />
             </Form.Item>
           </Col>
@@ -188,13 +178,22 @@ function ChannelModal({ open, onClose, onSave, onResetPassword, onDisable, onEna
             </Form.Item>
           </Col>
           <Col span={8}>
-            <Form.Item label="發票模式" name="invoiceTiming" rules={[{ required: true }]}>
-              <Select options={INVOICE_TIMING_OPTIONS} />
-            </Form.Item>
-          </Col>
-          <Col span={8}>
             <Form.Item label="發票類型" name="invoiceMode" rules={[{ required: true }]}>
               <Select options={INVOICE_MODE_OPTIONS} />
+            </Form.Item>
+          </Col>
+        </Row>
+        <Row gutter={12}>
+          <Col span={12}>
+            <Form.Item label="結算頻率" name="invoicePeriod" rules={[{ required: true }]}
+              tooltip="決定多久開一張發票：月結 = 彙總到月底結算單；單筆開票 = 每筆訂單到貨即開">
+              <Select options={INVOICE_PERIOD_OPTIONS} />
+            </Form.Item>
+          </Col>
+          <Col span={12}>
+            <Form.Item label="發票統編" name="invoiceTaxScope" rules={[{ required: true }]}
+              tooltip="決定每張發票的買受人：通路統一統編 = 全部用通路抬頭；依門市分別 = 各門市可設不同統編">
+              <Select options={INVOICE_TAX_SCOPE_OPTIONS} />
             </Form.Item>
           </Col>
         </Row>
@@ -279,7 +278,7 @@ export default function AdminChannels() {
         memberAccount: account,    // demo 模擬自動產生帳號
         enabled: true,             // 預設啟用
       }])
-      message.success(`通路已新增；系統自動產生帳號 ${account}，預設密碼已寄至 ${values.email}`)
+      message.success(`通路已新增；系統自動產生帳號 ${account}，預設密碼已寄至 ${values.contactEmail}`)
     }
   }
 
@@ -288,8 +287,8 @@ export default function AdminChannels() {
     const newPwd = Math.random().toString(36).slice(2, 14)  // 12 碼亂數密碼（demo）
     setPwdPreviewData({
       account: channel.memberAccount ?? 'b2b_channel_xxx',
-      contactName: channel.contact ?? '通路窗口',
-      contactEmail: channel.email,
+      contactName: channel.contactName ?? '通路窗口',
+      contactEmail: channel.contactEmail,
       newPassword: newPwd,
       channelName: channel.name,
     })
@@ -314,7 +313,7 @@ export default function AdminChannels() {
     return channelList.filter(c =>
       c.name?.toLowerCase().includes(q) ||
       c.taxId?.toLowerCase().includes(q) ||
-      c.email?.toLowerCase().includes(q)
+      c.contactEmail?.toLowerCase().includes(q)
     )
   }, [channelList, searchText])
 
@@ -327,15 +326,18 @@ export default function AdminChannels() {
         </Space>
       )},
     { title: '統一編號', dataIndex: 'taxId', width: 110 },
-    { title: '聯繫信箱', dataIndex: 'email' },
-    { title: '聯繫窗口', dataIndex: 'contact', width: 150,
+    { title: '聯繫信箱', dataIndex: 'contactEmail' },
+    { title: '聯繫窗口', dataIndex: 'contactName', width: 150,
       render: (v, r) => `${v ?? ''}　${r.contactPhone ?? ''}` },
-    { title: '發票模式', dataIndex: 'invoiceTiming', width: 130,
-      render: v => v
-        ? <Tag color={INVOICE_TIMING_COLOR[v] ?? 'default'} style={{ fontSize: 11 }}>
-            {INVOICE_TIMING_SHORT_LABEL[v] ?? v}
+    { title: '發票模式', width: 130,
+      render: (_, r) => {
+        if (!r.invoicePeriod || !r.invoiceTaxScope) return <span style={{ color: '#bbb' }}>—</span>
+        return (
+          <Tag color={invoiceModeColor(r.invoicePeriod, r.invoiceTaxScope)} style={{ fontSize: 11 }}>
+            {invoiceModeLabel(r.invoicePeriod, r.invoiceTaxScope)}
           </Tag>
-        : <span style={{ color: '#bbb' }}>—</span>
+        )
+      }
     },
     { title: '發票類型', dataIndex: 'invoiceMode', width: 80,
       render: v => v

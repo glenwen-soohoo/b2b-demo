@@ -8,30 +8,12 @@ import {
   DeleteOutlined, EnvironmentOutlined, LockOutlined,
 } from '@ant-design/icons'
 import { useVendor } from '../../context/VendorContext'
-
-// 發票模式（時機）label
-//
-// 各模式語意（demo / 文件用，UI 不顯示說明文字）：
-//   combined                  → 整合月結。一張發票，使用通路統一統編
-//   per_store                 → 門市月結。每門市一張，可分開設定不同統編
-//   per_order                 → 訂單開票。每張訂單一張，統一統編
-//   per_order_with_store_tax  → 訂單開票 + 門市統編。每張訂單依門市對應統編
-const INVOICE_TIMING_LABEL = {
-  combined:                  '整合月結',
-  per_store:                 '門市月結',
-  per_order:                 '訂單開票',
-  per_order_with_store_tax:  '訂單開票 + 門市統編',
-}
+import { invoiceModeLabel, allowsStoreTaxId } from '../../utils/invoiceMode'
 
 // 票面類型 label
 const INVOICE_MODE_LABEL = {
   three_copy: '三聯式',
   two_copy:   '二聯式',
-}
-
-// 該 invoiceTiming 是否允許各門市分開統編
-function allowsStoreTaxId(invoiceTiming) {
-  return invoiceTiming === 'per_store' || invoiceTiming === 'per_order_with_store_tax'
 }
 
 const { Title, Text } = Typography
@@ -212,7 +194,7 @@ export default function VendorProfile() {
     message.success('地址已刪除')
   }
 
-  const showStoreTax = allowsStoreTaxId(info.invoiceTiming)
+  const showStoreTax = allowsStoreTaxId(info.invoiceTaxScope)
   const addrCols = [
     { title: '門市/倉別', dataIndex: 'label', width: 110, ellipsis: true },
     { title: '收件人',   dataIndex: 'recipient', width: 110, ellipsis: true },
@@ -271,10 +253,10 @@ export default function VendorProfile() {
               <Form.Item label="統一編號" name="taxId" rules={[{ required: true }]}>
                 <Input />
               </Form.Item>
-              <Form.Item label="聯繫信箱" name="email" rules={[{ required: true, type: 'email' }]}>
+              <Form.Item label="聯繫信箱" name="contactEmail" rules={[{ required: true, type: 'email' }]}>
                 <Input />
               </Form.Item>
-              <Form.Item label="聯繫窗口" name="contact" rules={[{ required: true }]}>
+              <Form.Item label="聯繫窗口" name="contactName" rules={[{ required: true }]}>
                 <Input />
               </Form.Item>
               <Form.Item label="聯繫電話" name="contactPhone">
@@ -302,8 +284,8 @@ export default function VendorProfile() {
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px 24px' }}>
             {[
               { label: '通路名稱', value: info.name },
-              { label: '聯絡信箱', value: info.email },
-              { label: '聯繫窗口', value: info.contact },
+              { label: '聯絡信箱', value: info.contactEmail },
+              { label: '聯繫窗口', value: info.contactName },
               { label: '聯繫電話', value: info.contactPhone },
               { label: '公司抬頭', value: info.title },
               { label: '統一編號', value: info.taxId },
@@ -346,7 +328,7 @@ export default function VendorProfile() {
           {[
             { label: '結算日',  value: `每月 ${info.settlementDay} 日` },
             { label: '匯款帳號', value: '00709001170（兆豐銀行）' },
-            { label: '發票模式', value: INVOICE_TIMING_LABEL[info.invoiceTiming] ?? '—' },
+            { label: '發票模式', value: invoiceModeLabel(info.invoicePeriod, info.invoiceTaxScope) },
             { label: '發票類型', value: INVOICE_MODE_LABEL[info.invoiceMode] ?? '—' },
           ].map(f => (
             <div key={f.label}>
@@ -377,7 +359,7 @@ export default function VendorProfile() {
         onClose={() => setAddrModal(false)}
         onSave={saveAddr}
         initial={editingAddr}
-        showStoreTaxFields={allowsStoreTaxId(info.invoiceTiming)}
+        showStoreTaxFields={allowsStoreTaxId(info.invoiceTaxScope)}
       />
 
       <ChangePasswordModal

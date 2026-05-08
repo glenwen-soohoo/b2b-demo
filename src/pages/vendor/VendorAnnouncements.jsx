@@ -75,7 +75,15 @@ export default function VendorAnnouncements() {
               >
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8, minWidth: 0, flex: 1 }}>
                   {isUnread && <Badge color="#ff4d4f" style={{ flexShrink: 0 }} />}
-                  {item.priority === 'important' && (
+                  {item.type === 'settlement' && (
+                    <Tag
+                      color="gold"
+                      style={{ margin: 0, fontSize: 11, padding: '0 6px', lineHeight: '18px', flexShrink: 0 }}
+                    >
+                      結算
+                    </Tag>
+                  )}
+                  {item.priority === 'important' && item.type !== 'settlement' && (
                     <Tag
                       color="red"
                       style={{ margin: 0, fontSize: 11, padding: '0 6px', lineHeight: '18px', flexShrink: 0 }}

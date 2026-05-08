@@ -25,52 +25,41 @@ function TokenButton({ label, description }) {
  * Props:
  *   open: bool
  *   onClose: fn
- *   type: 'order_submitted' | 'sales_to_warehouse' | 'warehouse_confirmed' |
- *         'settlement_created' | 'settlement_reminder' |
- *         'vendor_payment_report' | 'payment_received'
+ *   type:
+ *     // 訂單流程
+ *     | 'order_submitted'        // E-01 廠商送出採購單
+ *     | 'order_confirmed'        // E-02 業務確認訂單後（含差異明細）
+ *     | 'order_voided'           // 訂單作廢
+ *     // 結算流程
+ *     | 'settlement_created'     // E-05 結算單產生
+ *     | 'settlement_reminder'    // E-07 催繳款
+ *     | 'vendor_payment_report'  // E-08 廠商回報匯款
+ *     | 'payment_confirmed'      // 業務 / 財務確認收款
+ *     // 發票
+ *     | 'invoice_issued'         // E-09 發票開立完成
+ *     | 'invoice_failed'         // E-17 發票開立失敗（→ 業務）
+ *     // 帳號（E-10~E-14）
+ *     | 'admin_password_reset'   // E-11 後台重設密碼
+ *     | 'password_reset_email'   // E-12 廠商自助忘記密碼
  *   data: object（依 type 不同內容不同）
  */
 export default function NotificationPreviewModal({ open, onClose, onConfirm, type, data, onlyTab }) {
   if (!data) return null;
 
   const renderContent = () => {
-    if (type === 'sales_to_warehouse') {
-      // 業務送倉庫確認時，通知廠商
-      return {
-        title: '業務確認完成通知',
-        to: data.channelEmail ?? data.channelName,
-        subject: `【無毒農】您的B2B訂單 ${data.orderId} 已進入倉庫確認流程`,
-        body: (
-          <div style={{ fontSize: 13, lineHeight: 2 }}>
-            <div>親愛的 {data.channelName} 您好，</div>
-            <div style={{ marginTop: 8 }}>
-              您的B2B訂單 <Text code>{data.orderId}</Text> 已由業務確認完畢，目前進入倉庫確認流程。
-            </div>
-            {data.hasAdjustment && (
-              <div style={{ marginTop: 8, color: '#fa8c16' }}>
-                ⚠️ 業務針對部分品項數量做了調整，最終出貨數量以倉庫確認後的結果為準。
-              </div>
-            )}
-            <div style={{ marginTop: 8 }}>倉庫確認後，我們將再次通知您訂單成立結果。</div>
-            <div style={{ marginTop: 12, color: '#888' }}>如有疑問，請聯繫業務窗口。</div>
-          </div>
-        ),
-      };
-    }
-
-    if (type === 'warehouse_confirmed') {
-      // 倉庫建立訂單時，通知廠商（含差異明細）
+    // E-02 訂單成立通知（業務確認後寄出，含差異明細）
+    if (type === 'order_confirmed') {
       const diffs = data.diffs ?? [];
       const hasDiff = diffs.length > 0;
       return {
         title: '訂單成立通知',
         to: data.channelEmail ?? data.channelName,
-        subject: `【無毒農】您的B2B訂單 ${data.orderId} 已成立${hasDiff ? '（數量異動）' : ''}`,
+        subject: `【無毒農 B2B】您的訂單 ${data.orderId} 已成立${hasDiff ? '（數量異動）' : ''}`,
         body: (
           <div style={{ fontSize: 13, lineHeight: 2 }}>
             <div>親愛的 {data.channelName} 您好，</div>
             <div style={{ marginTop: 8 }}>
-              您的B2B訂單 <Text code>{data.orderId}</Text> 已正式成立，後台正式訂單號：
+              您的B2B訂單 <Text code>{data.orderId}</Text> 已由業務確認並正式成立，後台正式訂單號：
               <Text strong> {data.backendOrderId}</Text>
             </div>
             {hasDiff ? (
@@ -100,13 +89,118 @@ export default function NotificationPreviewModal({ open, onClose, onConfirm, typ
             ) : (
               <div style={{ marginTop: 8, color: '#52c41a' }}>✅ 出貨數量與您的下訂完全一致。</div>
             )}
-            <div style={{ marginTop: 12 }}>後續由倉庫依正常出貨流程處理，感謝您的採購。</div>
+            <div style={{ marginTop: 12 }}>後續依正常出貨流程處理，感謝您的採購。</div>
             <TokenButton
               label="確認訂單內容"
               description="確認此筆B2B訂單（到貨後可回報收貨狀況）"
             />
             <div style={{ marginTop: 8, color: '#888', fontSize: 12 }}>
               若按鈕已失效，請聯繫業務窗口。
+            </div>
+          </div>
+        ),
+      };
+    }
+
+    // 訂單作廢通知
+    if (type === 'order_voided') {
+      return {
+        title: '訂單作廢通知',
+        to: data.channelEmail ?? data.channelName,
+        subject: `【無毒農 B2B】您的訂單 ${data.orderId} 已作廢`,
+        body: (
+          <div style={{ fontSize: 13, lineHeight: 2 }}>
+            <div>親愛的 {data.channelName} 您好，</div>
+            <div style={{ marginTop: 8 }}>
+              您的B2B訂單 <Text code>{data.orderId}</Text> 已由業務作廢處理。
+            </div>
+            {data.reason && (
+              <div style={{ marginTop: 8, padding: '8px 12px', background: '#fff7e6', border: '1px solid #ffd591', borderRadius: 4 }}>
+                <Text strong style={{ color: '#d46b08' }}>作廢原因：</Text>
+                <div style={{ marginTop: 4, color: '#595959' }}>{data.reason}</div>
+              </div>
+            )}
+            {data.recreatedOrderId && (
+              <div style={{ marginTop: 8, color: '#1677ff' }}>
+                ✏️ 已建立替代訂單：<Text code>{data.recreatedOrderId}</Text>
+              </div>
+            )}
+            <div style={{ marginTop: 12, color: '#888' }}>如有疑問，請聯繫業務窗口。</div>
+          </div>
+        ),
+      };
+    }
+
+    // E-09 發票開立完成通知（→ 廠商）
+    if (type === 'invoice_issued') {
+      const invoices = data.invoices ?? [];  // [{storeName, invoiceNumber, amount, buyerName, buyerTaxId}]
+      const isMulti = invoices.length > 1;
+      return {
+        title: '發票開立完成通知',
+        to: data.channelEmail ?? data.channelName,
+        subject: `【無毒農 B2B】${data.settlementMonth} 發票已開立${isMulti ? `（共 ${invoices.length} 張）` : ''}`,
+        body: (
+          <div style={{ fontSize: 13, lineHeight: 2 }}>
+            <div>親愛的 {data.channelName} 您好，</div>
+            <div style={{ marginTop: 8 }}>
+              您 <Text strong>{data.settlementMonth}</Text> 月份的結算發票已開立完成。
+            </div>
+            {invoices.length > 0 && (
+              <Table
+                dataSource={invoices}
+                rowKey={(_, i) => i}
+                size="small"
+                pagination={false}
+                style={{ marginTop: 8 }}
+                columns={[
+                  ...(isMulti ? [{ title: '門市 / 抬頭', dataIndex: 'storeName', width: 130 }] : []),
+                  { title: '抬頭', dataIndex: 'buyerName' },
+                  { title: '統編', dataIndex: 'buyerTaxId', width: 100,
+                    render: v => <Text code style={{ fontSize: 11 }}>{v}</Text> },
+                  { title: '發票號碼', dataIndex: 'invoiceNumber', width: 130,
+                    render: v => <Text code style={{ fontSize: 11 }}>{v}</Text> },
+                  { title: '金額', dataIndex: 'amount', width: 90, align: 'right',
+                    render: v => `$${v.toLocaleString()}` },
+                ]}
+              />
+            )}
+            <div style={{ marginTop: 12, color: '#888' }}>
+              電子發票將由綠界系統另行寄送至您的信箱。
+            </div>
+          </div>
+        ),
+      };
+    }
+
+    // E-17 發票開立失敗通知（→ 業務）
+    if (type === 'invoice_failed') {
+      return {
+        title: '發票開立失敗通知（內部）',
+        to: data.adminEmail ?? '業務 / 財務窗口',
+        subject: `【無毒農 B2B】⚠️ 發票開立失敗：${data.orderId ?? data.settlementId}（需人工處理）`,
+        body: (
+          <div style={{ fontSize: 13, lineHeight: 2 }}>
+            <Alert
+              type="error"
+              showIcon
+              message="發票開立失敗"
+              description={
+                <div>
+                  <div>通路：<Text strong>{data.channelName}</Text></div>
+                  <div>關聯單號：<Text code>{data.orderId ?? data.settlementId}</Text></div>
+                  <div>應開金額：${(data.amount ?? 0).toLocaleString()}</div>
+                </div>
+              }
+              style={{ marginBottom: 12 }}
+            />
+            <div style={{ marginTop: 8 }}>
+              <Text strong>失敗原因：</Text>
+              <div style={{ marginTop: 4, padding: '6px 10px', background: '#fff1f0', border: '1px solid #ffa39e', borderRadius: 4, color: '#a8071a' }}>
+                {data.errorMessage ?? '未知錯誤（請至 ECPay 後台查詢）'}
+              </div>
+            </div>
+            <div style={{ marginTop: 12, color: '#595959' }}>
+              主站 InvoiceService 已自動重試 3 次仍失敗，本筆已進入「待人工處理」清單，請業務 / 財務確認資料後手動處理。
             </div>
           </div>
         ),
@@ -330,7 +424,8 @@ export default function NotificationPreviewModal({ open, onClose, onConfirm, typ
       };
     }
 
-    if (type === 'payment_received') {
+    // 業務 / 財務確認收款後：通知廠商已確認收到匯款
+    if (type === 'payment_confirmed') {
       return {
         title: '廠商已匯款通知',
         tabs: [
