@@ -11,7 +11,7 @@
 //
 // 4 種組合對應到舊的 invoiceTiming：
 //   monthly   + channel   = combined                   整合月結
-//   monthly   + per_store = per_store                  門市月結
+//   monthly   + per_store = per_store                  整合月結（門市統編）
 //   per_order + channel   = per_order                  單筆開票
 //   per_order + per_store = per_order_with_store_tax   單筆開票（門市統編）
 // ─────────────────────────────────────────────
@@ -29,7 +29,7 @@ export const INVOICE_TAX_SCOPE_LABEL = {
 // 完整中文 label（業務看到的描述）
 export function invoiceModeLabel(period, taxScope) {
   if (period === 'monthly'   && taxScope === 'channel')   return '整合月結'
-  if (period === 'monthly'   && taxScope === 'per_store') return '門市月結'
+  if (period === 'monthly'   && taxScope === 'per_store') return '整合月結（門市統編）'
   if (period === 'per_order' && taxScope === 'channel')   return '單筆開票'
   if (period === 'per_order' && taxScope === 'per_store') return '單筆開票（門市統編）'
   return '—'

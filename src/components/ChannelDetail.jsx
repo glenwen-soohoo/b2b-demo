@@ -1,5 +1,5 @@
 import { Drawer, Descriptions, Tabs, Tag, Table, Typography, Space, Divider } from 'antd';
-import { EnvironmentOutlined, FileTextOutlined, BankOutlined, UserOutlined, CheckCircleOutlined } from '@ant-design/icons';
+import { EnvironmentOutlined, FileTextOutlined, BankOutlined, UserOutlined } from '@ant-design/icons';
 import { templates } from '../data/fakeData';
 import { invoiceModeLabel, invoiceModeColor } from '../utils/invoiceMode';
 
@@ -9,12 +9,23 @@ export default function ChannelDetail({ channel, open, onClose }) {
   if (!channel) return null;
 
   const tpl = templates.find(t => t.id === channel.templateId);
+  // 依門市分別統編（per_store）時，每個收件地址各自帶抬頭 / 統編
+  const isPerStore = channel.invoiceTaxScope === 'per_store';
 
   const addressCols = [
     { title: '門市/倉別', dataIndex: 'label', width: 100 },
-    { title: '收件人', dataIndex: 'recipient', width: 150 },
-    { title: '電話', dataIndex: 'phone', width: 120 },
+    { title: '收件人', dataIndex: 'recipient', width: 120 },
+    { title: '電話', dataIndex: 'phone', width: 110 },
     { title: '地址', dataIndex: 'address' },
+    ...(isPerStore ? [{
+      title: '抬頭 / 統編', width: 170,
+      render: (_, r) => (
+        <div style={{ lineHeight: 1.35 }}>
+          <div style={{ fontSize: 13 }}>{r.buyerName ?? channel.title ?? '—'}</div>
+          <div style={{ fontSize: 12, color: '#8c8c8c', whiteSpace: 'nowrap' }}>{r.buyerTaxId ?? channel.taxId ?? '—'}</div>
+        </div>
+      ),
+    }] : []),
   ];
 
   return (
@@ -27,19 +38,13 @@ export default function ChannelDetail({ channel, open, onClose }) {
       }
       open={open}
       onClose={onClose}
-      width={780}
+      width={840}
     >
       <Descriptions bordered size="small" column={2} style={{ marginBottom: 20 }}>
-        <Descriptions.Item label="綁定會員" span={2}>
-          {channel.memberId
-            ? (
-              <Space size={8}>
-                <Tag color="green" icon={<CheckCircleOutlined />}>已綁定</Tag>
-                <span><UserOutlined style={{ marginRight: 4 }} />{channel.memberName}</span>
-                <Text type="secondary" style={{ fontSize: 12 }}>{channel.memberAccount}</Text>
-              </Space>
-            )
-            : <Text type="secondary">未綁定</Text>
+        <Descriptions.Item label="無毒農後台帳號" span={2}>
+          {channel.memberAccount
+            ? <span><UserOutlined style={{ marginRight: 6 }} />{channel.memberAccount}</span>
+            : <Text type="secondary">—</Text>
           }
         </Descriptions.Item>
         <Descriptions.Item label="通路名稱">{channel.name}</Descriptions.Item>
@@ -58,7 +63,7 @@ export default function ChannelDetail({ channel, open, onClose }) {
         </Descriptions.Item>
         <Descriptions.Item label="發票類型">
           {channel.invoiceMode === 'three_copy'
-            ? <><Tag color="cyan">三聯式</Tag><Text type="secondary" style={{ fontSize: 11 }}>寄送至聯繫信箱</Text></>
+            ? <Tag color="cyan">三聯式</Tag>
             : channel.invoiceMode === 'two_copy'
             ? <Tag>二聯式</Tag>
             : <Text type="secondary">—</Text>
@@ -67,17 +72,27 @@ export default function ChannelDetail({ channel, open, onClose }) {
         <Descriptions.Item label="套用模板" span={2}>
           <Tag color="geekblue"><FileTextOutlined /> {tpl?.name ?? channel.templateId}</Tag>
         </Descriptions.Item>
-        <Descriptions.Item label="預設下單備註（通路端亦可填寫）" span={2}>
+        {channel.default_bank_last5 && (
+          <Descriptions.Item label="常用匯款末五碼" span={2}>
+            {channel.default_bank_last5}
+          </Descriptions.Item>
+        )}
+        <Descriptions.Item
+          label={
+            <span>
+              預設下單備註
+              <div style={{ fontSize: 11, color: '#999', fontWeight: 'normal', marginTop: 2 }}>
+                （通路端亦可填寫）
+              </div>
+            </span>
+          }
+          span={2}
+        >
           {channel.default_vendor_note
             ? <Text style={{ whiteSpace: 'pre-line' }}>{channel.default_vendor_note}</Text>
             : <Text type="secondary">—</Text>
           }
         </Descriptions.Item>
-        {channel.default_bank_last5 && (
-          <Descriptions.Item label="常用匯款末五碼" span={2}>
-            <Text code>{channel.default_bank_last5}</Text>
-          </Descriptions.Item>
-        )}
       </Descriptions>
 
       <Tabs
@@ -135,7 +150,7 @@ export default function ChannelDetail({ channel, open, onClose }) {
                 <Descriptions.Item label="付款方式">次月 {channel.settlementDay} 號前付款</Descriptions.Item>
                 {channel.default_bank_last5 && (
                   <Descriptions.Item label="廠商常用匯款末五碼">
-                    <Text code>{channel.default_bank_last5}</Text>
+                    {channel.default_bank_last5}
                   </Descriptions.Item>
                 )}
               </Descriptions>

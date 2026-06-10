@@ -309,9 +309,10 @@ export const PRE_ORDER_STATUS = {
 
 // 結算單狀態（formalOrders / settlements 使用）
 export const SETTLEMENT_STATUS = {
-  awaiting_payment: { label: '待匯款', color: 'gold',  step: 0 },
-  paid:             { label: '已匯款', color: 'lime',  step: 1 },
-  completed:        { label: '完成',   color: 'green', step: 2 },
+  pending_settlement: { label: '尚未結算', color: 'purple', step: -1 },  // 方案 B：發票比結算早開，先呈現本月未結算單
+  awaiting_payment:   { label: '待匯款', color: 'gold',  step: 0 },
+  paid:               { label: '已匯款', color: 'green', step: 1 },  // 與「完成」區隔：已匯款=綠
+  completed:          { label: '完成',   color: 'blue',  step: 2 },  // 完成=藍
 };
 
 // 向後相容（合併，供 StatusTag 使用）
@@ -352,7 +353,7 @@ export const preOrders = [
     storeId: 's005',
     buyerNameSnapshot: '好自然有機生活股份有限公司',
     buyerTaxIdSnapshot: '87654321',
-    taxTypeSnapshot: '三聯式',
+    invoiceTypeSnapshot: '三聯式',
     logs: [
       { time: '2026-03-05 11:30', action: '廠商送出B2B訂單' },
     ],
@@ -395,7 +396,7 @@ export const preOrders = [
     shippingAddress: '台北市信義區松仁路100號1樓',
     store_label: '信義旗艦店',
     storeId: 's003',
-    shippingNumber: '9012345672',
+    blackCatNum: '9012345672',
     blackCatStatus: '順利送達',
     arrivedAt: '2026-03-05 14:00',
     logs: [
@@ -444,7 +445,7 @@ export const preOrders = [
     shippingAddress: '台北市大安區仁愛路四段1號',
     store_label: '大安分店',
     storeId: 's004',
-    shippingNumber: '9012345673',
+    blackCatNum: '9012345673',
     blackCatStatus: '順利送達',
     arrivedAt: '2026-03-09 14:30',
     logs: [
@@ -489,7 +490,7 @@ export const preOrders = [
     createdAt: dayjs('2026-03-15').format('YYYY-MM-DD'),
     shippingAddress: '新北市林口區仁愛路一段346號1樓',
     store_label: '林口店',
-    shippingNumber: '9012345683',
+    blackCatNum: '9012345683',
     blackCatStatus: '順利送達',
     arrivedAt: '2026-03-18 14:30',
     logs: [
@@ -531,7 +532,7 @@ export const preOrders = [
     createdAt: dayjs('2026-03-18').format('YYYY-MM-DD'),
     shippingAddress: '桃園市中壢區中山路188號1樓',
     store_label: '中壢店',
-    shippingNumber: '9012345684',
+    blackCatNum: '9012345684',
     blackCatStatus: '順利送達',
     arrivedAt: '2026-03-21 14:30',
     logs: [
@@ -574,7 +575,7 @@ export const preOrders = [
     shippingAddress: '台北市信義區松仁路100號1樓',
     store_label: '信義旗艦店',
     storeId: 's003',
-    shippingNumber: '9012345685',
+    blackCatNum: '9012345685',
     blackCatStatus: '順利送達',
     arrivedAt: '2026-03-16 14:30',
     logs: [
@@ -601,7 +602,7 @@ export const preOrders = [
     createdAt: dayjs('2026-02-10').format('YYYY-MM-DD'),
     shippingAddress: '新北市林口區仁愛路一段346號1樓',
     store_label: '林口店',
-    shippingNumber: '9012345677',
+    blackCatNum: '9012345677',
     blackCatStatus: '順利送達',
     arrivedAt: '2026-02-13 14:30',
     logs: [
@@ -652,7 +653,7 @@ export const preOrders = [
     createdAt: dayjs('2026-02-15').format('YYYY-MM-DD'),
     shippingAddress: '新北市林口區仁愛路一段346號1樓',
     store_label: '林口店',
-    shippingNumber: '9012345678',
+    blackCatNum: '9012345678',
     blackCatStatus: '順利送達',
     arrivedAt: '2026-02-18 14:30',
     logs: [
@@ -680,7 +681,7 @@ export const preOrders = [
     createdAt: dayjs('2026-01-12').format('YYYY-MM-DD'),
     shippingAddress: '新北市林口區仁愛路一段346號1樓',
     store_label: '林口店',
-    shippingNumber: '9012345679',
+    blackCatNum: '9012345679',
     blackCatStatus: '順利送達',
     arrivedAt: '2026-01-15 14:30',
     logs: [
@@ -710,7 +711,7 @@ export const preOrders = [
     shippingAddress: '台北市大安區仁愛路四段1號',
     store_label: '大安分店',
     storeId: 's004',
-    shippingNumber: '9012345680',
+    blackCatNum: '9012345680',
     blackCatStatus: '順利送達',
     arrivedAt: '2026-01-11 14:30',
     logs: [
@@ -746,8 +747,8 @@ export const preOrders = [
     storeId: 's005',
     buyerNameSnapshot: '好自然有機生活股份有限公司',
     buyerTaxIdSnapshot: '87654321',
-    taxTypeSnapshot: '三聯式',
-    shippingNumber: '9012345681',
+    invoiceTypeSnapshot: '三聯式',
+    blackCatNum: '9012345681',
     blackCatStatus: '順利送達',
     arrivedAt: '2026-02-11 14:30',
     logs: [
@@ -793,7 +794,7 @@ export const preOrders = [
     createdAt: dayjs('2026-03-03').format('YYYY-MM-DD'),
     shippingAddress: '新北市林口區仁愛路一段346號1樓',
     store_label: '林口店',
-    shippingNumber: '9012345675',
+    blackCatNum: '9012345675',
     blackCatStatus: '已出貨',
     logs: [
       { time: '2026-03-03 09:10', action: '廠商送出B2B訂單' },
@@ -836,8 +837,8 @@ export const preOrders = [
     storeId: 's005',
     buyerNameSnapshot: '好自然有機生活股份有限公司',
     buyerTaxIdSnapshot: '87654321',
-    taxTypeSnapshot: '三聯式',
-    shippingNumber: '9012345676',
+    invoiceTypeSnapshot: '三聯式',
+    blackCatNum: '9012345676',
     blackCatStatus: '配送中',
     logs: [
       { time: '2026-03-07 14:20', action: '廠商送出B2B訂單' },
@@ -943,9 +944,9 @@ export const preOrders = [
     store_label: '台中七期店',
     buyerNameSnapshot: '好自然有機生活股份有限公司',
     buyerTaxIdSnapshot: '87654321',
-    taxTypeSnapshot: '三聯式',
+    invoiceTypeSnapshot: '三聯式',
     storeId: 's006',
-    shippingNumber: '9012345690',
+    blackCatNum: '9012345690',
     blackCatStatus: '配送中',
     logs: [
       { time: '2026-03-20 09:30', action: '廠商送出B2B訂單' },
@@ -986,9 +987,9 @@ export const preOrders = [
     store_label: '台北信義店（加盟主）',
     buyerNameSnapshot: '健新生活商行',
     buyerTaxIdSnapshot: '23456789',
-    taxTypeSnapshot: '三聯式',
+    invoiceTypeSnapshot: '三聯式',
     storeId: 's007',
-    shippingNumber: '9012345691',
+    blackCatNum: '9012345691',
     blackCatStatus: '順利送達',
     arrivedAt: '2026-03-18 14:30',
     logs: [
@@ -1028,9 +1029,9 @@ export const preOrders = [
     store_label: '高雄左營店（加盟主）',
     buyerNameSnapshot: '南方健康企業社',
     buyerTaxIdSnapshot: '34567890',
-    taxTypeSnapshot: '三聯式',
+    invoiceTypeSnapshot: '三聯式',
     storeId: 's008',
-    shippingNumber: '9012345692',
+    blackCatNum: '9012345692',
     blackCatStatus: '順利送達',
     arrivedAt: '2026-02-21 11:00',
     logs: [
@@ -1071,9 +1072,9 @@ export const preOrders = [
     store_label: '台中七期店',
     buyerNameSnapshot: '好自然有機生活股份有限公司',
     buyerTaxIdSnapshot: '87654321',
-    taxTypeSnapshot: '三聯式',
+    invoiceTypeSnapshot: '三聯式',
     storeId: 's006',
-    shippingNumber: '9012345693',
+    blackCatNum: '9012345693',
     blackCatStatus: '順利送達',
     arrivedAt: '2026-02-05 10:00',
     logs: [
@@ -1104,7 +1105,7 @@ export const preOrders = [
     shippingAddress: '台北市信義區松仁路100號1樓',
     store_label: '信義旗艦店',
     storeId: 's003',
-    shippingNumber: '9012345700',
+    blackCatNum: '9012345700',
     blackCatStatus: '順利送達',
     arrivedAt: '2026-02-08 14:30',
     logs: [
@@ -1134,7 +1135,7 @@ export const preOrders = [
     shippingAddress: '台北市信義區松仁路100號1樓',
     store_label: '信義旗艦店',
     storeId: 's003',
-    shippingNumber: '9012345701',
+    blackCatNum: '9012345701',
     blackCatStatus: '順利送達',
     arrivedAt: '2026-02-18 10:00',
     logs: [
@@ -1166,7 +1167,7 @@ export const preOrders = [
     shippingAddress: '台北市大安區仁愛路四段1號',
     store_label: '大安分店',
     storeId: 's004',
-    shippingNumber: '9012345702',
+    blackCatNum: '9012345702',
     blackCatStatus: '順利送達',
     arrivedAt: '2026-02-12 14:30',
     logs: [
@@ -1209,7 +1210,7 @@ export const preOrders = [
     shippingAddress: '台北市大安區仁愛路四段1號',
     store_label: '大安分店',
     storeId: 's004',
-    shippingNumber: '9012345703',
+    blackCatNum: '9012345703',
     blackCatStatus: '順利送達',
     arrivedAt: '2026-03-22 11:00',
     logs: [
@@ -1249,7 +1250,7 @@ export const preOrders = [
     shippingAddress: '台北市大安區仁愛路四段1號',
     store_label: '大安分店',
     storeId: 's004',
-    shippingNumber: '9012345704',
+    blackCatNum: '9012345704',
     blackCatStatus: '配送中',
     logs: [
       { time: '2026-03-23 14:00', action: '廠商送出B2B訂單' },
@@ -1324,7 +1325,7 @@ export const formalOrders = [
     storeId: 's005',
     buyerNameSnapshot: '好自然有機生活股份有限公司',
     buyerTaxIdSnapshot: '87654321',
-    taxTypeSnapshot: '三聯式',
+    invoiceTypeSnapshot: '三聯式',
     items: [
       { productId:'p901', productName:'常溫燉飯-金瓜玉米雞肉', unit:'包', qty:30, price:75, cost:50 },
       { productId:'pa02', productName:'拌醬-青蔬總匯吻仔魚',   unit:'包', qty:20, price:75, cost:41 },

@@ -7,21 +7,12 @@ import {
 import { EyeOutlined, DollarOutlined, FilePdfOutlined } from '@ant-design/icons'
 import { preOrders, formalOrders } from '../../data/fakeData'
 import StatusTag from '../../components/StatusTag'
+import InvoiceSection from '../../components/InvoiceSection'
 import { useVendor } from '../../context/VendorContext'
 import NotificationPreviewModal from '../../components/NotificationPreviewModal'
 import { exportSettlementPdf } from '../../utils/exportSettlementPdf'
 
 const { Title, Text } = Typography
-
-// 結算單顯示的「電子發票號碼」文字
-function renderInvoiceNoteRO(settlement, period) {
-  if (period === 'per_order') {
-    return <Text type="secondary">依訂單開票（請看下方各訂單發票號碼）</Text>
-  }
-  return settlement.invoiceNote
-    ? <span style={{ whiteSpace: 'pre-wrap' }}>{settlement.invoiceNote}</span>
-    : <Text type="secondary">尚未開發票</Text>
-}
 
 // ── B2B訂單紀錄 Tab ───────────────────────────────
 function PreOrdersPane({ channelId }) {
@@ -79,7 +70,6 @@ function SettlementsPane({ channel }) {
   const channelId = channel.id
   const channelName = channel.name
   const defaultBankLast5 = channel.default_bank_last5
-  const period   = channel.invoicePeriod
   const taxScope = channel.invoiceTaxScope
   const [settlements, setSettlements] = useState(formalOrders.filter(o => o.channelId === channelId))
   const [selected, setSelected]   = useState(null)
@@ -126,7 +116,7 @@ function SettlementsPane({ channel }) {
         title={selected
           ? <Space><Text strong>{selected.id}</Text><StatusTag status={selected.status} /></Space>
           : ''}
-        width={720}
+        width={840}
       >
         {selected && (() => {
           const relatedOrders = (() => {
@@ -141,9 +131,6 @@ function SettlementsPane({ channel }) {
                 <Text strong style={{ color: '#1677ff', fontSize: 16 }}>
                   ${(selected.totalAmount ?? 0).toLocaleString()}
                 </Text>
-              </Descriptions.Item>
-              <Descriptions.Item label="電子發票號碼" span={2}>
-                {renderInvoiceNoteRO(selected, period)}
               </Descriptions.Item>
             </Descriptions>
 
@@ -168,12 +155,6 @@ function SettlementsPane({ channel }) {
                 ] : []),
                 { title: '正式編號', dataIndex: 'backendOrderId', width: 110,
                   render: v => v ? <Text code style={{ fontSize: 11, whiteSpace: 'nowrap' }}>{v}</Text> : <Text type="secondary">—</Text> },
-                ...(period === 'per_order' ? [
-                  { title: '發票號碼', dataIndex: 'invoiceNumber', width: 125,
-                    render: v => v
-                      ? <Text code style={{ fontSize: 11, whiteSpace: 'nowrap' }}>{v}</Text>
-                      : <Text type="secondary">未開立</Text> },
-                ] : []),
                 { title: '金額', align: 'right', width: 85,
                   render: (_, o) => {
                     const items = o.adjustedItems ?? o.salesAdjustedItems ?? o.items
@@ -182,59 +163,6 @@ function SettlementsPane({ channel }) {
                   }},
               ]}
             />
-
-            {/* per_store：各門市結算金額彙整 */}
-            {period === 'monthly' && taxScope === 'per_store' && relatedOrders.length > 0 && (() => {
-              const groups = new Map()
-              relatedOrders.forEach(o => {
-                const key = o.storeId ?? o.store_label ?? '未知門市'
-                const items = o.adjustedItems ?? o.items
-                const subtotal = items.reduce((s, i) => s + i.qty * i.price, 0)
-                if (!groups.has(key)) {
-                  const addr = channel?.addresses?.find(a => a.storeId === o.storeId)
-                  groups.set(key, {
-                    storeId: o.storeId,
-                    label: addr?.label ?? o.store_label ?? '—',
-                    buyerName:  addr?.buyerName  ?? channel?.title ?? '—',
-                    buyerTaxId: addr?.buyerTaxId ?? channel?.taxId ?? '—',
-                    amount: 0,
-                    orderCount: 0,
-                  })
-                }
-                const g = groups.get(key)
-                g.amount += subtotal
-                g.orderCount += 1
-              })
-              const groupList = Array.from(groups.values())
-              return (
-                <Card
-                  size="small"
-                  style={{ marginBottom: 20, background: '#fafafa', border: '1px solid #e5e5e5' }}
-                >
-                  <div style={{ fontSize: 13, color: '#262626', marginBottom: 12, fontWeight: 600 }}>
-                    各門市結算金額彙整
-                    <span style={{ fontSize: 12, color: '#8c8c8c', fontWeight: 400, marginLeft: 8 }}>
-                      共 {groupList.length} 張發票
-                    </span>
-                  </div>
-                  <Table
-                    dataSource={groupList} rowKey="storeId" size="small" pagination={false}
-                    columns={[
-                      { title: '門市', dataIndex: 'label', width: 120, ellipsis: true,
-                        render: v => <span style={{ fontSize: 13, fontWeight: 500 }}>{v}</span> },
-                      { title: '抬頭', dataIndex: 'buyerName', ellipsis: true,
-                        render: v => <span style={{ fontSize: 13 }}>{v}</span> },
-                      { title: '統編', dataIndex: 'buyerTaxId', width: 100,
-                        render: v => <Text code style={{ fontSize: 12, whiteSpace: 'nowrap' }}>{v}</Text> },
-                      { title: '訂單數', dataIndex: 'orderCount', width: 70, align: 'center',
-                        render: v => <span style={{ fontSize: 13, whiteSpace: 'nowrap' }}>{v} 筆</span> },
-                      { title: '小計', dataIndex: 'amount', align: 'right', width: 95,
-                        render: v => <span style={{ fontSize: 14, fontWeight: 600, whiteSpace: 'nowrap' }}>${v.toLocaleString()}</span> },
-                    ]}
-                  />
-                </Card>
-              )
-            })()}
 
             {selected.status === 'awaiting_payment' && (
               <Card style={{ marginTop: 4, background: '#fffbe6', border: '1px solid #ffe58f', marginBottom: 20 }}>
@@ -290,6 +218,9 @@ function SettlementsPane({ channel }) {
                 匯出 PDF
               </Button>
             </div>
+
+            {/* 方案 B：電子發票（財務視角，依模式預先轉成要開的發票，明細彈窗） */}
+            <InvoiceSection relatedOrders={relatedOrders} channel={channel} settlement={selected} variant="vendor" />
 
             <div style={{ fontWeight: 600, marginBottom: 10, color: '#555' }}>進度紀錄</div>
             <Timeline

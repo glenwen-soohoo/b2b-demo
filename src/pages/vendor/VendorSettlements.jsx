@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
+import dayjs from 'dayjs'
 import {
   Table, Tag, Typography, Card, Space, Timeline, Drawer,
   Button, Descriptions, Divider, message, Input,
@@ -7,23 +8,12 @@ import {
 import { EyeOutlined, DollarOutlined, FilePdfOutlined } from '@ant-design/icons'
 import { formalOrders, preOrders as allPreOrders } from '../../data/fakeData'
 import StatusTag from '../../components/StatusTag'
+import InvoiceSection from '../../components/InvoiceSection'
 import { useVendor } from '../../context/VendorContext'
 import NotificationPreviewModal from '../../components/NotificationPreviewModal'
 import { exportSettlementPdf } from '../../utils/exportSettlementPdf'
 
 const { Title, Text } = Typography
-
-// 結算單顯示的「電子發票號碼」文字
-//  - 單筆開票（period='per_order'）：固定「依訂單開票」
-//  - 月結（period='monthly'）：顯示業務手填的 invoiceNote，否則「尚未開發票」
-function renderInvoiceNoteRO(settlement, period) {
-  if (period === 'per_order') {
-    return <Text type="secondary">依訂單開票（請看下方各訂單發票號碼）</Text>
-  }
-  return settlement.invoiceNote
-    ? <span style={{ whiteSpace: 'pre-wrap' }}>{settlement.invoiceNote}</span>
-    : <Text type="secondary">尚未開發票</Text>
-}
 
 export default function VendorSettlements() {
   const { channel } = useVendor()
@@ -37,6 +27,18 @@ export default function VendorSettlements() {
   const [bankLast5, setBankLast5] = useState(channel?.default_bank_last5 ?? '')
 
   if (!channel) { nav('/login'); return null }
+
+  // 方案 B：尚未結算（本月已到貨、還沒納入結算單的訂單）— 發票比結算早開，先呈現
+  const pendingOrders = allPreOrders.filter(o => o.channelId === channel.id && o.status === 'arrived' && !o.settlementId)
+  const pendingRows = pendingOrders.length === 0 ? [] : [{
+    id: 'PENDING',
+    channelId: channel.id,
+    preOrderIds: pendingOrders.map(o => o.id),
+    totalAmount: pendingOrders.reduce((s, o) => s + (o.adjustedItems ?? o.items).reduce((ss, i) => ss + i.qty * i.price, 0), 0),
+    settlementMonth: [...new Set(pendingOrders.map(o => o.settlementMonth))].sort().join('、'),
+    status: 'pending_settlement', isPending: true, createdAt: dayjs().format('YYYY-MM-DD'), logs: [],
+  }]
+  const displayRows = [...pendingRows, ...settlements]
 
   const openNotif = (r) => {
     setNotifData({
@@ -69,13 +71,13 @@ export default function VendorSettlements() {
     <div style={{ padding: 24 }}>
       <Title level={4} style={{ marginBottom: 20 }}>結算紀錄</Title>
 
-      {settlements.length === 0 ? (
+      {displayRows.length === 0 ? (
         <Card style={{ textAlign: 'center', padding: 40 }}>
           <Text type="secondary">尚無結算紀錄</Text>
         </Card>
       ) : (
         <Table
-          dataSource={settlements}
+          dataSource={displayRows}
           columns={columns}
           rowKey="id"
           size="small"
@@ -89,10 +91,9 @@ export default function VendorSettlements() {
         title={selected
           ? <Space><Text strong>{selected.id}</Text><StatusTag status={selected.status} /></Space>
           : ''}
-        width={680}
+        width={840}
       >
         {selected && (() => {
-          const period   = channel?.invoicePeriod
           const taxScope = channel?.invoiceTaxScope
           const relatedOrders = (() => {
             const ids = selected.preOrderIds ?? []
@@ -106,9 +107,6 @@ export default function VendorSettlements() {
                 <Text strong style={{ color: '#1677ff', fontSize: 16 }}>
                   ${(selected.totalAmount ?? 0).toLocaleString()}
                 </Text>
-              </Descriptions.Item>
-              <Descriptions.Item label="電子發票號碼" span={2}>
-                {renderInvoiceNoteRO(selected, period)}
               </Descriptions.Item>
             </Descriptions>
 
@@ -133,12 +131,6 @@ export default function VendorSettlements() {
                 ] : []),
                 { title: '正式編號', dataIndex: 'backendOrderId', width: 105,
                   render: v => v ? <Text code style={{ fontSize: 11, whiteSpace: 'nowrap' }}>{v}</Text> : <Text type="secondary">—</Text> },
-                ...(period === 'per_order' ? [
-                  { title: '發票號碼', dataIndex: 'invoiceNumber', width: 120,
-                    render: v => v
-                      ? <Text code style={{ fontSize: 11, whiteSpace: 'nowrap' }}>{v}</Text>
-                      : <Text type="secondary">未開立</Text> },
-                ] : []),
                 { title: '金額', align: 'right', width: 80,
                   render: (_, o) => {
                     const items = o.adjustedItems ?? o.salesAdjustedItems ?? o.items
@@ -147,59 +139,6 @@ export default function VendorSettlements() {
                   }},
               ]}
             />
-
-            {/* per_store：各門市結算金額彙整（廠商也能對帳） */}
-            {period === 'monthly' && taxScope === 'per_store' && relatedOrders.length > 0 && (() => {
-              const groups = new Map()
-              relatedOrders.forEach(o => {
-                const key = o.storeId ?? o.store_label ?? '未知門市'
-                const items = o.adjustedItems ?? o.items
-                const subtotal = items.reduce((s, i) => s + i.qty * i.price, 0)
-                if (!groups.has(key)) {
-                  const addr = channel?.addresses?.find(a => a.storeId === o.storeId)
-                  groups.set(key, {
-                    storeId: o.storeId,
-                    label: addr?.label ?? o.store_label ?? '—',
-                    buyerName:  addr?.buyerName  ?? channel?.title ?? '—',
-                    buyerTaxId: addr?.buyerTaxId ?? channel?.taxId ?? '—',
-                    amount: 0,
-                    orderCount: 0,
-                  })
-                }
-                const g = groups.get(key)
-                g.amount += subtotal
-                g.orderCount += 1
-              })
-              const groupList = Array.from(groups.values())
-              return (
-                <Card
-                  size="small"
-                  style={{ marginBottom: 20, background: '#fafafa', border: '1px solid #e5e5e5' }}
-                >
-                  <div style={{ fontSize: 13, color: '#262626', marginBottom: 12, fontWeight: 600 }}>
-                    各門市結算金額彙整
-                    <span style={{ fontSize: 12, color: '#8c8c8c', fontWeight: 400, marginLeft: 8 }}>
-                      共 {groupList.length} 張發票
-                    </span>
-                  </div>
-                  <Table
-                    dataSource={groupList} rowKey="storeId" size="small" pagination={false}
-                    columns={[
-                      { title: '門市', dataIndex: 'label', width: 110, ellipsis: true,
-                        render: v => <span style={{ fontSize: 13, fontWeight: 500 }}>{v}</span> },
-                      { title: '抬頭', dataIndex: 'buyerName', ellipsis: true,
-                        render: v => <span style={{ fontSize: 13 }}>{v}</span> },
-                      { title: '統編', dataIndex: 'buyerTaxId', width: 95,
-                        render: v => <Text code style={{ fontSize: 12, whiteSpace: 'nowrap' }}>{v}</Text> },
-                      { title: '訂單數', dataIndex: 'orderCount', width: 70, align: 'center',
-                        render: v => <span style={{ fontSize: 13, whiteSpace: 'nowrap' }}>{v} 筆</span> },
-                      { title: '小計', dataIndex: 'amount', align: 'right', width: 90,
-                        render: v => <span style={{ fontSize: 14, fontWeight: 600, whiteSpace: 'nowrap' }}>${v.toLocaleString()}</span> },
-                    ]}
-                  />
-                </Card>
-              )
-            })()}
 
             {selected.status === 'awaiting_payment' && (
               <Card style={{ background: '#fffbe6', border: '1px solid #ffe58f', marginBottom: 20 }}>
@@ -228,23 +167,28 @@ export default function VendorSettlements() {
               </Card>
             )}
 
-            <div style={{ marginBottom: 16 }}>
-              <Button
-                icon={<FilePdfOutlined />}
-                onClick={async () => {
-                  try {
-                    message.loading({ content: 'PDF 產生中…', key: 'settle-pdf', duration: 0 })
-                    await exportSettlementPdf({ settlement: selected, relatedOrders })
-                    message.success({ content: '結算單已下載', key: 'settle-pdf' })
-                  } catch (err) {
-                    console.error(err)
-                    message.error({ content: err.message || '匯出失敗', key: 'settle-pdf' })
-                  }
-                }}
-              >
-                匯出 PDF
-              </Button>
-            </div>
+            {!selected.isPending && (
+              <div style={{ marginBottom: 16 }}>
+                <Button
+                  icon={<FilePdfOutlined />}
+                  onClick={async () => {
+                    try {
+                      message.loading({ content: 'PDF 產生中…', key: 'settle-pdf', duration: 0 })
+                      await exportSettlementPdf({ settlement: selected, relatedOrders })
+                      message.success({ content: '結算單已下載', key: 'settle-pdf' })
+                    } catch (err) {
+                      console.error(err)
+                      message.error({ content: err.message || '匯出失敗', key: 'settle-pdf' })
+                    }
+                  }}
+                >
+                  匯出 PDF
+                </Button>
+              </div>
+            )}
+
+            {/* 方案 B：電子發票（財務視角，依模式預先轉成要開的發票，明細彈窗） */}
+            <InvoiceSection relatedOrders={relatedOrders} channel={channel} settlement={selected} variant="vendor" />
 
             <Divider orientation="left" plain>進度紀錄</Divider>
             <Timeline

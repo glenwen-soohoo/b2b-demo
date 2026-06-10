@@ -383,7 +383,7 @@ export default function OrderDetail({ order, open, onClose, onStatusChange, onRe
             {order.backendOrderId || <Text type="secondary">—</Text>}
           </Descriptions.Item>
           <Descriptions.Item label="物流單號">
-            <ShippingCell shippingNumber={order.shippingNumber} />
+            <ShippingCell blackCatNum={order.blackCatNum} />
           </Descriptions.Item>
           {/* 訂單級開票模式：顯示寫入主站 Orders.CompanyName / TaxId 的快照值 */}
           {order.buyerNameSnapshot && (
@@ -391,8 +391,8 @@ export default function OrderDetail({ order, open, onClose, onStatusChange, onRe
               <Space size={6} wrap>
                 <span>{order.buyerNameSnapshot}</span>
                 <Text code style={{ fontSize: 11 }}>{order.buyerTaxIdSnapshot}</Text>
-                {order.taxTypeSnapshot && (
-                  <Tag style={{ fontSize: 10 }}>{order.taxTypeSnapshot}</Tag>
+                {order.invoiceTypeSnapshot && (
+                  <Tag style={{ fontSize: 10 }}>{order.invoiceTypeSnapshot}</Tag>
                 )}
               </Space>
             </Descriptions.Item>
@@ -660,8 +660,9 @@ export default function OrderDetail({ order, open, onClose, onStatusChange, onRe
                   title="確認執行「業務確認完成，建立正式訂單」？"
                   description={
                     <span>
+                      建單會於無毒農後台建立 <strong>0 元訂單</strong>。<br />
                       建單後，未來「建單後修改」調整細項<strong>不會</strong>連動正式訂單<br />
-                      僅 <strong>訂單總金額</strong> 與 <strong>備註文字</strong> 會連動調整。
+                      僅 <strong>備註文字</strong> 會連動調整。
                     </span>
                   }
                   onConfirm={handleSalesConfirm}
