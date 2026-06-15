@@ -20,7 +20,7 @@ const { Title, Text } = Typography
  *   後端：
  *     1. hash token 後查 B2BPasswordResetTokens 表
  *     2. 驗有效（未過期、未使用）
- *     3. 更新 Volunteers.Password
+ *     3. 更新 B2BAccount.PasswordHash
  *     4. 標記 token Used = 1
  *     5. 撤銷該 channel 所有現存的 refresh token（強制其他裝置重新登入）
  */

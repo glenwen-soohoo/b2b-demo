@@ -10,7 +10,7 @@
 //   - accessToken 過期時用 refreshToken 換新（呼叫 /api/b2b/auth/refresh）
 //   - logout() → POST /api/b2b/auth/logout → 後端標記 refreshToken 失效
 //
-// 詳細設計見《B2B 帳號設計方案》7.10 節。
+// 帳號存 B2B 自有 B2BAccount 表（不建主站 Volunteers 假人）。詳細設計見模組 1（通路與帳號）§七。
 // ─────────────────────────────────────────────
 import { createContext, useContext, useState } from 'react'
 

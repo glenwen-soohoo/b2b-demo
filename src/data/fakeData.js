@@ -131,8 +131,9 @@ export const templates = [
 ];
 
 // ─────────────────────────────────────────────
-// 無毒農會員（fruit_web Volunteers 表的精簡版）
-// 通路綁定時會去 fruit_web 查這張表，找到 VolunteersId 關聯。
+// Demo 假會員資料（僅供原型展示）。
+// ⚠️ 正式版：B2B 通路帳號存在 B2B 自有 B2BAccount 表，不綁主站 Volunteers、不每通路建假人。
+//    匯單到主站時，訂購人一律固定掛單一既有會員「無毒農」(手機 0900000000)，走既有「企業訂單匯入」邏輯。
 // ─────────────────────────────────────────────
 export const members = [
   { id: 'v8001', account: 'lin.boss@babeboss.com.tw', name: '黃宥榕',     phone: '0956-950725' },
@@ -158,7 +159,7 @@ export const channels = [
     contactPhone: '0956-950725',
     settlementDay: 25,
     invoicePeriod: 'monthly',      // 月結
-    invoiceTaxScope: 'channel',    // 通路統一統編 → 對應舊 invoiceTiming='combined'（整合月結）
+    invoiceTaxScope: 'channel',    // 通路統一統編（整合月結）
     invoiceMode: 'three_copy',
     deliveryType: 'third_party',
     default_bank_last5: null,
@@ -198,7 +199,7 @@ export const channels = [
     contactPhone: '02-2781-5566',
     settlementDay: 15,
     invoicePeriod: 'monthly',      // 月結
-    invoiceTaxScope: 'per_store',  // 依門市分別統編 → 對應舊 invoiceTiming='per_store'（門市月結）
+    invoiceTaxScope: 'per_store',  // 依門市分別統編（門市月結）
     invoiceMode: 'three_copy',
     deliveryType: 'own_logistics',
     default_bank_last5: '34521',
@@ -241,7 +242,7 @@ export const channels = [
     contactPhone: '04-2328-8899',
     settlementDay: 20,
     invoicePeriod: 'per_order',    // 單筆開票
-    invoiceTaxScope: 'per_store',  // 依門市分別統編 → 對應舊 invoiceTiming='per_order_with_store_tax'
+    invoiceTaxScope: 'per_store',  // 依門市分別統編（單筆開票）
     invoiceMode: 'three_copy',
     deliveryType: 'outsource',
     default_bank_last5: '88156',
@@ -345,7 +346,6 @@ export const preOrders = [
     cs_note: null, b2b_note: null,
     invoicePeriodSnapshot: 'per_order',
     invoiceTaxScopeSnapshot: 'per_store',
-    fruit_order_id: null,
     settlementMonth: '2026-03',
     createdAt: dayjs('2026-03-05').format('YYYY-MM-DD'),
     shippingAddress: '台中市西屯區工業區一路100號',
@@ -389,7 +389,6 @@ export const preOrders = [
     b2b_note: '業務已告知中寶牛肉粥庫存情況，通路接受調整；春季新品折扣已套用。',
     invoicePeriodSnapshot: 'monthly',
     invoiceTaxScopeSnapshot: 'per_store',
-    fruit_order_id: null,
     status: 'settled_done',
     settlementMonth: '2026-03',
     createdAt: dayjs('2026-03-01').format('YYYY-MM-DD'),
@@ -438,7 +437,6 @@ export const preOrders = [
     b2b_note: null,
     invoicePeriodSnapshot: 'monthly',
     invoiceTaxScopeSnapshot: 'per_store',
-    fruit_order_id: 260308008835,
     status: 'settled_done',
     settlementMonth: '2026-03',
     createdAt: dayjs('2026-03-06').format('YYYY-MM-DD'),
@@ -484,7 +482,6 @@ export const preOrders = [
     b2b_note: '下月將上架新款一歲燉飯系列，歡迎提前詢問進貨。',
     invoicePeriodSnapshot: 'monthly',
     invoiceTaxScopeSnapshot: 'channel',
-    fruit_order_id: null,
     status: 'arrived',
     settlementMonth: '2026-03',
     createdAt: dayjs('2026-03-15').format('YYYY-MM-DD'),
@@ -526,7 +523,6 @@ export const preOrders = [
     cs_note: null, b2b_note: null,
     invoicePeriodSnapshot: 'monthly',
     invoiceTaxScopeSnapshot: 'channel',
-    fruit_order_id: null,
     status: 'arrived',
     settlementMonth: '2026-03',
     createdAt: dayjs('2026-03-18').format('YYYY-MM-DD'),
@@ -568,7 +564,6 @@ export const preOrders = [
     b2b_note: '米餅新品試賣價已套用，如有銷售數據歡迎回饋。',
     invoicePeriodSnapshot: 'monthly',
     invoiceTaxScopeSnapshot: 'per_store',
-    fruit_order_id: null,
     status: 'arrived',
     settlementMonth: '2026-03',
     createdAt: dayjs('2026-03-13').format('YYYY-MM-DD'),
@@ -597,7 +592,7 @@ export const preOrders = [
     warehouse_note: null, shipping_note: null,
     backendOrderId: '260212008815', settlementId: 'FO-20260225-C001',
     b2b_order_no: 'B2B-202602-0007', discount_amount: 0, discount_note: null,
-    cs_note: null, b2b_note: null, invoicePeriodSnapshot: 'monthly', invoiceTaxScopeSnapshot: 'channel', fruit_order_id: 260212008815,
+    cs_note: null, b2b_note: null, invoicePeriodSnapshot: 'monthly', invoiceTaxScopeSnapshot: 'channel',
     status: 'settled_done', settlementMonth: '2026-02',
     createdAt: dayjs('2026-02-10').format('YYYY-MM-DD'),
     shippingAddress: '新北市林口區仁愛路一段346號1樓',
@@ -624,7 +619,7 @@ export const preOrders = [
     warehouse_note: null, shipping_note: null,
     backendOrderId: '260212008815b', settlementId: 'FO-20260225-C001',
     b2b_order_no: 'B2B-202602-0008', discount_amount: 200, discount_note: '本月常溫量大，折讓200元。',
-    cs_note: null, b2b_note: null, invoicePeriodSnapshot: 'monthly', invoiceTaxScopeSnapshot: 'channel', fruit_order_id: 260212008815,
+    cs_note: null, b2b_note: null, invoicePeriodSnapshot: 'monthly', invoiceTaxScopeSnapshot: 'channel',
     status: 'settled_done', settlementMonth: '2026-02',
     createdAt: dayjs('2026-02-10').format('YYYY-MM-DD'),
     shippingAddress: '新北市林口區仁愛路一段346號1樓',
@@ -648,7 +643,7 @@ export const preOrders = [
     warehouse_note: null, shipping_note: null,
     backendOrderId: '260217008816', settlementId: 'FO-20260225-C001',
     b2b_order_no: 'B2B-202602-0009', discount_amount: 0, discount_note: null,
-    cs_note: null, b2b_note: null, invoicePeriodSnapshot: 'monthly', invoiceTaxScopeSnapshot: 'channel', fruit_order_id: 260217008816,
+    cs_note: null, b2b_note: null, invoicePeriodSnapshot: 'monthly', invoiceTaxScopeSnapshot: 'channel',
     status: 'settled_done', settlementMonth: '2026-02',
     createdAt: dayjs('2026-02-15').format('YYYY-MM-DD'),
     shippingAddress: '新北市林口區仁愛路一段346號1樓',
@@ -676,7 +671,7 @@ export const preOrders = [
     warehouse_note: null, shipping_note: null,
     backendOrderId: '260114008790', settlementId: 'FO-20260125-C001',
     b2b_order_no: 'B2B-202601-0001', discount_amount: 0, discount_note: null,
-    cs_note: null, b2b_note: null, invoicePeriodSnapshot: 'monthly', invoiceTaxScopeSnapshot: 'channel', fruit_order_id: 260114008790,
+    cs_note: null, b2b_note: null, invoicePeriodSnapshot: 'monthly', invoiceTaxScopeSnapshot: 'channel',
     status: 'settled_done', settlementMonth: '2026-01',
     createdAt: dayjs('2026-01-12').format('YYYY-MM-DD'),
     shippingAddress: '新北市林口區仁愛路一段346號1樓',
@@ -705,7 +700,7 @@ export const preOrders = [
     warehouse_note: null, shipping_note: null,
     backendOrderId: '260110008756', settlementId: 'FO-20260115-C002',
     b2b_order_no: 'B2B-202601-0002', discount_amount: 0, discount_note: null,
-    cs_note: null, b2b_note: null, invoicePeriodSnapshot: 'monthly', invoiceTaxScopeSnapshot: 'per_store', fruit_order_id: 260110008756,
+    cs_note: null, b2b_note: null, invoicePeriodSnapshot: 'monthly', invoiceTaxScopeSnapshot: 'per_store',
     status: 'settled_done', settlementMonth: '2026-01',
     createdAt: dayjs('2026-01-08').format('YYYY-MM-DD'),
     shippingAddress: '台北市大安區仁愛路四段1號',
@@ -739,7 +734,7 @@ export const preOrders = [
     warehouse_note: null, shipping_note: null,
     backendOrderId: '260211008822', settlementId: 'FO-20260220-C003',
     b2b_order_no: 'B2B-202602-0001', discount_amount: 0, discount_note: null,
-    cs_note: null, b2b_note: null, invoicePeriodSnapshot: 'per_order', invoiceTaxScopeSnapshot: 'per_store', fruit_order_id: 260211008822,
+    cs_note: null, b2b_note: null, invoicePeriodSnapshot: 'per_order', invoiceTaxScopeSnapshot: 'per_store',
     status: 'settled_done', settlementMonth: '2026-02',
     createdAt: dayjs('2026-02-08').format('YYYY-MM-DD'),
     shippingAddress: '台中市西屯區工業區一路100號',
@@ -788,7 +783,6 @@ export const preOrders = [
     cs_note: null, b2b_note: null,
     invoicePeriodSnapshot: 'monthly',
     invoiceTaxScopeSnapshot: 'channel',
-    fruit_order_id: null,
     status: 'ordered',
     settlementMonth: '2026-03',
     createdAt: dayjs('2026-03-03').format('YYYY-MM-DD'),
@@ -828,7 +822,6 @@ export const preOrders = [
     cs_note: null, b2b_note: null,
     invoicePeriodSnapshot: 'per_order',
     invoiceTaxScopeSnapshot: 'per_store',
-    fruit_order_id: null,
     status: 'ordered',
     settlementMonth: '2026-03',
     createdAt: dayjs('2026-03-07').format('YYYY-MM-DD'),
@@ -868,7 +861,6 @@ export const preOrders = [
     discount_note: null,
     invoicePeriodSnapshot: 'monthly',
     invoiceTaxScopeSnapshot: 'channel',
-    fruit_order_id: null,
     status: 'pending_sales',
     settlementMonth: '2026-03',
     createdAt: dayjs('2026-03-10').format('YYYY-MM-DD'),
@@ -903,7 +895,6 @@ export const preOrders = [
     cs_note: null, b2b_note: null,
     invoicePeriodSnapshot: 'monthly',
     invoiceTaxScopeSnapshot: 'per_store',
-    fruit_order_id: null,
     status: 'pending_sales',
     settlementMonth: '2026-03',
     createdAt: dayjs('2026-03-08').format('YYYY-MM-DD'),
@@ -936,7 +927,6 @@ export const preOrders = [
     cs_note: null, b2b_note: null,
     invoicePeriodSnapshot: 'per_order',
     invoiceTaxScopeSnapshot: 'per_store',
-    fruit_order_id: null,
     status: 'ordered',
     settlementMonth: '2026-03',
     createdAt: dayjs('2026-03-20').format('YYYY-MM-DD'),
@@ -979,7 +969,6 @@ export const preOrders = [
     b2b_note: null,
     invoicePeriodSnapshot: 'per_order',
     invoiceTaxScopeSnapshot: 'per_store',
-    fruit_order_id: null,
     status: 'arrived',
     settlementMonth: '2026-03',
     createdAt: dayjs('2026-03-15').format('YYYY-MM-DD'),
@@ -1021,7 +1010,6 @@ export const preOrders = [
     cs_note: null, b2b_note: null,
     invoicePeriodSnapshot: 'per_order',
     invoiceTaxScopeSnapshot: 'per_store',
-    fruit_order_id: null,
     status: 'settled_done',
     settlementMonth: '2026-02',
     createdAt: dayjs('2026-02-18').format('YYYY-MM-DD'),
@@ -1064,7 +1052,6 @@ export const preOrders = [
     cs_note: null, b2b_note: null,
     invoicePeriodSnapshot: 'per_order',
     invoiceTaxScopeSnapshot: 'per_store',
-    fruit_order_id: null,
     status: 'settled_done',
     settlementMonth: '2026-02',
     createdAt: dayjs('2026-02-02').format('YYYY-MM-DD'),
@@ -1099,7 +1086,7 @@ export const preOrders = [
     b2b_order_no: 'B2B-202602-0050',
     invoiceNumber: '發票月結',
     discount_amount: 0, discount_note: null,
-    cs_note: null, b2b_note: null, invoicePeriodSnapshot: 'monthly', invoiceTaxScopeSnapshot: 'per_store', fruit_order_id: 260208008900,
+    cs_note: null, b2b_note: null, invoicePeriodSnapshot: 'monthly', invoiceTaxScopeSnapshot: 'per_store',
     status: 'settled_done', settlementMonth: '2026-02',
     createdAt: dayjs('2026-02-05').format('YYYY-MM-DD'),
     shippingAddress: '台北市信義區松仁路100號1樓',
@@ -1129,7 +1116,7 @@ export const preOrders = [
     b2b_order_no: 'B2B-202602-0051',
     invoiceNumber: '發票月結',
     discount_amount: 0, discount_note: null,
-    cs_note: null, b2b_note: null, invoicePeriodSnapshot: 'monthly', invoiceTaxScopeSnapshot: 'per_store', fruit_order_id: 260218008910,
+    cs_note: null, b2b_note: null, invoicePeriodSnapshot: 'monthly', invoiceTaxScopeSnapshot: 'per_store',
     status: 'settled_done', settlementMonth: '2026-02',
     createdAt: dayjs('2026-02-15').format('YYYY-MM-DD'),
     shippingAddress: '台北市信義區松仁路100號1樓',
@@ -1161,7 +1148,7 @@ export const preOrders = [
     b2b_order_no: 'B2B-202602-0052',
     invoiceNumber: '發票月結',
     discount_amount: 0, discount_note: null,
-    cs_note: null, b2b_note: null, invoicePeriodSnapshot: 'monthly', invoiceTaxScopeSnapshot: 'per_store', fruit_order_id: 260212008905,
+    cs_note: null, b2b_note: null, invoicePeriodSnapshot: 'monthly', invoiceTaxScopeSnapshot: 'per_store',
     status: 'settled_done', settlementMonth: '2026-02',
     createdAt: dayjs('2026-02-09').format('YYYY-MM-DD'),
     shippingAddress: '台北市大安區仁愛路四段1號',
@@ -1203,7 +1190,6 @@ export const preOrders = [
     cs_note: null, b2b_note: null,
     invoicePeriodSnapshot: 'monthly',
     invoiceTaxScopeSnapshot: 'per_store',
-    fruit_order_id: null,
     status: 'arrived',
     settlementMonth: '2026-03',
     createdAt: dayjs('2026-03-19').format('YYYY-MM-DD'),
@@ -1243,7 +1229,6 @@ export const preOrders = [
     cs_note: null, b2b_note: null,
     invoicePeriodSnapshot: 'monthly',
     invoiceTaxScopeSnapshot: 'per_store',
-    fruit_order_id: null,
     status: 'ordered',
     settlementMonth: '2026-03',
     createdAt: dayjs('2026-03-23').format('YYYY-MM-DD'),
@@ -1348,7 +1333,6 @@ export const formalOrders = [
   // 貝比波士 2026-01（完成）
   {
     id: 'FO-20260125-C001',
-    invoiceNote: 'IV-202601-0050',
     channelId: 'c001',
     channelName: '貝比波士有限公司',
     preOrderIds: ['b2b-00009'],
@@ -1375,7 +1359,6 @@ export const formalOrders = [
   // 綠色小農 2026-01（完成）只涵蓋大安分店一筆訂單
   {
     id: 'FO-20260115-C002',
-    invoiceNote: '大安分店：IV-202601-0040（綠農加盟商行，12345678）',
     channelId: 'c002',
     channelName: '綠色小農超市',
     preOrderIds: ['b2b-00010'],
@@ -1421,13 +1404,12 @@ export const formalOrders = [
     createdAt: dayjs('2026-02-25').format('YYYY-MM-DD'),
     paymentReportedAt: '2026-02-27 14:00', paymentReportedVia: 'line', reminderSentAt: null,
     shippingAddress: '台北市信義區松仁路100號1樓 / 台北市大安區仁愛路四段1號',
-    invoiceNote: '信義旗艦店：IV-202602-0080（綠色小農超市股份有限公司，54321678）\n大安分店：IV-202602-0081（綠農加盟商行，12345678）',
     logs: [
       { time: '2026-02-25 09:00', action: '手動生成結算單，涵蓋 3 筆B2B訂單（b2b-00050、b2b-00051、b2b-00052）' },
       { time: '2026-02-25 09:01', action: '發結算匯款通知給廠商' },
       { time: '2026-02-27 14:00', action: '廠商回報已匯款' },
+      { time: '2026-02-28 09:00', action: '系統自動開立發票（結算日後 3 天，先開後收）：信義 IV-202602-0080 / 大安 IV-202602-0081' },
       { time: '2026-02-28 10:00', action: '財務確認收款，結算完成' },
-      { time: '2026-02-28 11:00', action: '業務開立發票（信義 IV-202602-0080 / 大安 IV-202602-0081）' },
     ],
   },
   // 綠色小農 2026-03（per_store demo：一張結算單對應信義 + 大安兩門市，待匯款）

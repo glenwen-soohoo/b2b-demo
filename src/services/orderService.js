@@ -6,12 +6,13 @@
 //   - markOrderArrived        → PUT  /api/b2b/orders/{fruitOrderNumber}/arrived
 //   - addToSettlement         → POST /api/b2b/settlements/{settlementId}/orders
 //
-// 對應 fruit_web 入口: HuashanCRM/Models/OrderModel.cs:4954
-//   CreatOrdersAndOrderDetails(PaymentInfoViewModel, Volunteers, Cart.Cart)
-//   注意「雙階段金額寫入」：
-//     phase-1 用 fruit_web 標準商品價建 OrderDetails
-//     phase-2 UPDATE Orders.TotalPrice 為 B2B 確認總金額
-//   ORDER_ORIGIN 需新增 B2B_END=4（目前 Constant.cs:173 最大為 APP_END=3）
+// 對應 fruit_web 入口：重用既有「企業訂單匯入」邏輯
+//   GoX/OrdersController.CreateOrderByExcelEnterprise → OrderImporter.CreateOrdersByExcelImportForEnterprise → OrdersExtension.SetMainOrders
+//   B2B 一鍵匯單 = 組等價 import item 呼叫同一套建單邏輯，並帶：
+//     - OrdersFrom = 4（新增 B2B 列舉值；ORDER_ORIGIN 目前 Constant.cs 最大為 APP_END=3）
+//     - VolunteersId = 固定既有會員「無毒農」(0900000000)；寄件人=無毒農、收件人=通路門市
+//     - TotalPrice = 0（主站訂單金額帶 0；主站 TotalPrice>0 閘門自動不開 B2B 發票；真實金額在 B2B 端）
+//     - 不新增 Orders.IsB2B 欄位（區分 B2B 靠 OrdersFrom=4）
 
 
 function generateB2bOrderNo() {
@@ -87,7 +88,7 @@ export function buildSalesConfirmPatch(order, adjItems, b2bNote) {
 // 正式版改由：
 //   1. 業務在後台手動匯單 → 呼叫 createFruitOrderFromB2B
 //   2. arrived 狀態由主站黑貓貨態爬蟲（BlackCatHelper.ScratchOrdersState）自動推進
-// 詳見《B2B 發票流程設計》6.4 節 + 《現況排查報告》R-9。
+// 詳見交接文件 模組 8（結算與發票）§6.4 + 模組 9（出貨與黑貓貨態）。
 
 /**
  * 計算結算應收金額（含折扣）。
@@ -104,7 +105,7 @@ export function calcSettlementTotal(items, discountAmount = 0) {
  *
  * TODO_FRUIT_WEB: 上線時需在此呼叫 fruit_web 刪單 API
  *   POST /api/OrdersWebApi/DeleteOrder
- *   body: { orderId: order.fruit_order_id, userId: <當前後台帳號 ID> }
+ *   body: { orderId: order.backendOrderId, userId: <當前後台帳號 ID> }   // 正式版統一為 MainOrderId（見 Schema §4.2）
  *   檔案：HuashanCRM/Controllers/Api/Orders/OrdersWebApiController.cs:103
  *
  *   API 自動處理：
@@ -113,7 +114,7 @@ export function calcSettlementTotal(items, discountAmount = 0) {
  *     - 庫存回補、紅利點數收回、優惠券返還、訂閱取消
  *
  *   ⚠️ 不會自動處理（需後台人員手動）：
- *     - 發票作廢（per_order 模式才會有開過發票，後台「作廢發票」按鈕）
+ *     - 發票作廢（Phase 1 B2BInvoiceService 只開立、不作廢；已開過的發票需到綠界後台手動作廢 / 重開）
  *     - 黑貓物流取消（需到黑貓系統直接操作）
  *
  *   ⚠️ B2B 庫存對齊：fruit_web 會把品項加回線上庫存，但 B2B 採購商品
@@ -125,8 +126,8 @@ export function calcSettlementTotal(items, discountAmount = 0) {
  * @returns {Promise<object>} 更新後的訂單欄位 patch
  */
 export async function buildVoidPatch(order, reason = '') {
-  // ── Prototype: 模擬呼叫 fruit_web 刪單 API ──
-  if (order.fruit_order_id) {
+  // ── Prototype: 模擬呼叫 fruit_web 刪單 API（已匯單、有主站正式訂單號才呼叫）──
+  if (order.backendOrderId) {
     await new Promise(r => setTimeout(r, 400))
   }
 
@@ -169,7 +170,6 @@ export function buildRecreatedOrder(oldOrder) {
     status: 'pending_sales',
     b2b_order_no: newB2bNo,
     backendOrderId: null,
-    fruit_order_id: null,
     salesAdjustedItems: null,
     adjustedItems: null,
     shipping_note: oldOrder.shipping_note ?? null,

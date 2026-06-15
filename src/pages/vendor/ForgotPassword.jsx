@@ -7,7 +7,7 @@ import NotificationPreviewModal from '../../components/NotificationPreviewModal'
 
 const { Title, Text } = Typography
 
-// Demo 用：跟 VendorLogin 同一份「帳號 → 通路」的對應（正式版改成查 Volunteers）
+// Demo 用：跟 VendorLogin 同一份「帳號 → 通路」的對應（正式版改成查 B2BAccount）
 const ACCOUNT_TO_CHANNEL = {
   babeboss:   'c001',
   greenfarm:  'c002',
@@ -27,7 +27,7 @@ const ACCOUNT_TO_CHANNEL = {
  * TODO_FRUIT_WEB: 正式版要：
  *   POST /api/b2b/auth/forgot-password { account }
  *   後端：
- *     1. 查 Volunteers WHERE Account=? AND Source='B2B' → 找不到回 404
+ *     1. 查 B2BAccount WHERE Account=? AND Enabled=1 → 找不到回 404
  *     2. 找到則產生 reset token (32-byte random hex) → 存 B2BPasswordResetTokens 表（30 分鐘過期）
  *     3. 寄信到 channel.ContactEmail：含 https://b2b.greenbox.tw/reset-password?token=xxx
  */

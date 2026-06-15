@@ -1,19 +1,17 @@
 // ─────────────────────────────────────────────
 // 發票模式（兩個正交軸）
 //
+// 發票一律由 B2B 自有 B2BInvoiceService 開立（先開後收）；主站不開 B2B 發票。
+//
 // invoicePeriod  = 結算頻率（多久開一張發票）
-//   - 'monthly'   月結（所有訂單彙總到月底結算單，業務手動開立）
-//   - 'per_order' 單筆開票（每筆訂單到貨即開，走主站 InvoiceService）
+//   - 'monthly'   月結（彙整當月訂單壓一張；結算日後 3 天系統自動開立）
+//   - 'per_order' 單筆開票（一訂單一張；到貨後 3 天系統自動開立）
 //
 // invoiceTaxScope = 發票統編範圍（每張發票的買受人怎麼決定）
 //   - 'channel'    通路統一統編（一律用通路 invoiceTitle / taxId）
 //   - 'per_store'  依門市分別統編（用 address.buyerName / buyerTaxId）
 //
-// 4 種組合對應到舊的 invoiceTiming：
-//   monthly   + channel   = combined                   整合月結
-//   monthly   + per_store = per_store                  整合月結（門市統編）
-//   per_order + channel   = per_order                  單筆開票
-//   per_order + per_store = per_order_with_store_tax   單筆開票（門市統編）
+// 4 種組合：整合月結 / 整合月結(門市統編) / 單筆開票 / 單筆開票(門市統編)
 // ─────────────────────────────────────────────
 
 export const INVOICE_PERIOD_LABEL = {

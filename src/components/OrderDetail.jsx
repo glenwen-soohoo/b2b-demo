@@ -204,14 +204,13 @@ export default function OrderDetail({ order, open, onClose, onStatusChange, onRe
   };
 
   const handleSaveEdit = () => {
-    // TODO_FRUIT_WEB: 「建單後修改」的連動規則
-    //   - adjustedItems（品項明細）：**不**同步到正式訂單的 OrderDetail，
-    //     避免覆蓋已出貨的倉庫數量紀錄。
-    //   - 訂單總金額（adjustedItems 加總 - discount_amount）：
-    //     需呼叫 PUT /GoX/Orders/UpdatePrice/{backendOrderId} 同步更新 Orders.TotalPrice。
-    //   - 備註欄位（shipping_note / warehouse_note / cs_note）：
-    //     需呼叫對應 API 同步寫回 fruit_web Orders 備註欄位。
-    //   串接時以此為優先，細項不動、金額與備註要更新。
+    // TODO_FRUIT_WEB: 「建單後修改」的連動規則（建單走既有「企業訂單匯入」邏輯，主站訂單金額帶 0）
+    //   - 品項明細：**不**同步到正式訂單的 OrderDetail（避免覆蓋已出貨紀錄）。
+    //   - 訂單總金額：**不連動**——主站 Orders.TotalPrice 一律 0（B2B 發票走 B2B 平台、不靠主站金額），
+    //     真實金額存 B2B 端 B2BSettlement / B2BPreOrder。
+    //   - 備註文字（shipping_note / cs_note / b2b_note）：需呼叫 sync-notes API 同步寫回主站
+    //     Orders.Remarks / CustomerServiceRemark / RemarkFromAdmin。
+    //   串接時以此為優先：細項不動、金額不動（恆 0）、**只有備註文字會連動**。
     const changes = [];
     displayItems.forEach(orig => {
       const edited = editItems.find(i => i.productId === orig.productId);

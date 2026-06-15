@@ -68,7 +68,7 @@ function AddressModal({ open, onClose, onSave, initial, showStoreTaxFields }) {
  *
  * Demo 行為：開啟彈窗 form，提交後顯示成功訊息（不真的改）
  * TODO_FRUIT_WEB: 正式版要 POST /api/b2b/auth/change-password { currentPassword, newPassword }
- *   後端驗證舊密碼後更新 Volunteers.Password
+ *   後端驗證舊密碼後更新 B2BAccount.PasswordHash
  */
 function ChangePasswordModal({ open, onClose }) {
   const [loading, setLoading] = useState(false)

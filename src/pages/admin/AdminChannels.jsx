@@ -18,8 +18,8 @@ const { Title, Text } = Typography
 //   invoicePeriod   = 結算頻率（monthly / per_order）
 //   invoiceTaxScope = 統編範圍（channel / per_store）
 const INVOICE_PERIOD_OPTIONS = [
-  { value: 'monthly',   label: '月結（彙總到月底結算單）' },
-  { value: 'per_order', label: '單筆開票（每筆訂單到貨即開）' },
+  { value: 'monthly',   label: '月結（結算日後 3 天開立）' },
+  { value: 'per_order', label: '單筆開票（到貨後 3 天開立）' },
 ]
 
 const INVOICE_TAX_SCOPE_OPTIONS = [

@@ -200,7 +200,7 @@ export default function NotificationPreviewModal({ open, onClose, onConfirm, typ
               </div>
             </div>
             <div style={{ marginTop: 12, color: '#595959' }}>
-              主站 InvoiceService 已自動重試 3 次仍失敗，本筆已進入「待人工處理」清單，請業務 / 財務確認資料後手動處理。
+              B2B 系統（B2BInvoiceService）已自動重試 3 次仍失敗，本筆已進入「待人工處理」清單，請業務 / 財務確認資料後手動處理。
             </div>
           </div>
         ),
