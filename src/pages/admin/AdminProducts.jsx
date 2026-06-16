@@ -189,7 +189,7 @@ function ProductModal({ open, onClose, onSave, initial, categories }) {
           </Col>
           <Col span={12}>
             <Form.Item
-              label="前台展示頁面 ID"
+              label="前台展示頁面的產品 ID"
               shouldUpdate={(p, c) => p.frontend_product_id !== c.frontend_product_id}
             >
               {({ getFieldValue }) => {
