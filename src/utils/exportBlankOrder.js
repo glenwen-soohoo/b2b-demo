@@ -5,6 +5,7 @@ import { shippingSettings } from '../data/fakeData'
 
 import { ARGB } from './exportTheme'
 import { BASE_URL } from '../config'
+import { settlementDayLabel, settlementCutoffDay } from './invoiceMode'
 
 const LOGO_PATH = `${BASE_URL}assets/logo.png`
 
@@ -296,7 +297,7 @@ function buildSheet(wb, logoImageId, { cat, prods, channel, systemSettings }) {
   const settlementDay = channel?.settlementDay ?? 25
   const terms = [
     '1. 本訂單金額皆為含稅價，合作方式為買斷，已出貨商品恕不退換。',
-    `2. 付款方式：月結 30 天（每月 ${settlementDay} 日前付清當期帳款）。`,
+    `2. 付款方式：月結 30 天（${settlementDayLabel(settlementDay)}前付清當期帳款）。`,
     '3. 合作方式：買斷',
     '4. 出貨方式：黑貓宅配；冷凍與常溫各自產生獨立訂單出貨。',
     '5. 請於【數量】欄填入欲訂購數量，【小計】將自動計算。',
@@ -324,7 +325,7 @@ function buildSheet(wb, logoImageId, { cat, prods, channel, systemSettings }) {
 
   // ══════ 客戶資訊表 ══════
   const today = new Date()
-  const autoSettlement = today.getDate() > settlementDay
+  const autoSettlement = today.getDate() > settlementCutoffDay(settlementDay)
     ? `${today.getFullYear()}-${String(today.getMonth() + 2).padStart(2, '0')}`
     : `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}`
   const defaultAddr = channel?.addresses?.[0]?.address ?? ''
@@ -355,7 +356,7 @@ function buildSheet(wb, logoImageId, { cat, prods, channel, systemSettings }) {
   ;[
     { cell: `B${row}`, val: channel?.name ?? '' },
     { cell: `C${row}`, val: today, fmt: 'yyyy/m/d' },
-    { cell: `F${row}`, val: `${autoSettlement}（每月 ${settlementDay} 日結帳）` },
+    { cell: `F${row}`, val: `${autoSettlement}（${settlementDayLabel(settlementDay)}結帳）` },
   ].forEach(d => {
     const c = ws.getCell(d.cell)
     c.value = d.val

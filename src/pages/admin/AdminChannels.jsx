@@ -1,7 +1,7 @@
 import { useState, useMemo } from 'react'
 import {
   Table, Button, Typography, Badge, Space, Modal, Form, Input,
-  InputNumber, Select, Popconfirm, message, Divider, Row, Col, Tag, Alert,
+  Select, Popconfirm, message, Divider, Row, Col, Tag, Alert,
 } from 'antd'
 import {
   EyeOutlined, EditOutlined, PlusOutlined, SearchOutlined,
@@ -10,21 +10,21 @@ import {
 import { channels as initialChannels, templates } from '../../data/fakeData'
 import ChannelDetail from '../../components/ChannelDetail'
 import NotificationPreviewModal from '../../components/NotificationPreviewModal'
-import { invoiceModeLabel, invoiceModeColor } from '../../utils/invoiceMode'
+import { invoiceModeLabel, invoiceModeColor, settlementDayLabel } from '../../utils/invoiceMode'
 
 const { Title, Text } = Typography
 
-// 發票模式為兩個正交軸（語意說明見 utils/invoiceMode.js）：
-//   invoicePeriod   = 結算頻率（monthly / per_order）
-//   invoiceTaxScope = 統編範圍（channel / per_store）
+// 結算頻率（語意說明見 utils/invoiceMode.js）。
+// 發票統編一律「依門市分別統編」(per_store)，不再提供「通路統一統編」選項。
 const INVOICE_PERIOD_OPTIONS = [
   { value: 'monthly',   label: '月結（結算日後 3 天開立）' },
   { value: 'per_order', label: '單筆開票（到貨後 3 天開立）' },
 ]
 
-const INVOICE_TAX_SCOPE_OPTIONS = [
-  { value: 'channel',   label: '通路統一統編' },
-  { value: 'per_store', label: '依門市分別統編' },
+// 結算日只開放兩種（括號內為實際跑結算排程的日子）
+const SETTLEMENT_DAY_OPTIONS = [
+  { value: 25,     label: '每月 25 日（26 號跑排程）' },
+  { value: 'last', label: '每月最後一日（次月 1 日跑排程）' },
 ]
 
 const DELIVERY_TYPE_OPTIONS = [
@@ -127,7 +127,8 @@ function ChannelModal({ open, onClose, onSave, onResetPassword, onDisable, onEna
           form.setFieldsValue(initial ?? {
             invoiceMode: 'three_copy',
             invoicePeriod: 'monthly',
-            invoiceTaxScope: 'channel',
+            invoiceTaxScope: 'per_store',
+            settlementDay: 25,
           })
         }
       }}
@@ -187,12 +188,12 @@ function ChannelModal({ open, onClose, onSave, onResetPassword, onDisable, onEna
         </Row>
         <Row gutter={12}>
           <Col span={12}>
-            <Form.Item label="公司抬頭" name="title" rules={[{ required: true }]}>
+            <Form.Item label="預設公司抬頭" name="title" rules={[{ required: true }]}>
               <Input />
             </Form.Item>
           </Col>
           <Col span={12}>
-            <Form.Item label="統一編號" name="taxId" rules={[{ required: true }]}>
+            <Form.Item label="預設統一編號" name="taxId" rules={[{ required: true }]}>
               <Input />
             </Form.Item>
           </Col>
@@ -213,24 +214,17 @@ function ChannelModal({ open, onClose, onSave, onResetPassword, onDisable, onEna
 
         <Divider orientation="left" plain style={{ margin: '4px 0 12px' }}>結算 &amp; 發票設定</Divider>
         <Row gutter={12}>
-          <Col span={12}>
+          <Col span={10}>
             <Form.Item label="結算日" name="settlementDay" rules={[{ required: true }]}>
-              <InputNumber min={1} max={31} addonBefore={<span style={{ whiteSpace: 'nowrap' }}>每月</span>} addonAfter="日" style={{ width: '100%' }} />
+              <Select options={SETTLEMENT_DAY_OPTIONS} />
             </Form.Item>
           </Col>
-          <Col span={12}>
-            <Form.Item label="結算頻率" name="invoicePeriod" rules={[{ required: true }]}>
+          <Col span={10}>
+            <Form.Item label="開發票頻率" name="invoicePeriod" rules={[{ required: true }]}>
               <Select options={INVOICE_PERIOD_OPTIONS} />
             </Form.Item>
           </Col>
-        </Row>
-        <Row gutter={12}>
-          <Col span={12}>
-            <Form.Item label="發票統編" name="invoiceTaxScope" rules={[{ required: true }]}>
-              <Select options={INVOICE_TAX_SCOPE_OPTIONS} />
-            </Form.Item>
-          </Col>
-          <Col span={12}>
+          <Col span={4}>
             <Form.Item label="發票類型" name="invoiceMode" rules={[{ required: true }]}>
               <Select options={INVOICE_MODE_OPTIONS} />
             </Form.Item>
@@ -291,6 +285,7 @@ export default function AdminChannels() {
   const closeModal = ()  => { setModalOpen(false); setEditing(null) }
 
   const handleSave = (values) => {
+    values = { ...values, invoiceTaxScope: 'per_store' }   // 統編一律依門市分別開立，不再提供選項
     if (values.id) {
       setChannelList(prev => prev.map(c => c.id === values.id ? { ...c, ...values } : c))
       message.success('通路資料已更新')
@@ -351,10 +346,10 @@ export default function AdminChannels() {
           {r.enabled === false && <Tag color="default" style={{ fontSize: 10, margin: 0 }}>已停用</Tag>}
         </Space>
       )},
-    { title: '統一編號', dataIndex: 'taxId', width: 110 },
+    { title: '預設統編', dataIndex: 'taxId', width: 110 },
     { title: '聯繫信箱', dataIndex: 'contactEmail' },
     { title: '聯繫窗口', dataIndex: 'contactName', width: 150,
-      render: (v, r) => `${v ?? ''}　${r.contactPhone ?? ''}` },
+      render: (v, r) => <>{v ?? ''}<br />{r.contactPhone ?? ''}</> },
     { title: '發票模式', width: 130,
       render: (_, r) => {
         if (!r.invoicePeriod || !r.invoiceTaxScope) return <span style={{ color: '#bbb' }}>—</span>
@@ -372,8 +367,8 @@ export default function AdminChannels() {
           </Tag>
         : <span style={{ color: '#bbb' }}>—</span>
     },
-    { title: '結算日', dataIndex: 'settlementDay', width: 100,
-      render: v => `每月 ${v} 日` },
+    { title: '結算日', dataIndex: 'settlementDay', width: 110,
+      render: v => settlementDayLabel(v) },
     { title: '收件地址', dataIndex: 'addresses', width: 80, align: 'center',
       render: arr => <Badge count={arr?.length ?? 0} color="#1677ff" /> },
     { title: '操作', width: 130, align: 'center',

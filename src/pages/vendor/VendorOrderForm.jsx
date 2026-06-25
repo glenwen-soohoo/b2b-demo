@@ -8,6 +8,7 @@ import {
   ShoppingCartOutlined, WarningOutlined, DownloadOutlined,
 } from '@ant-design/icons'
 import { products, templates, categories, systemSettings, shippingSettings } from '../../data/fakeData'
+import { settlementDayLabel } from '../../utils/invoiceMode'
 import { useVendor } from '../../context/VendorContext'
 import NotificationPreviewModal from '../../components/NotificationPreviewModal'
 import OrderPreviewModal from '../../components/OrderPreviewModal'
@@ -171,7 +172,7 @@ export default function VendorOrderForm() {
             background: '#f6ffed', border: '1px solid #b7eb8f', borderRadius: 8,
             padding: '5px 14px', fontSize: 14, fontWeight: 600, color: '#389e0d',
           }}>
-            月結日：每月 {channel.settlementDay} 日
+            月結日：{settlementDayLabel(channel.settlementDay)}
           </div>
         </Space>
       </div>

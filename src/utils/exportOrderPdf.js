@@ -4,6 +4,7 @@ import { productMap, categories as allCats, shippingSettings } from '../data/fak
 import { COLOR, escapeHtml } from './exportTheme'
 import { newA4Pdf, makeOffscreenContainer, renderDivToPdfPage, todayYmd } from './pdfRenderer'
 import { BASE_URL } from '../config'
+import { settlementDayLabel } from './invoiceMode'
 
 const LOGO_PATH = `${BASE_URL}assets/logo.png`
 
@@ -140,7 +141,7 @@ function buildTemperaturePageHtml({ temperature, groupItems, order, channel, sys
       <div style="font-size:11px;font-weight:700;color:${COLOR.text};margin-bottom:4px;">📋  合作條款</div>
       <div style="font-size:9px;color:${COLOR.text};line-height:1.65;">
         <div>1. 本訂單金額皆為含稅價，合作方式為買斷，已出貨商品恕不退換。</div>
-        <div>2. 付款方式：月結 30 天（每月 ${settlementDay} 日前付清當期帳款）。</div>
+        <div>2. 付款方式：月結 30 天（${settlementDayLabel(settlementDay)}前付清當期帳款）。</div>
         <div>3. 出貨方式：黑貓宅配；冷凍與常溫各自產生獨立訂單出貨。</div>
         <div>4. 【匯款資訊】戶名：舒果農企業有限公司 / 金融機構代碼：兆豐 0170077 / 帳號：00709001170</div>
       </div>
@@ -165,7 +166,7 @@ function buildTemperaturePageHtml({ temperature, groupItems, order, channel, sys
         <tr>
           <td style="padding:6px 10px;border:1px solid ${COLOR.borderGray};font-size:11px;font-weight:700;">${escapeHtml(channel?.name ?? order.channelName ?? '')}${order.store_label ? `　<span style="color:${COLOR.textMuted};font-weight:400;font-size:10px;">${escapeHtml(order.store_label)}</span>` : ''}</td>
           <td style="padding:6px 10px;border:1px solid ${COLOR.borderGray};font-size:11px;font-weight:700;">${escapeHtml(order.createdAt || '')}</td>
-          <td style="padding:6px 10px;border:1px solid ${COLOR.borderGray};font-size:11px;font-weight:700;">${escapeHtml(order.settlementMonth || '')}（每月 ${settlementDay} 日結帳）</td>
+          <td style="padding:6px 10px;border:1px solid ${COLOR.borderGray};font-size:11px;font-weight:700;">${escapeHtml(order.settlementMonth || '')}（${settlementDayLabel(settlementDay)}結帳）</td>
         </tr>
         <!-- Row 2：連絡電話 / 出貨地址（跨 2 欄）-->
         <tr>

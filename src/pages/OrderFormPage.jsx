@@ -5,6 +5,7 @@ import {
 } from 'antd';
 import { ShoppingCartOutlined, FileTextOutlined, SendOutlined } from '@ant-design/icons';
 import { channels, products, templates } from '../data/fakeData';
+import { settlementDayLabel } from '../utils/invoiceMode';
 
 const { Title, Text } = Typography;
 
@@ -51,7 +52,7 @@ function OrderPreviewModal({ open, onClose, items, channel }) {
         <Descriptions.Item label="收件人">{addr.recipient}</Descriptions.Item>
         <Descriptions.Item label="收件電話">{addr.phone}</Descriptions.Item>
         <Descriptions.Item label="收件地址" span={2}>{addr.address}</Descriptions.Item>
-        <Descriptions.Item label="付款方式" span={2}>於 {channel.settlementDay} 日收到結算單後匯款</Descriptions.Item>
+        <Descriptions.Item label="付款方式" span={2}>{settlementDayLabel(channel.settlementDay)}收到結算單後匯款</Descriptions.Item>
       </Descriptions>
 
       <Table dataSource={items} columns={cols} rowKey="id" size="small" pagination={false}
@@ -167,7 +168,7 @@ export default function OrderFormPage() {
           />
           {channel && (
             <Text type="secondary" style={{ fontSize: 12 }}>
-              套用模板：{tpl?.name} ｜ 月結日：每月 {channel.settlementDay} 日
+              套用模板：{tpl?.name} ｜ 月結日：{settlementDayLabel(channel.settlementDay)}
             </Text>
           )}
         </Space>

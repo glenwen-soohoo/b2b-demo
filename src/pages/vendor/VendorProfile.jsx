@@ -8,7 +8,7 @@ import {
   DeleteOutlined, EnvironmentOutlined, LockOutlined,
 } from '@ant-design/icons'
 import { useVendor } from '../../context/VendorContext'
-import { invoiceModeLabel, allowsStoreTaxId } from '../../utils/invoiceMode'
+import { invoiceModeLabel, allowsStoreTaxId, settlementDayLabel } from '../../utils/invoiceMode'
 
 // 票面類型 label
 const INVOICE_MODE_LABEL = {
@@ -18,7 +18,7 @@ const INVOICE_MODE_LABEL = {
 
 const { Title, Text } = Typography
 
-function AddressModal({ open, onClose, onSave, initial, showStoreTaxFields }) {
+function AddressModal({ open, onClose, onSave, initial, channelDefaults }) {
   const [form] = Form.useForm()
   return (
     <Modal
@@ -27,7 +27,7 @@ function AddressModal({ open, onClose, onSave, initial, showStoreTaxFields }) {
       okText="儲存" cancelText="取消"
       destroyOnClose
       onOk={() => form.validateFields().then(v => { onSave(v); onClose() })}
-      afterOpenChange={vis => { if (vis) form.setFieldsValue(initial ?? {}) }}
+      afterOpenChange={vis => { if (vis) form.setFieldsValue(initial ?? { ...channelDefaults }) }}
     >
       <Form form={form} layout="vertical" style={{ marginTop: 8 }}>
         <Form.Item label="門市/倉別名稱" name="label" rules={[{ required: true }]}>
@@ -42,22 +42,18 @@ function AddressModal({ open, onClose, onSave, initial, showStoreTaxFields }) {
         <Form.Item label="收件地址" name="address" rules={[{ required: true }]}>
           <Input />
         </Form.Item>
-        {showStoreTaxFields && (
-          <>
-            <Divider plain style={{ margin: '8px 0 12px', fontSize: 12, color: '#999' }}>
-              發票買受人（選填）
-            </Divider>
-            <div style={{ marginBottom: 12, fontSize: 11, color: '#999' }}>
-              填寫此門市專屬的發票抬頭與統編；未填則沿用通路統一抬頭。
-            </div>
-            <Form.Item label="發票抬頭" name="buyerName">
-              <Input placeholder="選填，例：分公司或加盟主名稱" />
-            </Form.Item>
-            <Form.Item label="統一編號" name="buyerTaxId">
-              <Input placeholder="選填，8 碼" maxLength={8} />
-            </Form.Item>
-          </>
-        )}
+        <Divider plain style={{ margin: '8px 0 12px', fontSize: 12, color: '#999' }}>
+          發票買受人
+        </Divider>
+        <div style={{ marginBottom: 12, fontSize: 11, color: '#999' }}>
+          每個門市各自開立發票，已自動帶入通路的預設抬頭與統編，可依此門市實際情況調整。
+        </div>
+        <Form.Item label="發票抬頭" name="buyerName" rules={[{ required: true, message: '請填寫發票抬頭' }]}>
+          <Input placeholder="例：分公司或加盟主名稱" />
+        </Form.Item>
+        <Form.Item label="統一編號" name="buyerTaxId" rules={[{ required: true, message: '請填寫統一編號' }]}>
+          <Input placeholder="8 碼" maxLength={8} />
+        </Form.Item>
       </Form>
     </Modal>
   )
@@ -206,9 +202,9 @@ export default function VendorProfile() {
     // 條件顯示：channel 允許各門市分開設定統編時才顯示
     ...(showStoreTax ? [
       { title: '發票抬頭', dataIndex: 'buyerName', width: 130, ellipsis: true,
-        render: v => v || <Text type="secondary" style={{ fontSize: 11 }}>沿用通路</Text> },
+        render: v => v || <Text type="secondary" style={{ fontSize: 11 }}>未設定</Text> },
       { title: '統編', dataIndex: 'buyerTaxId', width: 90,
-        render: v => v || <Text type="secondary" style={{ fontSize: 11 }}>沿用通路</Text> },
+        render: v => v || <Text type="secondary" style={{ fontSize: 11 }}>未設定</Text> },
     ] : []),
     {
       title: '操作', width: 80, align: 'center', fixed: showStoreTax ? 'right' : undefined,
@@ -247,10 +243,10 @@ export default function VendorProfile() {
               <Form.Item label="通路名稱" name="name" rules={[{ required: true }]}>
                 <Input />
               </Form.Item>
-              <Form.Item label="公司抬頭" name="title" rules={[{ required: true }]}>
+              <Form.Item label="預設公司抬頭" name="title" rules={[{ required: true }]}>
                 <Input />
               </Form.Item>
-              <Form.Item label="統一編號" name="taxId" rules={[{ required: true }]}>
+              <Form.Item label="預設統一編號" name="taxId" rules={[{ required: true }]}>
                 <Input />
               </Form.Item>
               <Form.Item label="聯繫信箱" name="contactEmail" rules={[{ required: true, type: 'email' }]}>
@@ -287,8 +283,8 @@ export default function VendorProfile() {
               { label: '聯絡信箱', value: info.contactEmail },
               { label: '聯繫窗口', value: info.contactName },
               { label: '聯繫電話', value: info.contactPhone },
-              { label: '公司抬頭', value: info.title },
-              { label: '統一編號', value: info.taxId },
+              { label: '預設公司抬頭', value: info.title },
+              { label: '預設統一編號', value: info.taxId },
               { label: '常用匯款末五碼', value: info.default_bank_last5 || null },
             ].map(f => (
               <div key={f.label}>
@@ -326,7 +322,7 @@ export default function VendorProfile() {
         </div>
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px 24px' }}>
           {[
-            { label: '結算日',  value: `每月 ${info.settlementDay} 日` },
+            { label: '結算日',  value: settlementDayLabel(info.settlementDay) },
             { label: '匯款帳號', value: '00709001170（兆豐銀行）' },
             { label: '發票模式', value: invoiceModeLabel(info.invoicePeriod, info.invoiceTaxScope) },
             { label: '發票類型', value: INVOICE_MODE_LABEL[info.invoiceMode] ?? '—' },
@@ -359,7 +355,7 @@ export default function VendorProfile() {
         onClose={() => setAddrModal(false)}
         onSave={saveAddr}
         initial={editingAddr}
-        showStoreTaxFields={allowsStoreTaxId(info.invoiceTaxScope)}
+        channelDefaults={{ buyerName: info.title, buyerTaxId: info.taxId }}
       />
 
       <ChangePasswordModal

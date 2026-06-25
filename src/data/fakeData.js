@@ -159,7 +159,7 @@ export const channels = [
     contactPhone: '0956-950725',
     settlementDay: 25,
     invoicePeriod: 'monthly',      // 月結
-    invoiceTaxScope: 'channel',    // 通路統一統編（整合月結）
+    invoiceTaxScope: 'per_store',  // 依門市分別統編（統編範圍選項已移除，一律 per_store）
     invoiceMode: 'three_copy',
     deliveryType: 'third_party',
     default_bank_last5: null,
@@ -197,7 +197,7 @@ export const channels = [
     contactEmail: 'order@greenfarm.com.tw',
     contactName: '林采璇',
     contactPhone: '02-2781-5566',
-    settlementDay: 15,
+    settlementDay: 25,
     invoicePeriod: 'monthly',      // 月結
     invoiceTaxScope: 'per_store',  // 依門市分別統編（門市月結）
     invoiceMode: 'three_copy',
@@ -240,7 +240,7 @@ export const channels = [
     contactEmail: 'purchase@haoran.com.tw',
     contactName: '陳雅婷',
     contactPhone: '04-2328-8899',
-    settlementDay: 20,
+    settlementDay: 'last',         // 每月最後一日（次月 1 日跑結算排程）
     invoicePeriod: 'per_order',    // 單筆開票
     invoiceTaxScope: 'per_store',  // 依門市分別統編（單筆開票）
     invoiceMode: 'three_copy',

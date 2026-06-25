@@ -8,6 +8,7 @@ import {
   EnvironmentOutlined, InfoCircleOutlined,
 } from '@ant-design/icons'
 import dayjs from 'dayjs'
+import { settlementDayLabel, settlementCutoffDay } from '../utils/invoiceMode'
 import { shippingSettings } from '../data/fakeData'
 import { TEMP } from '../styles/tokens'
 
@@ -57,7 +58,7 @@ export default function OrderPreviewModal({ open, onClose, items, channel, onCon
   const addresses = channel?.addresses ?? []
 
   const now = dayjs()
-  const settlementMonth = now.date() > (channel?.settlementDay ?? 25)
+  const settlementMonth = now.date() > settlementCutoffDay(channel?.settlementDay)
     ? now.add(1, 'month').format('YYYY-MM')
     : now.format('YYYY-MM')
 
@@ -113,7 +114,7 @@ export default function OrderPreviewModal({ open, onClose, items, channel, onCon
           <Text strong>{settlementMonth}</Text>
         </Descriptions.Item>
         <Descriptions.Item label="付款方式">
-          於 {channel.settlementDay} 日收到結算單後匯款
+          {settlementDayLabel(channel.settlementDay)}收到結算單後匯款
         </Descriptions.Item>
       </Descriptions>
 

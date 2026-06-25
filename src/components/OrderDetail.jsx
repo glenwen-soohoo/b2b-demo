@@ -12,6 +12,7 @@ import StatusTag from './StatusTag';
 import OrderStateMachine from './OrderStateMachine';
 import ShippingCell from './ShippingCell';
 import { productMap, channelMap, systemSettings } from '../data/fakeData';
+import { settlementCutoffDay } from '../utils/invoiceMode';
 
 const { Text } = Typography;
 
@@ -20,13 +21,13 @@ function getSettlementMonthOptions(settlementDay, currentValue) {
   const months = [now, now.add(1, 'month'), now.add(2, 'month')]
   const options = months.map(m => ({
     value: m.format('YYYY-MM'),
-    label: `${m.format('YYYY-MM')}（${m.month() + 1}月${settlementDay}日）`,
+    label: `${m.format('YYYY-MM')}（${m.month() + 1}月${settlementDay === 'last' ? '底' : settlementDay + '日'}）`,
   }))
   if (currentValue && !options.some(o => o.value === currentValue)) {
     const m = dayjs(currentValue + '-01')
     options.unshift({
       value: currentValue,
-      label: `${currentValue}（${m.month() + 1}月${settlementDay}日）`,
+      label: `${currentValue}（${m.month() + 1}月${settlementDay === 'last' ? '底' : settlementDay + '日'}）`,
     })
   }
   return options
@@ -34,7 +35,7 @@ function getSettlementMonthOptions(settlementDay, currentValue) {
 
 function calcAutoSettlementMonth(settlementDay) {
   const now = dayjs()
-  return now.date() > (settlementDay ?? 25)
+  return now.date() > settlementCutoffDay(settlementDay)
     ? now.add(1, 'month').format('YYYY-MM')
     : now.format('YYYY-MM')
 }

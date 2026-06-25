@@ -1,7 +1,7 @@
 import { Drawer, Descriptions, Tabs, Tag, Table, Typography, Space, Divider } from 'antd';
 import { EnvironmentOutlined, FileTextOutlined, BankOutlined, UserOutlined } from '@ant-design/icons';
 import { templates } from '../data/fakeData';
-import { invoiceModeLabel, invoiceModeColor } from '../utils/invoiceMode';
+import { invoiceModeLabel, invoiceModeColor, settlementDayLabel } from '../utils/invoiceMode';
 
 const { Text } = Typography;
 
@@ -51,9 +51,9 @@ export default function ChannelDetail({ channel, open, onClose }) {
         <Descriptions.Item label="聯絡信箱">{channel.contactEmail}</Descriptions.Item>
         <Descriptions.Item label="聯繫窗口">{channel.contactName}</Descriptions.Item>
         <Descriptions.Item label="聯繫電話">{channel.contactPhone}</Descriptions.Item>
-        <Descriptions.Item label="公司抬頭">{channel.title}</Descriptions.Item>
-        <Descriptions.Item label="統一編號">{channel.taxId}</Descriptions.Item>
-        <Descriptions.Item label="結算日">每月 {channel.settlementDay} 日</Descriptions.Item>
+        <Descriptions.Item label="預設公司抬頭">{channel.title}</Descriptions.Item>
+        <Descriptions.Item label="預設統一編號">{channel.taxId}</Descriptions.Item>
+        <Descriptions.Item label="結算日">{settlementDayLabel(channel.settlementDay)}</Descriptions.Item>
         <Descriptions.Item label="發票模式">
           {channel.invoicePeriod && channel.invoiceTaxScope ? (
             <Tag color={invoiceModeColor(channel.invoicePeriod, channel.invoiceTaxScope)}>
@@ -147,7 +147,7 @@ export default function ChannelDetail({ channel, open, onClose }) {
                 <Descriptions.Item label="金融機構代碼">兆豐 0170077</Descriptions.Item>
                 <Descriptions.Item label="帳號">00709001170</Descriptions.Item>
                 <Descriptions.Item label="合作方式">買斷</Descriptions.Item>
-                <Descriptions.Item label="付款方式">次月 {channel.settlementDay} 號前付款</Descriptions.Item>
+                <Descriptions.Item label="付款方式">次月付款（{settlementDayLabel(channel.settlementDay)}結算）</Descriptions.Item>
                 {channel.default_bank_last5 && (
                   <Descriptions.Item label="廠商常用匯款末五碼">
                     {channel.default_bank_last5}
