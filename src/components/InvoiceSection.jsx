@@ -58,22 +58,28 @@ export default function InvoiceSection({ relatedOrders = [], channel, settlement
     const opened = settlement && !settlement.isPending && settlement.createdAt && settlement.createdAt !== '—'
       && today.diff(dayjs(settlement.createdAt), 'day') >= 3
     if (taxScope === 'per_store') {
+      // 以「統編」歸併：同一統編的不同門市合併成一張發票（包含門市可能不只一家）
       const groups = new Map()
       relatedOrders.forEach(o => {
-        const k = o.storeId ?? o.store_label ?? '—'
+        const addr = channel?.addresses?.find(a => a.storeId === o.storeId)
+        const buyerTaxId = addr?.buyerTaxId ?? channel?.taxId ?? '—'
+        const k = buyerTaxId
         if (!groups.has(k)) {
-          const addr = channel?.addresses?.find(a => a.storeId === o.storeId)
           groups.set(k, {
-            key: k, orders: [],
-            store: o.store_label ?? addr?.label ?? '—',
+            key: k, orders: [], storeLabels: [],
             buyerName: addr?.buyerName ?? channel?.title ?? '—',
-            buyerTaxId: addr?.buyerTaxId ?? channel?.taxId ?? '—',
+            buyerTaxId,
           })
         }
-        groups.get(k).orders.push(o)
+        const g = groups.get(k)
+        g.orders.push(o)
+        const label = o.store_label ?? addr?.label ?? '—'
+        if (!g.storeLabels.includes(label)) g.storeLabels.push(label)
       })
       rows = [...groups.values()].map((g, i) => ({
-        ...g, amount: sumAmt(g.orders), orderCount: g.orders.length,
+        key: g.key, orders: g.orders, buyerName: g.buyerName, buyerTaxId: g.buyerTaxId,
+        store: g.storeLabels.join('、'),
+        amount: sumAmt(g.orders), orderCount: g.orders.length,
         autoNo: opened ? `IV-${dayjs(settlement.createdAt).format('YYYYMM')}-${String(settlement.id).slice(-3)}${i + 1}` : null,
       }))
     } else {
@@ -130,8 +136,6 @@ export default function InvoiceSection({ relatedOrders = [], channel, settlement
                 render: v => <Text strong style={{ whiteSpace: 'nowrap' }}>${v.toLocaleString()}</Text> },
               { title: '明細', width: 70, align: 'center',
                 render: (_, r) => <Button size="small" onClick={() => setDetailRow(r)}>明細</Button> },
-              { title: '門市', dataIndex: 'store', ellipsis: true,
-                render: v => <span style={{ fontSize: 13, fontWeight: 500 }}>{v}</span> },
               { title: '抬頭 / 統編', dataIndex: 'buyerName', ellipsis: true,
                 render: (_, r) => (
                   <div style={{ lineHeight: 1.35 }}>
@@ -139,6 +143,8 @@ export default function InvoiceSection({ relatedOrders = [], channel, settlement
                     <div style={{ fontSize: 12, color: '#8c8c8c', whiteSpace: 'nowrap' }}>{r.buyerTaxId}</div>
                   </div>
                 ) },
+              { title: '包含門市', dataIndex: 'store', ellipsis: true,
+                render: v => <span style={{ fontSize: 13, fontWeight: 500 }}>{v}</span> },
               { title: '訂單數', dataIndex: 'orderCount', width: 70, align: 'center',
                 render: v => <span style={{ whiteSpace: 'nowrap' }}>{v} 筆</span> },
             ]}

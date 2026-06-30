@@ -111,11 +111,11 @@ export default function OrderDetail({ order, open, onClose, onStatusChange, onRe
       setAdjPriceMap(Object.fromEntries(order.items.map(i => [i.productId, i.price])));
       setDiscountAmount(order.discount_amount ?? 0);
       setDiscountNote(order.discount_note ?? '');
-      setShippingNote(order.shipping_note ?? order.vendorNote ?? '');
+      setShippingNote(order.shipping_note ?? '');
       setWarehouseNote(order.warehouse_note ?? '');
       const defaultCsNote = channelMap[order.channelId]?.cs_note_default ?? '';
       setCsNote(order.cs_note ?? defaultCsNote);
-      setB2bNote(order.b2b_note ?? '');
+      setB2bNote(order.b2b_note ?? order.vendorNote ?? '');
       const settlementDay = channelMap[order.channelId]?.settlementDay ?? 25;
       setLocalSettlementMonth(order.settlementMonth || calcAutoSettlementMonth(settlementDay));
       setEditMode(false);
@@ -194,10 +194,10 @@ export default function OrderDetail({ order, open, onClose, onStatusChange, onRe
   };
 
   const handleCancelEdit = () => {
-    setShippingNote(order.shipping_note ?? order.vendorNote ?? '');
+    setShippingNote(order.shipping_note ?? '');
     setWarehouseNote(order.warehouse_note ?? '');
     setCsNote(order.cs_note ?? channelMap[order.channelId]?.cs_note_default ?? '');
-    setB2bNote(order.b2b_note ?? '');
+    setB2bNote(order.b2b_note ?? order.vendorNote ?? '');
     setDiscountAmount(order.discount_amount ?? 0);
     setDiscountNote(order.discount_note ?? '');
     setEditMode(false);
@@ -209,9 +209,10 @@ export default function OrderDetail({ order, open, onClose, onStatusChange, onRe
     //   - 品項明細：**不**同步到正式訂單的 OrderDetail（避免覆蓋已出貨紀錄）。
     //   - 訂單總金額：**不連動**——主站 Orders.TotalPrice 一律 0（B2B 發票走 B2B 平台、不靠主站金額），
     //     真實金額存 B2B 端 B2BSettlement / B2BPreOrder。
-    //   - 備註文字（shipping_note / cs_note / b2b_note）：需呼叫 sync-notes API 同步寫回主站
-    //     Orders.Remarks / CustomerServiceRemark / RemarkFromAdmin。
-    //   串接時以此為優先：細項不動、金額不動（恆 0）、**只有備註文字會連動**。
+    //   - 備註文字連動：出貨備註(shipping_note) / 倉庫備註(warehouse_note) / 客服備註(cs_note)
+    //     需呼叫 sync-notes API 同步寫回主站（Orders.Remarks / CustomerServiceRemark 等）。
+    //     ⚠️ B2B備註(b2b_note) **僅通路與後台可見、不寫回主站**（不帶入正式後台），不在同步範圍。
+    //   串接時以此為優先：細項不動、金額不動（恆 0）、出貨/倉庫/客服備註連動、**B2B備註不連動**。
     const changes = [];
     displayItems.forEach(orig => {
       const edited = editItems.find(i => i.productId === orig.productId);
@@ -552,17 +553,17 @@ export default function OrderDetail({ order, open, onClose, onStatusChange, onRe
           {/* 左：B2B備註（通路可見，性質特殊獨立） */}
           <div style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
             <NoteField
-              label="B2B備註（後台填寫，僅通路可見，不會帶入正式後台）"
+              label="B2B備註（通路/後台填寫，僅通路可見，不會帶入正式後台）"
               value={b2bNote} onChange={setB2bNote} locked={noteLocked}
-              placeholder="回覆通路的備註" fillHeight
+              placeholder="與通路往來的備註（通路前台亦可填寫）" fillHeight
             />
           </div>
           {/* 右：出貨、倉庫、客服三個後台備註直排 */}
           <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 12 }}>
             <NoteField
-              label="出貨備註（通路填寫，通路、正式後台、倉庫、物流可見）"
+              label="出貨備註（後台填寫，通路、正式後台、倉庫、物流可見）"
               value={shippingNote} onChange={setShippingNote} locked={noteLocked}
-              placeholder="出貨相關備註（通路下單時填寫，後續可修改）"
+              placeholder="出貨相關備註（僅後台填寫）"
             />
             <NoteField
               label="倉庫備註（後台填寫，僅正式後台、倉庫、物流可見）"

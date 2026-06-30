@@ -209,14 +209,17 @@ export default function OrderPreviewModal({ open, onClose, items, channel, onCon
 
       <div style={{ marginTop: 16 }}>
         <div style={{ fontSize: 13, color: '#888', marginBottom: 4 }}>
-          備註（選填）
+          B2B備註（選填）
+          <Text type="secondary" style={{ fontSize: 11, marginLeft: 6 }}>
+            僅通路與後台可見，不會帶入正式後台
+          </Text>
           {channel?.default_vendor_note && (
             <Text type="secondary" style={{ fontSize: 11, marginLeft: 6 }}>
-              已自動帶入通路資料的預設備註，可直接修改。
+              ｜已帶入通路預設備註，可直接修改
             </Text>
           )}
         </div>
-        <Input.TextArea rows={3} placeholder="如有特殊出貨需求或備註，請在此說明..."
+        <Input.TextArea rows={3} placeholder="想告知後台 / 業務的備註，請在此說明..."
           value={vendorNote} onChange={e => setVendorNote(e.target.value)} />
       </div>
 
