@@ -19,11 +19,13 @@ import AdminTemplates    from './pages/admin/AdminTemplates'
 import AdminShipping       from './pages/admin/AdminShipping'
 import AdminAnnouncements from './pages/admin/AdminAnnouncements'
 import AnalyticsPage       from './pages/AnalyticsPage'
+import NotificationsPreviewPage from './pages/NotificationsPreviewPage'
 
 export default function App() {
   return (
     <Routes>
       <Route path="/"        element={<HomePage />} />
+      <Route path="/notifications" element={<NotificationsPreviewPage />} />
 
       {/* 廠商前台 */}
       <Route path="/login"            element={<VendorLogin />} />

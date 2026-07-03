@@ -243,12 +243,6 @@ export default function VendorProfile() {
               <Form.Item label="通路名稱" name="name" rules={[{ required: true }]}>
                 <Input />
               </Form.Item>
-              <Form.Item label="預設公司抬頭" name="title" rules={[{ required: true }]}>
-                <Input />
-              </Form.Item>
-              <Form.Item label="預設統一編號" name="taxId" rules={[{ required: true }]}>
-                <Input />
-              </Form.Item>
               <Form.Item label="聯繫信箱" name="contactEmail" rules={[{ required: true, type: 'email' }]}>
                 <Input />
               </Form.Item>
@@ -256,6 +250,12 @@ export default function VendorProfile() {
                 <Input />
               </Form.Item>
               <Form.Item label="聯繫電話" name="contactPhone">
+                <Input />
+              </Form.Item>
+              <Form.Item label="預設公司抬頭" name="title" rules={[{ required: true }]}>
+                <Input />
+              </Form.Item>
+              <Form.Item label="預設統一編號" name="taxId" rules={[{ required: true }]}>
                 <Input />
               </Form.Item>
               <Form.Item label="常用匯款末五碼（選填）" name="default_bank_last5">

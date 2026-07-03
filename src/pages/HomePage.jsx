@@ -1,6 +1,6 @@
 import { useNavigate } from 'react-router-dom'
 import { Button, Typography, Space } from 'antd'
-import { ShopOutlined, SettingOutlined } from '@ant-design/icons'
+import { ShopOutlined, SettingOutlined, MailOutlined } from '@ant-design/icons'
 
 const { Title, Text } = Typography
 
@@ -37,6 +37,14 @@ export default function HomePage() {
           onClick={() => nav('/admin')}
         >
           管理後台
+        </Button>
+        <Button
+          size="large"
+          icon={<MailOutlined />}
+          style={{ height: 48, paddingInline: 32 }}
+          onClick={() => nav('/notifications')}
+        >
+          通知信預覽
         </Button>
       </Space>
     </div>
