@@ -7,6 +7,9 @@ const { Text } = Typography;
 // 信件品牌綠（抬頭線、行動按鈕）
 const BRAND_GREEN = '#389e0d';
 
+// 收件對象：清楚標示角色（通路 / 業務 / 財務）
+const toChannel = (name, email) => `通路 · ${name ?? '通路窗口'}${email ? `（${email}）` : ''}`;
+
 // 互動式 token 按鈕（模擬信件中的一次性連結）
 // TODO_FRUIT_WEB: 真實實作時替換為後端產生的 14 天 one-time token URL
 //   DB 欄位: EmailTokens(token, orderId/settlementId, action, expiresAt, usedAt)
@@ -34,7 +37,7 @@ export function getNotificationContent(type, data) {
     const hasDiff = diffs.length > 0;
     return {
       title: '訂單成立通知',
-      to: data.channelEmail ?? data.channelName,
+      to: toChannel(data.channelName, data.channelEmail),
       subject: `【無毒農 B2B】您的訂單 ${data.orderId} 已成立${hasDiff ? '（數量異動）' : ''}`,
       body: (
         <div style={{ fontSize: 13, lineHeight: 2 }}>
@@ -87,7 +90,7 @@ export function getNotificationContent(type, data) {
   if (type === 'order_voided') {
     return {
       title: '訂單作廢通知',
-      to: data.channelEmail ?? data.channelName,
+      to: toChannel(data.channelName, data.channelEmail),
       subject: `【無毒農 B2B】您的訂單 ${data.orderId} 已作廢`,
       body: (
         <div style={{ fontSize: 13, lineHeight: 2 }}>
@@ -118,7 +121,7 @@ export function getNotificationContent(type, data) {
     const isMulti = invoices.length > 1;
     return {
       title: '發票開立完成通知',
-      to: data.channelEmail ?? data.channelName,
+      to: toChannel(data.channelName, data.channelEmail),
       subject: `【無毒農 B2B】${data.settlementMonth} 發票已開立${isMulti ? `（共 ${invoices.length} 張）` : ''}`,
       body: (
         <div style={{ fontSize: 13, lineHeight: 2 }}>
@@ -157,7 +160,7 @@ export function getNotificationContent(type, data) {
   if (type === 'invoice_failed') {
     return {
       title: '發票開立失敗通知（內部）',
-      to: data.adminEmail ?? '業務 / 財務窗口',
+      to: data.adminEmail ?? '業務 / 財務',
       subject: `【無毒農 B2B】⚠️ 發票開立失敗：${data.orderId ?? data.settlementId}（需人工處理）`,
       body: (
         <div style={{ fontSize: 13, lineHeight: 2 }}>
@@ -192,7 +195,7 @@ export function getNotificationContent(type, data) {
   if (type === 'settlement_created') {
     return {
       title: '結算匯款通知',
-      to: data.channelEmail ?? data.channelName,
+      to: toChannel(data.channelName, data.channelEmail),
       subject: `【無毒農】${data.settlementMonth} 結算單已生成，請於期限內完成匯款`,
       body: (
         <div style={{ fontSize: 13, lineHeight: 2 }}>
@@ -238,7 +241,7 @@ export function getNotificationContent(type, data) {
   if (type === 'settlement_reminder') {
     return {
       title: '結算匯款提醒',
-      to: data.channelEmail ?? data.channelName,
+      to: toChannel(data.channelName, data.channelEmail),
       subject: `【無毒農提醒】${data.settlementMonth} 結算單尚未收到匯款，請確認`,
       body: (
         <div style={{ fontSize: 13, lineHeight: 2 }}>
@@ -274,7 +277,7 @@ export function getNotificationContent(type, data) {
     const hasAmbient = (data.ambientCount ?? 0) > 0;
     return {
       title: '新B2B訂單通知',
-      to: '業務人員 / 管理者',
+      to: '業務',
       subject: `【無毒農】${data.channelName} 送出新B2B訂單`,
       body: (
         <div style={{ fontSize: 13, lineHeight: 2 }}>
@@ -311,7 +314,7 @@ export function getNotificationContent(type, data) {
   if (type === 'vendor_payment_report') {
     return {
       title: '廠商回報匯款通知',
-      to: '無毒農財務人員 / 業務人員',
+      to: '財務 / 業務',
       subject: `【廠商回報】${data.channelName} 已完成 ${data.settlementMonth} 結算匯款`,
       body: (
         <div style={{ fontSize: 13, lineHeight: 2 }}>
@@ -339,7 +342,7 @@ export function getNotificationContent(type, data) {
   if (type === 'admin_password_reset') {
     return {
       title: '密碼重設通知（系統產生新密碼）',
-      to: data.contactEmail ?? '通路聯絡信箱',
+      to: toChannel(data.channelName, data.contactEmail),
       subject: `【無毒農 B2B】您的密碼已被後台重設 — ${data.channelName ?? ''}`,
       body: (
         <div style={{ fontSize: 13, lineHeight: 2 }}>
@@ -362,6 +365,81 @@ export function getNotificationContent(type, data) {
     };
   }
 
+  // E-10 通路開通通知（→ 廠商，含預設密碼）
+  if (type === 'account_activated') {
+    return {
+      title: '通路開通通知',
+      to: toChannel(data.channelName, data.contactEmail),
+      subject: `【無毒農 B2B】您的通路帳號已開通 — ${data.channelName ?? ''}`,
+      body: (
+        <div style={{ fontSize: 13, lineHeight: 2 }}>
+          <div>親愛的 {data.contactName ?? '通路窗口'} 您好，</div>
+          <div style={{ marginTop: 8 }}>歡迎成為無毒農 B2B 合作通路！您的通路帳號已開通：</div>
+          <div style={{ marginTop: 12, padding: '12px 16px', background: '#fff7e6', border: '1px solid #ffd591', borderRadius: 6 }}>
+            <div>登入網址：<Text>{data.loginUrl}</Text></div>
+            <div>帳號：<Text code>{data.account}</Text></div>
+            <div>預設密碼：<Text strong style={{ fontSize: 14, color: '#d46b08' }}>{data.password}</Text></div>
+          </div>
+          <div style={{ marginTop: 16 }}>
+            <Button type="primary" href={data.loginUrl} target="_blank" style={{ background: BRAND_GREEN, borderColor: BRAND_GREEN }}>前往登入</Button>
+          </div>
+          <div style={{ marginTop: 12, color: '#d46b08' }}>
+            ⚠️ 請於首次登入後立即至「個人資料 → 修改密碼」變更預設密碼，以保護您的帳號安全。
+          </div>
+        </div>
+      ),
+    };
+  }
+
+  // E-14 通路停用通知（→ 廠商）
+  if (type === 'account_suspended') {
+    return {
+      title: '通路停用通知',
+      to: toChannel(data.channelName, data.contactEmail),
+      subject: `【無毒農 B2B】您的通路帳號已停用 — ${data.channelName ?? ''}`,
+      body: (
+        <div style={{ fontSize: 13, lineHeight: 2 }}>
+          <div>親愛的 {data.contactName ?? '通路窗口'} 您好，</div>
+          <div style={{ marginTop: 8 }}>
+            您的無毒農 B2B 通路帳號已由業務窗口停用，即日起將<Text strong>無法登入系統</Text>。
+          </div>
+          {data.reason && (
+            <div style={{ marginTop: 8, padding: '8px 12px', background: '#fff7e6', border: '1px solid #ffd591', borderRadius: 4 }}>
+              <Text strong style={{ color: '#d46b08' }}>停用原因：</Text>
+              <div style={{ marginTop: 4, color: '#595959' }}>{data.reason}</div>
+            </div>
+          )}
+          <div style={{ marginTop: 12 }}>
+            您過往的訂單與結算紀錄仍保留完整。若有疑問或需重新啟用帳號，請聯繫您的業務窗口。
+          </div>
+        </div>
+      ),
+    };
+  }
+
+  // 通路重新啟用通知（→ 廠商）
+  if (type === 'account_reactivated') {
+    return {
+      title: '通路重新啟用通知',
+      to: toChannel(data.channelName, data.contactEmail),
+      subject: `【無毒農 B2B】您的通路帳號已重新啟用 — ${data.channelName ?? ''}`,
+      body: (
+        <div style={{ fontSize: 13, lineHeight: 2 }}>
+          <div>親愛的 {data.contactName ?? '通路窗口'} 您好，</div>
+          <div style={{ marginTop: 8 }}>
+            您的無毒農 B2B 通路帳號已由業務窗口<Text strong style={{ color: '#389e0d' }}>重新啟用</Text>，即日起可正常登入系統。
+          </div>
+          <div style={{ marginTop: 16 }}>
+            <Button type="primary" href={data.loginUrl} target="_blank" style={{ background: BRAND_GREEN, borderColor: BRAND_GREEN }}>前往登入</Button>
+          </div>
+          <div style={{ marginTop: 12, color: '#888' }}>
+            若您忘記密碼，可於登入頁點「忘記密碼」自助重設。如有疑問，請聯繫您的業務窗口。
+          </div>
+        </div>
+      ),
+    };
+  }
+
   // E-12 廠商自助忘記密碼（→ 廠商）
   if (type === 'password_reset_email') {
     const token = data.resetToken ?? 'demo-token-xxx';
@@ -372,7 +450,7 @@ export function getNotificationContent(type, data) {
     };
     return {
       title: '重設密碼信件',
-      to: data.contactEmail ?? data.account ?? '廠商聯絡信箱',
+      to: toChannel(data.channelName, data.contactEmail ?? data.account),
       subject: '【無毒農 B2B】重設密碼連結',
       body: (
         <div style={{ fontSize: 13, lineHeight: 2 }}>
@@ -409,7 +487,7 @@ export function getNotificationContent(type, data) {
         {
           key: 'vendor',
           label: '廠商通知',
-          to: data.channelEmail ?? data.channelName,
+          to: toChannel(data.channelName, data.channelEmail),
           subject: `【無毒農】您的 ${data.settlementMonth} 結算款項已確認收到`,
           body: (
             <div style={{ fontSize: 13, lineHeight: 2 }}>
@@ -431,7 +509,7 @@ export function getNotificationContent(type, data) {
         {
           key: 'business',
           label: '業務 / 財務通知',
-          to: '業務人員、財務人員',
+          to: '業務 / 財務',
           subject: `【內部通知】${data.channelName} ${data.settlementMonth} 結算款項已入帳`,
           body: (
             <div style={{ fontSize: 13, lineHeight: 2 }}>

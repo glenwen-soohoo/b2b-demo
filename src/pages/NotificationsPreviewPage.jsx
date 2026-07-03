@@ -54,6 +54,12 @@ const CATALOG = [
   {
     group: '帳號',
     items: [
+      { key: 'account_activated', code: 'E-10', label: '通路開通通知（→廠商）',
+        data: { channelName: '貝比波士', contactName: '黃宥榕', contactEmail: 'order@babeboss.com.tw', account: 'babeboss', password: 'NvmCiUbVHdt3', loginUrl: 'https://fruit-b2b-dev.azurewebsites.net/vendor/' } },
+      { key: 'account_suspended', code: 'E-14', label: '通路停用通知（→廠商）',
+        data: { channelName: '好自然健康館', contactName: '陳雅婷', contactEmail: 'purchase@haoran.com.tw', reason: '合約到期，暫停合作' } },
+      { key: 'account_reactivated', code: '—', label: '通路重新啟用（→廠商）',
+        data: { channelName: '好自然健康館', contactName: '陳雅婷', contactEmail: 'purchase@haoran.com.tw', loginUrl: 'https://fruit-b2b-dev.azurewebsites.net/vendor/' } },
       { key: 'admin_password_reset', code: 'E-11', label: '後台重設密碼（→廠商）',
         data: { channelName: '綠色小農超市', contactName: '林采璇', contactEmail: 'order@greenfarm.com.tw', account: 'greenfarm', newPassword: 'Gf8x2k9q' } },
       { key: 'password_reset_email', code: 'E-12', label: '忘記密碼重設信（→廠商）',
