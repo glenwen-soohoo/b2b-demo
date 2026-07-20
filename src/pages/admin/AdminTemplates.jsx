@@ -5,71 +5,19 @@ import {
 } from 'antd'
 import {
   PlusOutlined, EditOutlined, DeleteOutlined,
-  FileTextOutlined, HolderOutlined, DownOutlined,
+  FileTextOutlined, DownOutlined,
 } from '@ant-design/icons'
 import { products, templates as initTemplates, channels as initChannels, categories, systemSettings } from '../../data/fakeData'
 import { exportQuotationPdf } from '../../utils/exportQuotationPdf'
 import { exportBlankOrder } from '../../utils/exportBlankOrder'
 import { TEMP_ICON } from '../../styles/tokens'
+// 子分類 / 商品的標準排序，與分類管理、商品管理、廠商前台共用同一份來源
+import { ORDERED_SUBCATS, groupByOrderedSubCat } from '../../utils/catalogOrder'
 
 const { Title, Text } = Typography
 
-// 將商品對應到大分類：先比對子分類名稱，找不到則 fallback 溫層
-function getProductCatId(product) {
-  for (const cat of categories) {
-    if (cat.subCategories.some(s => s.name === product.subCategory)) return cat.id
-  }
-  return categories.find(c => c.temperature === product.category)?.id ?? categories[0].id
-}
-
-// 商品依子分類分組
-function groupBySubCat(prods) {
-  const map = {}
-  prods.forEach(p => {
-    if (!map[p.subCategory]) map[p.subCategory] = []
-    map[p.subCategory].push(p)
-  })
-  return map
-}
-
-// 取得所有子分類，依 categories 順序排列
-function getOrderedSubCats() {
-  const result = []
-  for (const cat of categories) {
-    for (const sub of cat.subCategories) {
-      result.push({ subCatName: sub.name, catName: cat.name, temperature: cat.temperature })
-    }
-  }
-  // 補上 products 裡有但 categories 沒列到的 subCategory
-  const known = new Set(result.map(r => r.subCatName))
-  for (const p of products) {
-    if (!known.has(p.subCategory)) {
-      result.push({ subCatName: p.subCategory, catName: '', temperature: p.category })
-      known.add(p.subCategory)
-    }
-  }
-  return result
-}
-
-const ORDERED_SUBCATS = getOrderedSubCats()
-
-// 依子分類順序分組
-function groupByOrderedSubCat(prods) {
-  const map = {}
-  prods.forEach(p => {
-    if (!map[p.subCategory]) map[p.subCategory] = []
-    map[p.subCategory].push(p)
-  })
-  return ORDERED_SUBCATS
-    .filter(s => map[s.subCatName]?.length)
-    .map(s => ({ ...s, items: map[s.subCatName] }))
-}
-
-// ── 左欄：已選品項（子分類固定順序，組內可拖曳，可改價）──
-function SelectedPanel({ orderedIds, priceOverrides, onRemove, onReorder, onPriceChange }) {
-  const [dragId,     setDragId]     = useState(null)
-  const [dragOverId, setDragOverId] = useState(null)
-
+// ── 左欄：已選品項（順序一律依「分類管理」全站設定；此處僅勾選移除與改價）──
+function SelectedPanel({ orderedIds, priceOverrides, onRemove, onPriceChange }) {
   const selectedProducts = orderedIds.map(id => products.find(p => p.id === id)).filter(Boolean)
   const groups = groupByOrderedSubCat(selectedProducts)
 
@@ -79,21 +27,6 @@ function SelectedPanel({ orderedIds, priceOverrides, onRemove, onReorder, onPric
         從右側點擊商品加入
       </div>
     )
-  }
-
-  const handleDrop = (targetId) => {
-    if (!dragId || dragId === targetId) { setDragId(null); setDragOverId(null); return }
-    // 只允許同子分類內移動
-    const dragProd   = products.find(p => p.id === dragId)
-    const targetProd = products.find(p => p.id === targetId)
-    if (dragProd?.subCategory !== targetProd?.subCategory) { setDragId(null); setDragOverId(null); return }
-    const next      = [...orderedIds]
-    const fromIdx   = next.indexOf(dragId)
-    const toIdx     = next.indexOf(targetId)
-    next.splice(fromIdx, 1)
-    next.splice(toIdx, 0, dragId)
-    onReorder(next)
-    setDragId(null); setDragOverId(null)
   }
 
   let lastCatName = null
@@ -125,20 +58,13 @@ function SelectedPanel({ orderedIds, priceOverrides, onRemove, onReorder, onPric
             {items.map(p => (
               <div
                 key={p.id}
-                draggable
-                onDragStart={() => setDragId(p.id)}
-                onDragOver={e => { e.preventDefault(); setDragOverId(p.id) }}
-                onDrop={() => handleDrop(p.id)}
-                onDragEnd={() => { setDragId(null); setDragOverId(null) }}
                 style={{
                   display: 'flex', alignItems: 'center', gap: 6,
                   padding: '5px 8px',
-                  background: dragOverId === p.id ? '#e6f4ff' : '#fff',
+                  background: '#fff',
                   borderBottom: '1px solid #f5f5f5',
-                  opacity: dragId === p.id ? 0.4 : 1,
                 }}
               >
-                <HolderOutlined style={{ color: '#ccc', cursor: 'grab', flexShrink: 0 }} />
                 <div style={{ flex: 1, minWidth: 0, fontSize: 12, lineHeight: 1.4 }}>
                   {p.spec && <div><Tag style={{ fontSize: 10, padding: '0 4px', lineHeight: '16px' }}>{p.spec}</Tag></div>}
                   <div style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p.name}</div>
@@ -336,14 +262,13 @@ function TemplateDrawer({ open, onClose, onSave, initial, channelList }) {
             <Text strong style={{ fontSize: 13 }}>已選品項</Text>
             <Space size={4}>
               <Text style={{ fontSize: 12, color: '#1677ff' }}>{orderedIds.length} 項</Text>
-              <Text type="secondary" style={{ fontSize: 11 }}>｜拖曳可調整組內順序，改順序不可跨組</Text>
+              <Text type="secondary" style={{ fontSize: 11 }}>｜順序依「分類管理」全站設定，此處僅勾選與改價</Text>
             </Space>
           </div>
           <SelectedPanel
             orderedIds={orderedIds}
             priceOverrides={priceOverrides}
             onRemove={handleRemove}
-            onReorder={setOrderedIds}
             onPriceChange={(id, v) => setPriceOverrides(prev => ({ ...prev, [id]: v }))}
           />
         </div>

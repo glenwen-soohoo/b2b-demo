@@ -6,6 +6,7 @@ import {
 } from 'antd'
 import { PlusOutlined, EditOutlined, DeleteOutlined, CheckCircleOutlined, ExclamationCircleOutlined, LinkOutlined, DownOutlined, ReloadOutlined } from '@ant-design/icons'
 import { products as initialProducts, categories as initCategories } from '../../data/fakeData'
+import { subCatRank } from '../../utils/catalogOrder'
 import Barcode from '../../components/Barcode'
 import { TEMP } from '../../styles/tokens'
 
@@ -375,11 +376,12 @@ export default function AdminProducts() {
       }
       map[key].items.push(p)
     })
-    // 依大分類順序排列
+    // 依大分類順序 → 子分類標準順序排列（與分類管理一致）
     return Object.values(map).sort((a, b) => {
       const ai = categories.findIndex(c => c.id === a.mainCatId)
       const bi = categories.findIndex(c => c.id === b.mainCatId)
-      return ai - bi
+      if (ai !== bi) return ai - bi
+      return subCatRank(a.subCategory) - subCatRank(b.subCategory)
     })
   }, [filtered, categories])
 

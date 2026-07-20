@@ -1,15 +1,8 @@
 import { Table, InputNumber, Space, Tag, Typography, Button } from 'antd'
 import { TEMP_STYLE } from '../styles/tokens'
+import { groupByOrderedSubCat } from '../utils/catalogOrder'
 
 const { Text } = Typography
-
-function groupBySubCategory(prods) {
-  return prods.reduce((acc, p) => {
-    if (!acc[p.subCategory]) acc[p.subCategory] = []
-    acc[p.subCategory].push(p)
-    return acc
-  }, {})
-}
 
 export function ComingSoonTab({ emoji = '🌱' }) {
   return (
@@ -21,12 +14,12 @@ export function ComingSoonTab({ emoji = '🌱' }) {
 }
 
 export default function ProductSection({ prods, qtyMap, setQty, temperature = 'ambient' }) {
-  const grouped  = groupBySubCategory(prods)
-  const firstKey = Object.keys(grouped)[0]
+  const groups   = groupByOrderedSubCat(prods)
+  const firstKey = groups[0]?.subCatName
   const style    = TEMP_STYLE[temperature] ?? TEMP_STYLE.ambient
   return (
     <>
-      {Object.entries(grouped).map(([subCat, items]) => (
+      {groups.map(({ subCatName: subCat, items }) => (
         <div key={subCat} style={{ marginBottom: 20 }}>
           <div style={{
             ...style, borderRadius: 6,
