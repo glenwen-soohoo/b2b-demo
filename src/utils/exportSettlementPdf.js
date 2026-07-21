@@ -13,7 +13,7 @@ const STATUS_LABEL = {
 }
 
 // ── 建單頁 HTML ────────────────────────────────────────
-function buildSettlementPageHtml({ settlement, pageOrders, channel, pageInfo, meta }) {
+function buildSettlementPageHtml({ settlement, pageOrders, channel, pageInfo, meta, remark }) {
   const isFirstPage = pageInfo.current === 1
   const isLastPage  = pageInfo.current === pageInfo.total
 
@@ -61,11 +61,49 @@ function buildSettlementPageHtml({ settlement, pageOrders, channel, pageInfo, me
     </div>
   ` : ''
 
+  // 結算資訊（移到訂單列表「上方」；新增地址、保留電話；移除結算日期）
+  const address = channel?.addresses?.[0]?.address ?? '—'
+  const infoHtml = isFirstPage ? `
+    <div style="margin-top:10px;">
+      <table style="width:100%;border-collapse:collapse;table-layout:fixed;">
+        <colgroup><col style="width:33.33%;"/><col style="width:33.33%;"/><col style="width:33.33%;"/></colgroup>
+        <tr>
+          <td style="padding:5px 10px;border:1px solid ${COLOR.borderGray};background:${COLOR.bgHeader};font-size:9px;color:${COLOR.textMuted};">結算單號</td>
+          <td style="padding:5px 10px;border:1px solid ${COLOR.borderGray};background:${COLOR.bgHeader};font-size:9px;color:${COLOR.textMuted};">結算月份</td>
+          <td style="padding:5px 10px;border:1px solid ${COLOR.borderGray};background:${COLOR.bgHeader};font-size:9px;color:${COLOR.textMuted};">客戶 / 通路</td>
+        </tr>
+        <tr>
+          <td style="padding:6px 10px;border:1px solid ${COLOR.borderGray};font-size:11px;font-weight:700;color:${COLOR.brand};">${escapeHtml(settlement.id ?? '')}</td>
+          <td style="padding:6px 10px;border:1px solid ${COLOR.borderGray};font-size:11px;font-weight:700;">${escapeHtml(settlement.settlementMonth ?? '')}</td>
+          <td style="padding:6px 10px;border:1px solid ${COLOR.borderGray};font-size:11px;font-weight:700;">${escapeHtml(settlement.channelName ?? channel?.name ?? '')}</td>
+        </tr>
+        <tr>
+          <td style="padding:5px 10px;border:1px solid ${COLOR.borderGray};background:${COLOR.bgHeader};font-size:9px;color:${COLOR.textMuted};">聯絡窗口</td>
+          <td style="padding:5px 10px;border:1px solid ${COLOR.borderGray};background:${COLOR.bgHeader};font-size:9px;color:${COLOR.textMuted};">連絡電話</td>
+          <td style="padding:5px 10px;border:1px solid ${COLOR.borderGray};background:${COLOR.bgHeader};font-size:9px;color:${COLOR.textMuted};">統一編號</td>
+        </tr>
+        <tr>
+          <td style="padding:6px 10px;border:1px solid ${COLOR.borderGray};font-size:11px;font-weight:700;">${escapeHtml(channel?.contactName ?? '—')}</td>
+          <td style="padding:6px 10px;border:1px solid ${COLOR.borderGray};font-size:11px;font-weight:700;">${escapeHtml(channel?.contactPhone ?? '—')}</td>
+          <td style="padding:6px 10px;border:1px solid ${COLOR.borderGray};font-size:11px;font-weight:700;">${escapeHtml(channel?.taxId ?? '—')}</td>
+        </tr>
+        <tr>
+          <td style="padding:5px 10px;border:1px solid ${COLOR.borderGray};background:${COLOR.bgHeader};font-size:9px;color:${COLOR.textMuted};">公司抬頭</td>
+          <td colspan="2" style="padding:5px 10px;border:1px solid ${COLOR.borderGray};background:${COLOR.bgHeader};font-size:9px;color:${COLOR.textMuted};">地址</td>
+        </tr>
+        <tr>
+          <td style="padding:6px 10px;border:1px solid ${COLOR.borderGray};font-size:11px;font-weight:700;">${escapeHtml(channel?.title ?? '—')}</td>
+          <td colspan="2" style="padding:6px 10px;border:1px solid ${COLOR.borderGray};font-size:11px;font-weight:700;">${escapeHtml(address)}</td>
+        </tr>
+      </table>
+    </div>
+  ` : ''
+
   // 摘要列（中間頁 / 最後頁表尾）
   const tableFooter = isLastPage ? `
     <tr>
-      <td colspan="4" style="padding:10px 14px;border:2px solid ${COLOR.borderTotal};background:${COLOR.bgTotal};font-size:13px;font-weight:700;color:${COLOR.brand};text-align:right;">應收總金額</td>
-      <td style="padding:10px 14px;border:2px solid ${COLOR.borderTotal};background:${COLOR.bgTotal};font-size:17px;font-weight:700;color:${COLOR.brand};text-align:right;">$${(settlement.totalAmount ?? 0).toLocaleString()}</td>
+      <td colspan="4" style="padding:9px 14px;border:1px solid ${COLOR.borderGray};background:${COLOR.bgHeader};font-size:13px;font-weight:700;color:${COLOR.text};text-align:right;">應收總金額</td>
+      <td style="padding:9px 14px;border:1px solid ${COLOR.borderGray};background:${COLOR.bgHeader};font-size:16px;font-weight:700;color:${COLOR.text};text-align:right;">$${(settlement.totalAmount ?? 0).toLocaleString()}</td>
     </tr>
   ` : `
     <tr>
@@ -73,48 +111,8 @@ function buildSettlementPageHtml({ settlement, pageOrders, channel, pageInfo, me
     </tr>
   `
 
-  // 客戶資訊 + 匯款 + 條款 + 簽章（最後一頁）
+  // 匯款 + 條款 + 備註（最後一頁；結算資訊已移至訂單列表上方，原簽章欄改為備註）
   const footerHtml = isLastPage ? `
-    <!-- 客戶資訊 -->
-    <div style="margin-top:14px;">
-      <table style="width:100%;border-collapse:collapse;table-layout:fixed;">
-        <colgroup>
-          <col style="width:33.33%;"/>
-          <col style="width:33.33%;"/>
-          <col style="width:33.33%;"/>
-        </colgroup>
-        <tr>
-          <td style="padding:5px 10px;border:1px solid ${COLOR.borderGray};background:${COLOR.bgHeader};font-size:9px;color:${COLOR.textMuted};">結算單號</td>
-          <td style="padding:5px 10px;border:1px solid ${COLOR.borderGray};background:${COLOR.bgHeader};font-size:9px;color:${COLOR.textMuted};">結算月份</td>
-          <td style="padding:5px 10px;border:1px solid ${COLOR.borderGray};background:${COLOR.bgHeader};font-size:9px;color:${COLOR.textMuted};">結算日期</td>
-        </tr>
-        <tr>
-          <td style="padding:6px 10px;border:1px solid ${COLOR.borderGray};font-size:11px;font-weight:700;color:${COLOR.brand};">${escapeHtml(settlement.id ?? '')}</td>
-          <td style="padding:6px 10px;border:1px solid ${COLOR.borderGray};font-size:11px;font-weight:700;">${escapeHtml(settlement.settlementMonth ?? '')}</td>
-          <td style="padding:6px 10px;border:1px solid ${COLOR.borderGray};font-size:11px;font-weight:700;">${escapeHtml(settlement.createdAt ?? '')}</td>
-        </tr>
-        <tr>
-          <td style="padding:5px 10px;border:1px solid ${COLOR.borderGray};background:${COLOR.bgHeader};font-size:9px;color:${COLOR.textMuted};">客戶 / 通路</td>
-          <td style="padding:5px 10px;border:1px solid ${COLOR.borderGray};background:${COLOR.bgHeader};font-size:9px;color:${COLOR.textMuted};">聯絡窗口</td>
-          <td style="padding:5px 10px;border:1px solid ${COLOR.borderGray};background:${COLOR.bgHeader};font-size:9px;color:${COLOR.textMuted};">連絡電話</td>
-        </tr>
-        <tr>
-          <td style="padding:6px 10px;border:1px solid ${COLOR.borderGray};font-size:11px;font-weight:700;">${escapeHtml(settlement.channelName ?? channel?.name ?? '')}</td>
-          <td style="padding:6px 10px;border:1px solid ${COLOR.borderGray};font-size:11px;font-weight:700;">${escapeHtml(channel?.contactName ?? '—')}</td>
-          <td style="padding:6px 10px;border:1px solid ${COLOR.borderGray};font-size:11px;font-weight:700;">${escapeHtml(channel?.contactPhone ?? '—')}</td>
-        </tr>
-        ${channel?.invoice_title || channel?.tax_id ? `
-        <tr>
-          <td style="padding:5px 10px;border:1px solid ${COLOR.borderGray};background:${COLOR.bgHeader};font-size:9px;color:${COLOR.textMuted};">公司抬頭</td>
-          <td colspan="2" style="padding:5px 10px;border:1px solid ${COLOR.borderGray};background:${COLOR.bgHeader};font-size:9px;color:${COLOR.textMuted};">統一編號</td>
-        </tr>
-        <tr>
-          <td style="padding:6px 10px;border:1px solid ${COLOR.borderGray};font-size:11px;font-weight:700;">${escapeHtml(channel?.invoice_title ?? '—')}</td>
-          <td colspan="2" style="padding:6px 10px;border:1px solid ${COLOR.borderGray};font-size:11px;font-weight:700;">${escapeHtml(channel?.tax_id ?? '—')}</td>
-        </tr>` : ''}
-      </table>
-    </div>
-
     <!-- 匯款資訊 -->
     <div style="margin-top:12px;border:1px solid ${COLOR.termsBord};background:${COLOR.brandSoft};padding:8px 12px;">
       <div style="font-size:11px;font-weight:700;color:${COLOR.text};margin-bottom:4px;">💰  匯款資訊</div>
@@ -135,12 +133,11 @@ function buildSettlementPageHtml({ settlement, pageOrders, channel, pageInfo, me
       </div>
     </div>
 
-    <!-- 簽章（僅廠商核對簽章） -->
-    <div style="margin-top:10px;padding:5px 10px;background:${COLOR.bgHeader};border:1px solid ${COLOR.borderGray};text-align:center;font-size:10px;color:${COLOR.textMuted};">
-      請<span style="color:${COLOR.red};font-weight:700;">核對</span>並<span style="color:${COLOR.red};font-weight:700;">簽章</span>後回傳，以利後續匯款作業
+    <!-- 備註（取代原廠商簽章欄） -->
+    <div style="margin-top:10px;border:1px solid ${COLOR.borderGray};">
+      <div style="padding:5px 10px;background:${COLOR.bgHeader};font-size:10px;font-weight:700;color:${COLOR.textMuted};">備註</div>
+      <div style="padding:8px 12px;min-height:56px;font-size:11px;color:${COLOR.text};line-height:1.7;white-space:pre-wrap;">${escapeHtml(remark ?? '')}</div>
     </div>
-    <div style="height:80px;border:1px solid ${COLOR.borderGray};border-top:none;"></div>
-    <div style="padding:4px 10px;border:1px solid ${COLOR.borderGray};border-top:none;text-align:center;font-size:10px;color:${COLOR.textMuted};">廠商確認簽章</div>
   ` : ''
 
   return `
@@ -159,8 +156,10 @@ function buildSettlementPageHtml({ settlement, pageOrders, channel, pageInfo, me
 
       ${summaryBanner}
 
+      ${infoHtml}
+
       <!-- 訂單列表 -->
-      <table style="width:100%;border-collapse:collapse;">
+      <table style="width:100%;border-collapse:collapse;margin-top:12px;">
         <thead>
           <tr>
             <th style="padding:6px 10px;border:1px solid ${COLOR.borderGray};background:${COLOR.bgHeader};font-size:11px;font-weight:700;color:${COLOR.textMuted};text-align:center;">B2B 訂單編號</th>
@@ -186,7 +185,7 @@ const PAGE_SIZE_NORMAL = 20
 const PAGE_SIZE_LAST   = 8
 
 // ── 主函式 ──────────────────────────────────────────────
-export async function exportSettlementPdf({ settlement, relatedOrders }) {
+export async function exportSettlementPdf({ settlement, relatedOrders, remark }) {
   if (!settlement) throw new Error('找不到結算單資料')
   const orders = relatedOrders ?? []
   const channel = channelMap[settlement.channelId]
@@ -227,6 +226,7 @@ export async function exportSettlementPdf({ settlement, relatedOrders }) {
         channel,
         pageInfo: { current: i + 1, total: pagesList.length },
         meta,
+        remark,
       })
       container.appendChild(pageDiv)
       await renderDivToPdfPage(pdf, pageDiv, i === 0)

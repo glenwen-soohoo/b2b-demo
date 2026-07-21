@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect } from 'react'
 import dayjs from 'dayjs'
 import {
   Table, Button, Space, Select, Drawer, Input,
@@ -135,11 +135,14 @@ function GenerateSettlementModal({ open, onClose, preOrderList, onGenerate }) {
 }
 
 // ── 結算單詳情 Drawer ──────────────────────────────
-function SettlementDrawer({ settlement, preOrderList, open, onClose, onStatusChange }) {
+function SettlementDrawer({ settlement, preOrderList, open, onClose, onStatusChange, onSaveRemark }) {
   const [financeNotifOpen,   setFinanceNotifOpen]   = useState(false)
   const [financeNotifData,   setFinanceNotifData]   = useState(null)
   const [reminderNotifOpen,  setReminderNotifOpen]  = useState(false)
   const [reminderNotifData,  setReminderNotifData]  = useState(null)
+  // 結算單備註（會一併印進 PDF）；換一張結算單時重置
+  const [remark, setRemark] = useState(settlement?.remark ?? '')
+  useEffect(() => { setRemark(settlement?.remark ?? '') }, [settlement?.id])
   if (!settlement) return null
 
   const relatedOrders = preOrderList.filter(o => settlement.preOrderIds?.includes(o.id))
@@ -228,6 +231,17 @@ function SettlementDrawer({ settlement, preOrderList, open, onClose, onStatusCha
           </Descriptions.Item>
         </Descriptions>
 
+        {settlement.status === 'awaiting_payment' && (
+          <Card style={{ background: '#fffbe6', border: '1px solid #ffe58f', marginBottom: 20 }}>
+            <Text strong>⏳ 待廠商匯款</Text>
+            <div style={{ marginTop: 8, fontSize: 13, lineHeight: 2 }}>
+              <div>戶名：舒果農企業有限公司</div>
+              <div>銀行：兆豐 0170077</div>
+              <div>帳號：00709001170</div>
+            </div>
+          </Card>
+        )}
+
         <Divider orientation="left" plain>涵蓋B2B訂單</Divider>
         {relatedOrders.length > 0 ? (
           <Table
@@ -272,16 +286,20 @@ function SettlementDrawer({ settlement, preOrderList, open, onClose, onStatusCha
           </Text>
         )}
 
-        {settlement.status === 'awaiting_payment' && (
-          <Card style={{ background: '#fffbe6', border: '1px solid #ffe58f', marginBottom: 20 }}>
-            <Text strong>⏳ 待廠商匯款</Text>
-            <div style={{ marginTop: 8, fontSize: 13, lineHeight: 2 }}>
-              <div>戶名：舒果農企業有限公司</div>
-              <div>銀行：兆豐 0170077</div>
-              <div>帳號：00709001170</div>
-            </div>
-          </Card>
-        )}
+        {/* 備註（小標籤樣式；按「儲存」才寫回，關閉側窗不會遺失）*/}
+        <div style={{ marginBottom: 16 }}>
+          <div style={{ fontSize: 12, color: '#888', marginBottom: 4 }}>備註</div>
+          <div style={{ display: 'flex', gap: 8, alignItems: 'flex-start' }}>
+            <Input.TextArea
+              value={remark}
+              onChange={e => setRemark(e.target.value)}
+              rows={2}
+              placeholder="此結算單的備註（會一併印在結算單 PDF）"
+              style={{ flex: 1 }}
+            />
+            <Button type="primary" onClick={() => onSaveRemark(settlement.id, remark)}>儲存</Button>
+          </div>
+        </div>
 
         {/* ── 操作按鈕（操作紀錄上方：左=匯出PDF，右=狀態操作） ── */}
         {settlement.status === 'awaiting_payment' && (
@@ -295,7 +313,7 @@ function SettlementDrawer({ settlement, preOrderList, open, onClose, onStatusCha
                 onClick={async () => {
                   try {
                     message.loading({ content: 'PDF 產生中…', key: 'settle-pdf', duration: 0 })
-                    await exportSettlementPdf({ settlement, relatedOrders })
+                    await exportSettlementPdf({ settlement, relatedOrders, remark })
                     message.success({ content: '結算單已下載', key: 'settle-pdf' })
                   } catch (err) {
                     console.error(err)
@@ -527,6 +545,12 @@ export default function AdminSettlements() {
     }))
   }
 
+  const handleSaveRemark = (id, remark) => {
+    setSettlementList(prev => prev.map(o => o.id === id ? { ...o, remark } : o))
+    setSelected(sel => (sel && sel.id === id ? { ...sel, remark } : sel))
+    message.success('備註已儲存')
+  }
+
   const columns = [
     { title: '結算單號', dataIndex: 'id', width: 180,
       render: v => <Text code style={{ fontSize: 12 }}>{v}</Text> },
@@ -607,6 +631,7 @@ export default function AdminSettlements() {
         settlement={selected} preOrderList={preOrderList}
         open={!!selected} onClose={() => setSelected(null)}
         onStatusChange={handleStatusChange}
+        onSaveRemark={handleSaveRemark}
       />
 
       {/* 生成結算單後的廠商通知 */}
