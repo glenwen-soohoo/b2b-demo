@@ -42,7 +42,8 @@ export function makeEan13PngBuffer(value, opt = {}) {
 
   const bits = buildBits(code13) // 95 bits
   const w = bits.length * moduleWidth + pad * 2
-  const h = height + fontSize + textGap + pad
+  // 上下各留一個 pad，讓條碼內容在 PNG 內垂直置中（原本底部沒留白，內容會偏下）
+  const h = pad + height + textGap + fontSize + pad
 
   const canvas = document.createElement('canvas')
   canvas.width = w

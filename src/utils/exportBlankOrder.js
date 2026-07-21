@@ -25,6 +25,42 @@ function sanitizeSheetName(name) {
   return String(name).replace(/[\\/?*:[\]]/g, '_').slice(0, 31)
 }
 
+// Excel 欄寬(字元)→像素、列高(pt)→像素。
+// 註：理論值是 欄寬 w×7 px（Calibri 11 MDW=7）、列高 h×(4/3) px（96dpi），
+// 但實測此環境 Excel 畫面上的格子只有理論值的約 0.893 倍（欄、列皆然）。
+// 圖片(ext/EMU)是照理論尺寸畫的，若用理論格子大小去算置中留白，留白會偏大，
+// 水平把圖推到右、垂直把圖推出列底（壓到下一列）。故兩軸都乘上同一個實測係數。
+const RENDER_FACTOR = 0.893
+const colCharsToPx = (w) => Math.round(w * 7 * RENDER_FACTOR)     // ≈ w × 6.25
+const rowPtsToPx = (h) => Math.round(h * 4 / 3 * RENDER_FACTOR)   // ≈ h × 1.19
+const EMU_PER_PX = 9525
+
+// 用 oneCell + ext（絕對像素）放圖，依格子實際大小「等比例縮放 + 置中」，讓圖片明顯小於格子、不會溢出跑位。
+// 注意：ExcelJS 的小數欄座標 offset = frac × (width×10000) EMU，與真實欄寬(≈width×7 px)不成比例，
+// 所以留白必須自己換算成正確的 frac（= 留白px × 9525 / (width×10000)），不能直接用 留白px/格寬。
+// col / row 為 0-indexed 的格子左上座標；colWidth(字元)、rowHeight(pt) 為該格尺寸。
+function addImageFitCell(ws, imgId, { col, row, colWidth, rowHeight, imgW, imgH, pad = 5, shiftUpPx = 0 }) {
+  const cellW = colCharsToPx(colWidth)
+  const cellH = rowPtsToPx(rowHeight)
+  const scale = Math.min((cellW - pad * 2) / imgW, (cellH - pad * 2) / imgH, 1)
+  const drawW = imgW * scale
+  const drawH = imgH * scale
+  // ExcelJS 的 offset 上限為 (dim×10000) EMU，超過會溢位到下一格，故夾住留白像素
+  const maxInsetX = (colWidth * 10000) / EMU_PER_PX - 1
+  const maxInsetY = (rowHeight * 10000) / EMU_PER_PX - 1
+  const insetX = Math.max(0, Math.min((cellW - drawW) / 2, maxInsetX))
+  // shiftUpPx：微幅上移的手動校正（真實列高比理論估計略矮時用來抵銷偏低）
+  const insetY = Math.max(0, Math.min((cellH - drawH) / 2 - shiftUpPx, maxInsetY))
+  ws.addImage(imgId, {
+    tl: {
+      col: col + (insetX * EMU_PER_PX) / (colWidth * 10000),   // 水平置中
+      row: row + (insetY * EMU_PER_PX) / (rowHeight * 10000),  // 垂直置中
+    },
+    ext: { width: drawW, height: drawH },
+    editAs: 'oneCell',
+  })
+}
+
 // ── 組單張工作表 ──────────────────────────────────────
 function buildSheet(wb, logoImageId, { cat, prods, channel, systemSettings }) {
   const ws = wb.addWorksheet(sanitizeSheetName(cat.name), {
@@ -170,13 +206,14 @@ function buildSheet(wb, logoImageId, { cat, prods, channel, systemSettings }) {
       barcodeCell.alignment = { horizontal: 'center', vertical: 'middle' }
       barcodeCell.border = BORDER_ALL
       if (p.barcode_ean13) {
-        const png = makeEan13PngBuffer(p.barcode_ean13, { moduleWidth: 1.6, height: 30, fontSize: 9 })
+        const png = makeEan13PngBuffer(p.barcode_ean13, { moduleWidth: 1.2, height: 24, fontSize: 8 })
         if (png) {
           const imgId = wb.addImage({ buffer: png.buffer, extension: 'png' })
-          ws.addImage(imgId, {
-            tl: { col: 5 + 0.08, row: row - 1 + 0.1 },
-            ext: { width: png.width, height: png.height },
-            editAs: 'oneCell',
+          addImageFitCell(ws, imgId, {
+            col: 5, row: row - 1,     // F 欄（0-indexed 5）、目前列
+            colWidth: 24, rowHeight: 40,
+            imgW: png.width, imgH: png.height,
+            shiftUpPx: 2,             // 實測略偏低，往上微調 2px
           })
         }
       }
