@@ -11,10 +11,91 @@ import { useOrderDetailColumns } from '../hooks/useOrderDetailColumns';
 import StatusTag from './StatusTag';
 import OrderStateMachine from './OrderStateMachine';
 import ShippingCell from './ShippingCell';
-import { productMap, channelMap, systemSettings } from '../data/fakeData';
+import { productMap, channelMap, systemSettings, shippingSettings } from '../data/fakeData';
 import { settlementCutoffDay } from '../utils/invoiceMode';
 
 const { Text } = Typography;
+
+// 依溫層分別判斷運費：某溫層有品項且該溫層小計未達免運門檻，就加收該溫層運費（冷凍/常溫各算一次）
+function calcShipping(items, qtyOf, priceOf) {
+  let shipping = 0;
+  for (const zone of ['frozen', 'ambient']) {
+    const zoneItems = items.filter(i => productMap[i.productId]?.category === zone);
+    if (zoneItems.length === 0) continue;
+    const sub = zoneItems.reduce((s, i) => s + qtyOf(i) * priceOf(i), 0);
+    const cfg = shippingSettings[zone];
+    if (cfg && sub < cfg.freeShippingThreshold) shipping += cfg.shippingFee;
+  }
+  return shipping;
+}
+
+// 結算列：直接做成「表格內的 Summary 列」，運費/折扣/應付金額的數值放進真正的「小計」儲存格，
+// 標籤放在「合計」欄位置（靠右），這樣跟上面合計列同欄、同樣靠右對齊，任何環境都不會歪。
+// 折扣備註用 rowSpan 橫跨那幾列（放在最左）。
+// costIdx = 「成本」欄的 0-based 索引（成本後面固定接 小計/毛利/毛利率 四欄）。
+// 規則：沒有運費(=0)不顯示運費列；唯讀且沒有折扣不顯示折扣列與備註。應付 = 小計 − 折扣 + 運費。
+function TotalsSummary({ costIdx, cost, revenue, profit, margin, shipping,
+                         editable = false, discountAmount = 0, setDiscountAmount,
+                         discountNote = '', setDiscountNote, orderDiscount = 0, orderDiscountNote = '' }) {
+  const d = editable ? discountAmount : orderDiscount;
+  const payable = revenue - d + shipping;
+  const showShipping = editable || shipping > 0;
+  const showDiscount = editable || d > 0;
+  const showNote = editable || d > 0;
+  const mc = profit >= 0 ? '#52c41a' : '#ff4d4f';
+
+  const money = [];
+  if (showShipping) money.push({ k: 'ship', label: '運費',
+    value: <span style={{ color: shipping > 0 ? '#fa8c16' : '#8c8c8c' }}>${shipping.toLocaleString()}</span> });
+  if (showDiscount) money.push({ k: 'disc', label: '折扣',
+    value: editable
+      ? <InputNumber min={0} prefix="-$" size="small" value={discountAmount} onChange={v => setDiscountAmount(v ?? 0)} style={{ width: 76 }} />
+      : <span style={{ color: '#fa8c16' }}>-${d.toLocaleString()}</span> });
+  money.push({ k: 'pay', label: '應付金額', bold: true,
+    value: <strong style={{ color: '#1677ff', fontSize: 15 }}>${payable.toLocaleString()}</strong> });
+
+  const N = money.length;
+  // 折扣備註盡量加寬：佔到「合計」欄前一欄為止（例：吃掉數量差異欄），標籤只留最後 1 欄（採購單價，仍靠齊合計）
+  const labelSpan = 1;
+  const noteSpan = Math.max(1, costIdx - labelSpan);
+
+  return (
+    <>
+      <Table.Summary.Row>
+        <Table.Summary.Cell index={0} colSpan={costIdx} align="right"><strong>合計</strong></Table.Summary.Cell>
+        <Table.Summary.Cell index={costIdx} align="right"><strong style={{ color: '#999' }}>${cost.toLocaleString()}</strong></Table.Summary.Cell>
+        <Table.Summary.Cell index={costIdx + 1} align="right"><strong style={{ color: '#1677ff' }}>${revenue.toLocaleString()}</strong></Table.Summary.Cell>
+        <Table.Summary.Cell index={costIdx + 2} align="right"><strong style={{ color: mc }}>${profit.toLocaleString()}</strong></Table.Summary.Cell>
+        <Table.Summary.Cell index={costIdx + 3} align="right"><strong style={{ color: mc }}>{margin}%</strong></Table.Summary.Cell>
+      </Table.Summary.Row>
+      {money.map((m, i) => (
+        <Table.Summary.Row key={m.k}>
+          {showNote && i === 0 && (
+            <Table.Summary.Cell index={0} colSpan={noteSpan} rowSpan={N}>
+              <div style={{ paddingRight: 12 }}>
+                <div style={{ fontSize: 12, color: '#888', marginBottom: 4 }}>
+                  折扣備註{editable && d > 0 && <span style={{ color: '#ff4d4f' }}> *必填</span>}
+                </div>
+                {editable
+                  ? <Input.TextArea value={discountNote} onChange={e => setDiscountNote(e.target.value)}
+                      placeholder="折扣原因說明" autoSize={{ minRows: 2 }} />
+                  : <div style={{ background: '#fafafa', border: '1px solid #f0f0f0', borderRadius: 6, padding: '6px 10px', fontSize: 13, color: '#595959', whiteSpace: 'pre-line' }}>
+                      {orderDiscountNote || <Text type="secondary">—</Text>}
+                    </div>}
+              </div>
+            </Table.Summary.Cell>
+          )}
+          <Table.Summary.Cell index={showNote ? noteSpan : 0} colSpan={showNote ? labelSpan : costIdx} align="right">
+            {m.bold ? <strong>{m.label}</strong> : <span style={{ color: '#8c8c8c' }}>{m.label}</span>}
+          </Table.Summary.Cell>
+          <Table.Summary.Cell index={costIdx} />
+          <Table.Summary.Cell index={costIdx + 1} align="right">{m.value}</Table.Summary.Cell>
+          <Table.Summary.Cell index={costIdx + 2} colSpan={2} />
+        </Table.Summary.Row>
+      ))}
+    </>
+  );
+}
 
 function getSettlementMonthOptions(settlementDay, currentValue) {
   const now = dayjs()
@@ -131,7 +212,14 @@ export default function OrderDetail({ order, open, onClose, onStatusChange, onRe
     ? calcProfitFromMaps(order.items, adjQtyMap, adjPriceMap)
     : calcProfit(displayItems);
 
-  const netRevenue = revenue - (order.status === 'pending_sales' ? discountAmount : (order.discount_amount ?? 0));
+  const discountForCalc = order.status === 'pending_sales' ? discountAmount : (order.discount_amount ?? 0);
+
+  // 運費：pending_sales 依當前確認的數量/單價即時計算；其餘狀態用已確認品項
+  const shipping = order.status === 'pending_sales'
+    ? calcShipping(order.items, i => adjQtyMap[i.productId] ?? i.qty, i => adjPriceMap[i.productId] ?? i.price)
+    : calcShipping(displayItems, i => i.qty, i => i.price);
+  // 應付金額 = 商品小計 − 折扣 + 運費（廠商實際要付的金額）
+  const payable = revenue - discountForCalc + shipping;
 
   const isSettled    = order.status === 'settling' || order.status === 'settled_done';
   const isVoided     = order.status === 'voided';
@@ -342,12 +430,13 @@ export default function OrderDetail({ order, open, onClose, onStatusChange, onRe
 
         <Row gutter={12} style={{ marginBottom: 20 }}>
           {[
-            { label: '銷售金額', value: revenue, prefix: '$', color: '#1677ff' },
+            { label: '品項總計', value: revenue, prefix: '$', color: '#1677ff' },
+            { label: '運費', value: shipping, prefix: '$', color: shipping > 0 ? '#fa8c16' : '#bbb' },
             { label: '折扣', value: displayDiscount, prefix: '-$', color: displayDiscount > 0 ? '#fa8c16' : '#bbb' },
-            { label: '實收金額', value: netRevenue, prefix: '$', color: '#13c2c2' },
-            { label: '毛利率', value: margin, suffix: '%', color: profit >= 0 ? '#52c41a' : '#ff4d4f' },
+            { label: '應收金額', value: payable, prefix: '$', color: '#13c2c2' },
+            { label: '整單毛利率', value: margin, suffix: '%', color: profit >= 0 ? '#52c41a' : '#ff4d4f' },
           ].map(s => (
-            <Col span={6} key={s.label}>
+            <Col flex="1" key={s.label}>
               <div style={{ background: '#fafafa', border: '1px solid #f0f0f0', borderRadius: 8, padding: '10px 14px', textAlign: 'center' }}>
                 <div style={{ fontSize: 11, color: '#999', marginBottom: 4 }}>{s.label}</div>
                 <div style={{ fontSize: 18, fontWeight: 700, color: s.color }}>
@@ -410,47 +499,23 @@ export default function OrderDetail({ order, open, onClose, onStatusChange, onRe
               pagination={false}
               columns={salesConfirmCols}
               summary={() => {
-                const totalRevenue = order.items.reduce((s, i) => s + (adjQtyMap[i.productId] ?? i.qty) * (adjPriceMap[i.productId] ?? i.price), 0);
-                const totalProfit  = order.items.reduce((s, i) => s + (adjQtyMap[i.productId] ?? i.qty) * ((adjPriceMap[i.productId] ?? i.price) - (i.cost ?? 0)), 0);
+                const q = i => adjQtyMap[i.productId] ?? i.qty;
+                const p = i => adjPriceMap[i.productId] ?? i.price;
+                const totalCost    = order.items.reduce((s, i) => s + q(i) * (i.cost ?? 0), 0);
+                const totalRevenue = order.items.reduce((s, i) => s + q(i) * p(i), 0);
+                const totalProfit  = totalRevenue - totalCost;
+                const totalMargin  = totalRevenue > 0 ? (totalProfit / totalRevenue * 100).toFixed(1) : '0.0';
                 return (
-                  <Table.Summary.Row>
-                    <Table.Summary.Cell colSpan={6} align="right"><strong>合計</strong></Table.Summary.Cell>
-                    <Table.Summary.Cell align="right">
-                      <strong style={{ color: '#1677ff' }}>${totalRevenue.toLocaleString()}</strong>
-                    </Table.Summary.Cell>
-                    <Table.Summary.Cell align="right">
-                      <strong style={{ color: totalProfit >= 0 ? '#52c41a' : '#ff4d4f' }}>${totalProfit.toLocaleString()}</strong>
-                    </Table.Summary.Cell>
-                  </Table.Summary.Row>
+                  <TotalsSummary
+                    costIdx={5} cost={totalCost} revenue={totalRevenue} profit={totalProfit} margin={totalMargin}
+                    shipping={shipping} editable
+                    discountAmount={discountAmount} setDiscountAmount={setDiscountAmount}
+                    discountNote={discountNote} setDiscountNote={setDiscountNote}
+                  />
                 );
               }}
               style={{ marginBottom: 16 }}
             />
-            <div style={{ display: 'flex', gap: 12, marginBottom: 16, alignItems: 'flex-start' }}>
-              <div style={{ flex: 1 }}>
-                <div style={{ fontSize: 12, color: '#888', marginBottom: 4 }}>
-                  折扣備註{discountAmount > 0 && <span style={{ color: '#ff4d4f' }}> *必填</span>}
-                </div>
-                <Input.TextArea
-                  rows={2} value={discountNote}
-                  onChange={e => setDiscountNote(e.target.value)}
-                  placeholder="折扣原因說明"
-                />
-              </div>
-              <div style={{ width: 180 }}>
-                <div style={{ fontSize: 12, color: '#888', marginBottom: 4 }}>折扣金額</div>
-                <InputNumber
-                  min={0} prefix="-$" style={{ width: '100%' }}
-                  value={discountAmount}
-                  onChange={v => setDiscountAmount(v ?? 0)}
-                />
-                {discountAmount > 0 && (
-                  <div style={{ marginTop: 4, fontSize: 12, color: '#13c2c2', fontWeight: 600 }}>
-                    實收：${(revenue - discountAmount).toLocaleString()}
-                  </div>
-                )}
-              </div>
-            </div>
           </>
         )}
 
@@ -466,37 +531,20 @@ export default function OrderDetail({ order, open, onClose, onStatusChange, onRe
               pagination={false}
               style={{ marginBottom: 12 }}
               summary={() => {
-                const editTotal  = editItems.reduce((s, i) => s + i.qty * i.price, 0);
-                const editProfit = editItems.reduce((s, i) => s + i.qty * (i.price - (i.cost ?? 0)), 0);
+                const editCost     = editItems.reduce((s, i) => s + i.qty * (i.cost ?? 0), 0);
+                const editTotal    = editItems.reduce((s, i) => s + i.qty * i.price, 0);
+                const editProfit   = editTotal - editCost;
+                const editMargin   = editTotal > 0 ? (editProfit / editTotal * 100).toFixed(1) : '0.0';
                 return (
-                  <Table.Summary.Row>
-                    <Table.Summary.Cell colSpan={5} align="right"><strong>合計</strong></Table.Summary.Cell>
-                    <Table.Summary.Cell align="right"><strong style={{ color: '#1677ff' }}>${editTotal.toLocaleString()}</strong></Table.Summary.Cell>
-                    <Table.Summary.Cell align="right"><strong style={{ color: editProfit >= 0 ? '#52c41a' : '#ff4d4f' }}>${editProfit.toLocaleString()}</strong></Table.Summary.Cell>
-                  </Table.Summary.Row>
+                  <TotalsSummary
+                    costIdx={4} cost={editCost} revenue={editTotal} profit={editProfit} margin={editMargin}
+                    shipping={calcShipping(editItems, i => i.qty, i => i.price)} editable
+                    discountAmount={discountAmount} setDiscountAmount={setDiscountAmount}
+                    discountNote={discountNote} setDiscountNote={setDiscountNote}
+                  />
                 );
               }}
             />
-            <div style={{ display: 'flex', gap: 12, marginBottom: 16, alignItems: 'flex-start' }}>
-              <div style={{ flex: 1 }}>
-                <div style={{ fontSize: 12, color: '#888', marginBottom: 4 }}>
-                  折扣備註{discountAmount > 0 && <span style={{ color: '#ff4d4f' }}> *必填</span>}
-                </div>
-                <Input.TextArea
-                  rows={2} value={discountNote}
-                  onChange={e => setDiscountNote(e.target.value)}
-                  placeholder="折扣原因說明"
-                />
-              </div>
-              <div style={{ width: 180 }}>
-                <div style={{ fontSize: 12, color: '#888', marginBottom: 4 }}>折扣金額</div>
-                <InputNumber
-                  min={0} prefix="-$" style={{ width: '100%' }}
-                  value={discountAmount}
-                  onChange={v => setDiscountAmount(v ?? 0)}
-                />
-              </div>
-            </div>
           </>
         )}
 
@@ -510,39 +558,16 @@ export default function OrderDetail({ order, open, onClose, onStatusChange, onRe
               rowKey="productId"
               size="small"
               pagination={false}
-              summary={() => (
-                <>
-                  <Table.Summary.Row>
-                    <Table.Summary.Cell colSpan={5} align="right"><strong>合計</strong></Table.Summary.Cell>
-                    <Table.Summary.Cell align="right"><strong style={{ color: '#1677ff' }}>${revenue.toLocaleString()}</strong></Table.Summary.Cell>
-                    <Table.Summary.Cell align="right"><strong style={{ color: profit >= 0 ? '#52c41a' : '#ff4d4f' }}>${profit.toLocaleString()}</strong></Table.Summary.Cell>
-                  </Table.Summary.Row>
-                  {(order.discount_amount > 0) && (
-                    <>
-                      <Table.Summary.Row>
-                        <Table.Summary.Cell colSpan={5}>
-                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', gap: 8 }}>
-                            <div>
-                              <div style={{ fontSize: 12, color: '#888', marginBottom: 2 }}>折扣備註</div>
-                              <div style={{ fontSize: 13, color: '#595959', whiteSpace: 'pre-line' }}>
-                                {order.discount_note || <Text type="secondary">—</Text>}
-                              </div>
-                            </div>
-                            <span style={{ color: '#fa8c16', whiteSpace: 'nowrap' }}>折扣</span>
-                          </div>
-                        </Table.Summary.Cell>
-                        <Table.Summary.Cell align="right" style={{ color: '#fa8c16' }}>-${order.discount_amount.toLocaleString()}</Table.Summary.Cell>
-                        <Table.Summary.Cell />
-                      </Table.Summary.Row>
-                      <Table.Summary.Row>
-                        <Table.Summary.Cell colSpan={5} align="right" style={{ fontWeight: 700, color: '#13c2c2' }}>實收</Table.Summary.Cell>
-                        <Table.Summary.Cell align="right" style={{ fontWeight: 700, color: '#13c2c2' }}>${(revenue - order.discount_amount).toLocaleString()}</Table.Summary.Cell>
-                        <Table.Summary.Cell />
-                      </Table.Summary.Row>
-                    </>
-                  )}
-                </>
-              )}
+              summary={() => {
+                const totalMargin = revenue > 0 ? (profit / revenue * 100).toFixed(1) : '0.0';
+                return (
+                  <TotalsSummary
+                    costIdx={4} cost={cost} revenue={revenue} profit={profit} margin={totalMargin}
+                    shipping={shipping}
+                    orderDiscount={order.discount_amount ?? 0} orderDiscountNote={order.discount_note ?? ''}
+                  />
+                );
+              }}
               style={{ marginBottom: 16 }}
             />
           </>

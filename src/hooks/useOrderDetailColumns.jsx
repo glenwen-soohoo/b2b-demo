@@ -60,6 +60,17 @@ export function useOrderDetailColumns({
         return <span style={{ color: g >= 0 ? '#52c41a' : '#ff4d4f' }}>${g.toLocaleString()}</span>
       },
     },
+    {
+      title: '毛利率', width: 80, align: 'right',
+      render: (_, r) => {
+        const q = adjQtyMap[r.productId] ?? r.qty
+        const p = adjPriceMap[r.productId] ?? r.price
+        const sub = q * p
+        const g = q * (p - (r.cost ?? 0))
+        const m = sub > 0 ? (g / sub * 100).toFixed(1) : '0.0'
+        return <span style={{ color: g >= 0 ? '#52c41a' : '#ff4d4f' }}>{m}%</span>
+      },
+    },
   ]
 
   const editCols = [
@@ -100,6 +111,15 @@ export function useOrderDetailColumns({
         return <span style={{ color: g >= 0 ? '#52c41a' : '#ff4d4f' }}>${g.toLocaleString()}</span>
       },
     },
+    {
+      title: '毛利率', width: 80, align: 'right',
+      render: (_, r) => {
+        const sub = r.qty * r.price
+        const g = r.qty * (r.price - (r.cost ?? 0))
+        const m = sub > 0 ? (g / sub * 100).toFixed(1) : '0.0'
+        return <span style={{ color: g >= 0 ? '#52c41a' : '#ff4d4f' }}>{m}%</span>
+      },
+    },
   ]
 
   const itemCols = [
@@ -115,6 +135,15 @@ export function useOrderDetailColumns({
       render: (_, r) => {
         const g = r.qty * (r.price - (r.cost ?? 0))
         return <span style={{ color: g >= 0 ? '#52c41a' : '#ff4d4f' }}>${g.toLocaleString()}</span>
+      },
+    },
+    {
+      title: '毛利率', width: 80,
+      render: (_, r) => {
+        const sub = r.qty * r.price
+        const g = r.qty * (r.price - (r.cost ?? 0))
+        const m = sub > 0 ? (g / sub * 100).toFixed(1) : '0.0'
+        return <span style={{ color: g >= 0 ? '#52c41a' : '#ff4d4f' }}>{m}%</span>
       },
     },
   ]
