@@ -52,7 +52,7 @@ function TotalsSummary({ costIdx, cost, revenue, profit, margin, shipping,
       ? <InputNumber min={0} prefix="-$" size="small" value={discountAmount} onChange={v => setDiscountAmount(v ?? 0)} style={{ width: 76 }} />
       : <span style={{ color: '#fa8c16' }}>-${d.toLocaleString()}</span> });
   money.push({ k: 'pay', label: '應付金額', bold: true,
-    value: <strong style={{ color: '#1677ff', fontSize: 15 }}>${payable.toLocaleString()}</strong> });
+    value: <strong style={{ color: '#1677ff' }}>${payable.toLocaleString()}</strong> });
 
   const N = money.length;
   // 折扣備註盡量加寬：佔到「合計」欄前一欄為止（例：吃掉數量差異欄），標籤只留最後 1 欄（採購單價，仍靠齊合計）

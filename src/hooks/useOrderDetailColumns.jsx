@@ -124,21 +124,21 @@ export function useOrderDetailColumns({
 
   const itemCols = [
     { title: '品項', dataIndex: 'productName' },
-    { title: '單位', dataIndex: 'unit', width: 55 },
-    { title: '數量', dataIndex: 'qty', width: 65 },
-    { title: '採購單價', dataIndex: 'price', width: 85, render: v => `$${v}` },
-    { title: '成本', dataIndex: 'cost', width: 65,
+    { title: '單位', dataIndex: 'unit', width: 55, align: 'center' },
+    { title: '數量', dataIndex: 'qty', width: 65, align: 'center' },
+    { title: '採購單價', dataIndex: 'price', width: 85, align: 'right', render: v => `$${v}` },
+    { title: '成本', dataIndex: 'cost', width: 65, align: 'right',
       render: v => v ? <span style={{ color: '#999' }}>${v}</span> : '-' },
-    { title: '小計', width: 90, render: (_, r) => `$${(r.qty * r.price).toLocaleString()}` },
+    { title: '小計', width: 90, align: 'right', render: (_, r) => `$${(r.qty * r.price).toLocaleString()}` },
     {
-      title: '毛利', width: 85,
+      title: '毛利', width: 85, align: 'right',
       render: (_, r) => {
         const g = r.qty * (r.price - (r.cost ?? 0))
         return <span style={{ color: g >= 0 ? '#52c41a' : '#ff4d4f' }}>${g.toLocaleString()}</span>
       },
     },
     {
-      title: '毛利率', width: 80,
+      title: '毛利率', width: 80, align: 'right',
       render: (_, r) => {
         const sub = r.qty * r.price
         const g = r.qty * (r.price - (r.cost ?? 0))
