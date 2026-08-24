@@ -5,13 +5,14 @@ import {
   Tag, Alert, Modal, message,
 } from 'antd'
 import {
-  ShoppingCartOutlined, WarningOutlined, DownloadOutlined,
+  ShoppingCartOutlined, WarningOutlined, DownloadOutlined, UploadOutlined,
 } from '@ant-design/icons'
 import { products, templates, categories, systemSettings, shippingSettings } from '../../data/fakeData'
 import { settlementDayLabel } from '../../utils/invoiceMode'
 import { useVendor } from '../../context/VendorContext'
 import NotificationPreviewModal from '../../components/NotificationPreviewModal'
 import OrderPreviewModal from '../../components/OrderPreviewModal'
+import ImportOrderModal from '../../components/ImportOrderModal'
 import ProductSection, { ComingSoonTab } from '../../components/ProductSection'
 import { exportBlankOrder } from '../../utils/exportBlankOrder'
 import { TEMP_ICON } from '../../styles/tokens'
@@ -31,6 +32,7 @@ export default function VendorOrderForm() {
   const location = useLocation()
   const [qtyMap,             setQtyMap]             = useState({})
   const [previewOpen,        setPreviewOpen]        = useState(false)
+  const [importOpen,         setImportOpen]         = useState(false)
   const [notifOpen,          setNotifOpen]          = useState(false)
   const [notifData,          setNotifData]          = useState(null)
   const [pendingSubmit,      setPendingSubmit]      = useState(null)
@@ -168,6 +170,12 @@ export default function VendorOrderForm() {
           >
             下載空白採購單
           </Button>
+          <Button
+            icon={<UploadOutlined />}
+            onClick={() => setImportOpen(true)}
+          >
+            匯入採購單
+          </Button>
           <div style={{
             background: '#f6ffed', border: '1px solid #b7eb8f', borderRadius: 8,
             padding: '5px 14px', fontSize: 14, fontWeight: 600, color: '#389e0d',
@@ -279,6 +287,19 @@ export default function VendorOrderForm() {
         items={orderedItems}
         channel={channel}
         onConfirm={handleConfirm}
+      />
+
+      {/* 匯入採購單：上傳填好的採購單 → 帶入數量 → 直接跳到門市勾選的下單彈窗 */}
+      <ImportOrderModal
+        open={importOpen}
+        onClose={() => setImportOpen(false)}
+        products={tplProducts}
+        onConfirm={(qm) => {
+          setQtyMap(qm)
+          setImportOpen(false)
+          // 先讓匯入彈窗關閉動畫跑完，再開下單彈窗（避免兩個 Modal 同一 tick 開關造成遮罩殘留）
+          setTimeout(() => setPreviewOpen(true), 250)
+        }}
       />
 
       <NotificationPreviewModal
