@@ -5,17 +5,35 @@ const { Text } = Typography
 /**
  * OrderDetail 的三份 column 定義。
  * 把 ~110 行的 column 物件從主元件中移出，保持主元件專注在狀態與 JSX 結構。
+ * onRemoveExtra：移除「業務新增」的臨時品項（只有 _extra 的列會顯示移除鈕）。
  */
 export function useOrderDetailColumns({
   adjQtyMap, setAdjQtyMap,
   adjPriceMap, setAdjPriceMap,
   editItems, setEditItems,
+  onRemoveExtra,
 }) {
   const salesConfirmCols = [
-    { title: '品項', dataIndex: 'productName' },
-    { title: '廠商下訂', dataIndex: 'qty', width: 80, align: 'center' },
+    { title: '品項',
+      // 品項名 + 標籤用行內流排版（標籤接在名稱後、不預留固定寬度），避免壓縮名稱造成新增列特別高
+      render: (_, r) => (
+        <span>
+          {r.productName}
+          {r.spec && <Tag style={{ fontSize: 11, marginLeft: 4, marginRight: 0 }}>{r.spec}</Tag>}
+          {r._extra && (
+            <Tag color="green" style={{ fontSize: 11, marginLeft: 4, marginRight: 0 }}
+              closable={!!onRemoveExtra}
+              onClose={e => { e.preventDefault(); onRemoveExtra(r.productId) }}>
+              業務新增
+            </Tag>
+          )}
+        </span>
+      ),
+    },
+    { title: '廠商下訂', dataIndex: 'qty', width: 80, align: 'center',
+      render: (v, r) => r._extra ? <Text type="secondary">—</Text> : v },
     {
-      title: '業務確認數量', width: 130, align: 'center',
+      title: '業務確認數量', width: 112, align: 'center',
       render: (_, r) => (
         <InputNumber
           min={0} size="small"
@@ -28,6 +46,7 @@ export function useOrderDetailColumns({
     {
       title: '數量差異', width: 75, align: 'center',
       render: (_, r) => {
+        if (r._extra) return <Tag>—</Tag>   // 業務新增品項沒有「廠商下訂」基準可比
         const diff = (adjQtyMap[r.productId] ?? r.qty) - r.qty
         if (diff === 0) return <Tag>—</Tag>
         return <Tag color={diff < 0 ? 'red' : 'green'}>{diff > 0 ? '+' : ''}{diff}</Tag>
@@ -35,7 +54,7 @@ export function useOrderDetailColumns({
     },
     {
       title: <Tooltip title="B2B採購價，與後台系統無關">採購單價 ⓘ</Tooltip>,
-      width: 130, align: 'right',
+      width: 112, align: 'right',
       render: (_, r) => (
         <InputNumber
           min={0} size="small" prefix="$"

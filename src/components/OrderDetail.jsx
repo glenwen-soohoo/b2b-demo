@@ -3,7 +3,7 @@ import {
   Drawer, Descriptions, Table, Timeline, Button, Space, Popconfirm, Tag,
   Divider, Alert, Row, Col, InputNumber, Input, Typography, Tooltip, Select, Dropdown, message,
 } from 'antd';
-import { SendOutlined, LockOutlined, SaveOutlined, EditOutlined, FilePdfOutlined, CloseOutlined, StopOutlined, DownOutlined, RedoOutlined } from '@ant-design/icons';
+import { SendOutlined, LockOutlined, SaveOutlined, EditOutlined, FilePdfOutlined, CloseOutlined, StopOutlined, DownOutlined, RedoOutlined, PlusOutlined } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import { exportOrderPdf } from '../utils/exportOrderPdf';
 import { generateB2bOrderNo, getConfirmedItems, buildVoidPatch, buildRecreatedOrder } from '../services/orderService';
@@ -11,7 +11,8 @@ import { useOrderDetailColumns } from '../hooks/useOrderDetailColumns';
 import StatusTag from './StatusTag';
 import OrderStateMachine from './OrderStateMachine';
 import ShippingCell from './ShippingCell';
-import { productMap, channelMap, systemSettings, shippingSettings } from '../data/fakeData';
+import AddItemModal from './AddItemModal';
+import { productMap, channelMap, systemSettings, shippingSettings, products } from '../data/fakeData';
 import { settlementCutoffDay } from '../utils/invoiceMode';
 
 const { Text } = Typography;
@@ -36,7 +37,8 @@ function calcShipping(items, qtyOf, priceOf) {
 // 規則：沒有運費(=0)不顯示運費列；唯讀且沒有折扣不顯示折扣列與備註。應付 = 小計 − 折扣 + 運費。
 function TotalsSummary({ costIdx, cost, revenue, profit, margin, shipping,
                          editable = false, discountAmount = 0, setDiscountAmount,
-                         discountNote = '', setDiscountNote, orderDiscount = 0, orderDiscountNote = '' }) {
+                         discountNote = '', setDiscountNote, orderDiscount = 0, orderDiscountNote = '',
+                         leftExtra = null }) {
   const d = editable ? discountAmount : orderDiscount;
   const payable = revenue - d + shipping;
   const showShipping = editable || shipping > 0;
@@ -62,7 +64,12 @@ function TotalsSummary({ costIdx, cost, revenue, profit, margin, shipping,
   return (
     <>
       <Table.Summary.Row>
-        <Table.Summary.Cell index={0} colSpan={costIdx} align="right"><strong>合計</strong></Table.Summary.Cell>
+        <Table.Summary.Cell index={0} colSpan={costIdx}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            {leftExtra || <span />}
+            <strong>合計</strong>
+          </div>
+        </Table.Summary.Cell>
         <Table.Summary.Cell index={costIdx} align="right"><strong style={{ color: '#999' }}>${cost.toLocaleString()}</strong></Table.Summary.Cell>
         <Table.Summary.Cell index={costIdx + 1} align="right"><strong style={{ color: '#1677ff' }}>${revenue.toLocaleString()}</strong></Table.Summary.Cell>
         <Table.Summary.Cell index={costIdx + 2} align="right"><strong style={{ color: mc }}>${profit.toLocaleString()}</strong></Table.Summary.Cell>
@@ -178,18 +185,26 @@ export default function OrderDetail({ order, open, onClose, onStatusChange, onRe
   const [editItems,      setEditItems]      = useState([]);
   const [localSettlementMonth, setLocalSettlementMonth] = useState('');
   const [voidConfirm,    setVoidConfirm]    = useState({ open: false, mode: null }); // mode: 'void' | 'recreate'
+  const [extraItems,     setExtraItems]     = useState([]);   // 業務臨時新增、原訂單沒有的品項
+  const [addItemOpen,    setAddItemOpen]    = useState(false);
+
+  const removeExtra = (productId) => setExtraItems(prev => prev.filter(i => i.productId !== productId));
 
   const { salesConfirmCols, editCols, itemCols } = useOrderDetailColumns({
     adjQtyMap, setAdjQtyMap,
     adjPriceMap, setAdjPriceMap,
     editItems, setEditItems,
+    onRemoveExtra: removeExtra,
   });
 
   useEffect(() => {
     if (order) {
       const source = order.salesAdjustedItems ?? order.items;
+      // 已存過的草稿裡，不在原訂單內的就是先前業務新增的品項，還原回來
+      const extras = source.filter(i => !order.items.some(o => o.productId === i.productId));
+      setExtraItems(extras.map(i => ({ ...i, _extra: true })));
       setAdjQtyMap(Object.fromEntries(source.map(i => [i.productId, i.qty])));
-      setAdjPriceMap(Object.fromEntries(order.items.map(i => [i.productId, i.price])));
+      setAdjPriceMap(Object.fromEntries(source.map(i => [i.productId, i.price])));
       setDiscountAmount(order.discount_amount ?? 0);
       setDiscountNote(order.discount_note ?? '');
       setShippingNote(order.shipping_note ?? '');
@@ -207,17 +222,29 @@ export default function OrderDetail({ order, open, onClose, onStatusChange, onRe
   if (!order) return null;
 
   const displayItems = getConfirmedItems(order);
+  // pending_sales 用「原訂單品項 + 業務新增品項」一起算、一起確認
+  const pendingItems = [...order.items, ...extraItems];
 
   const { revenue, cost, profit, margin } = order.status === 'pending_sales'
-    ? calcProfitFromMaps(order.items, adjQtyMap, adjPriceMap)
+    ? calcProfitFromMaps(pendingItems, adjQtyMap, adjPriceMap)
     : calcProfit(displayItems);
 
   const discountForCalc = order.status === 'pending_sales' ? discountAmount : (order.discount_amount ?? 0);
 
   // 運費：pending_sales 依當前確認的數量/單價即時計算；其餘狀態用已確認品項
   const shipping = order.status === 'pending_sales'
-    ? calcShipping(order.items, i => adjQtyMap[i.productId] ?? i.qty, i => adjPriceMap[i.productId] ?? i.price)
+    ? calcShipping(pendingItems, i => adjQtyMap[i.productId] ?? i.qty, i => adjPriceMap[i.productId] ?? i.price)
     : calcShipping(displayItems, i => i.qty, i => i.price);
+
+  // 新增品項的處理：加入 extraItems，並設好確認數量與單價預設值
+  const addExtra = (product, qty) => {
+    setExtraItems(prev => prev.some(i => i.productId === product.id) ? prev : [...prev, {
+      productId: product.id, productName: product.name, spec: product.spec,
+      unit: product.unit, cost: product.cost, price: product.b2bPrice, qty: 0, _extra: true,
+    }]);
+    setAdjQtyMap(prev => ({ ...prev, [product.id]: qty }));
+    setAdjPriceMap(prev => ({ ...prev, [product.id]: product.b2bPrice }));
+  };
   // 應付金額 = 商品小計 − 折扣 + 運費（廠商實際要付的金額）
   const payable = revenue - discountForCalc + shipping;
 
@@ -227,7 +254,7 @@ export default function OrderDetail({ order, open, onClose, onStatusChange, onRe
   const noteLocked   = isSettled || isVoided || (canEditAfter && !editMode);
 
   const handleSaveDraft = () => {
-    const adjustedItems = order.items.map(i => ({
+    const adjustedItems = pendingItems.map(i => ({
       ...i,
       qty:   adjQtyMap[i.productId]   ?? i.qty,
       price: adjPriceMap[i.productId] ?? i.price,
@@ -246,14 +273,15 @@ export default function OrderDetail({ order, open, onClose, onStatusChange, onRe
   };
 
   const handleSalesConfirm = () => {
-    const adjustedItems = order.items.map(i => ({
+    const adjustedItems = pendingItems.map(i => ({
       ...i,
       qty:   adjQtyMap[i.productId]   ?? i.qty,
       price: adjPriceMap[i.productId] ?? i.price,
     }));
     const qtyChanges   = order.items.filter(i => (adjQtyMap[i.productId] ?? i.qty) !== i.qty).map(i => `${i.productName}: ${i.qty}→${adjQtyMap[i.productId]}`);
     const priceChanges = order.items.filter(i => (adjPriceMap[i.productId] ?? i.price) !== i.price).map(i => `${i.productName}: 單價$${i.price}→$${adjPriceMap[i.productId]}`);
-    const allChanges   = [...qtyChanges, ...priceChanges];
+    const addedChanges = extraItems.map(i => `業務新增 ${i.productName} × ${adjQtyMap[i.productId] ?? 0}`);
+    const allChanges   = [...qtyChanges, ...priceChanges, ...addedChanges];
     const logMsg       = allChanges.length > 0
       ? `[手動操作] 業務確認完成，建立正式訂單（${allChanges.join('、')}）`
       : '[手動操作] 業務確認完成，建立正式訂單（數量與單價無變動）';
@@ -489,11 +517,11 @@ export default function OrderDetail({ order, open, onClose, onStatusChange, onRe
           )}
         </Descriptions>
 
-        {/* pending_sales：確認數量與單價 */}
+        {/* pending_sales：確認數量與單價（可臨時增加品項） */}
         {order.status === 'pending_sales' && (
           <>
             <Table
-              dataSource={order.items}
+              dataSource={pendingItems}
               rowKey="productId"
               size="small"
               pagination={false}
@@ -501,8 +529,8 @@ export default function OrderDetail({ order, open, onClose, onStatusChange, onRe
               summary={() => {
                 const q = i => adjQtyMap[i.productId] ?? i.qty;
                 const p = i => adjPriceMap[i.productId] ?? i.price;
-                const totalCost    = order.items.reduce((s, i) => s + q(i) * (i.cost ?? 0), 0);
-                const totalRevenue = order.items.reduce((s, i) => s + q(i) * p(i), 0);
+                const totalCost    = pendingItems.reduce((s, i) => s + q(i) * (i.cost ?? 0), 0);
+                const totalRevenue = pendingItems.reduce((s, i) => s + q(i) * p(i), 0);
                 const totalProfit  = totalRevenue - totalCost;
                 const totalMargin  = totalRevenue > 0 ? (totalProfit / totalRevenue * 100).toFixed(1) : '0.0';
                 return (
@@ -511,6 +539,13 @@ export default function OrderDetail({ order, open, onClose, onStatusChange, onRe
                     shipping={shipping} editable
                     discountAmount={discountAmount} setDiscountAmount={setDiscountAmount}
                     discountNote={discountNote} setDiscountNote={setDiscountNote}
+                    leftExtra={
+                      <Button size="small" type="link" icon={<PlusOutlined />}
+                        onClick={() => setAddItemOpen(true)}
+                        style={{ color: '#52c41a', paddingLeft: 0 }}>
+                        增加品項
+                      </Button>
+                    }
                   />
                 );
               }}
@@ -740,6 +775,13 @@ export default function OrderDetail({ order, open, onClose, onStatusChange, onRe
           }))}
         />
       </Drawer>
+
+      <AddItemModal
+        open={addItemOpen}
+        onClose={() => setAddItemOpen(false)}
+        availableProducts={products.filter(p => p.isListed !== false && !pendingItems.some(pi => pi.productId === p.id))}
+        onAdd={addExtra}
+      />
     </>
   );
 }
