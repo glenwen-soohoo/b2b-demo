@@ -188,7 +188,12 @@ export default function OrderDetail({ order, open, onClose, onStatusChange, onRe
   const [extraItems,     setExtraItems]     = useState([]);   // 業務臨時新增、原訂單沒有的品項
   const [addItemOpen,    setAddItemOpen]    = useState(false);
 
-  const removeExtra = (productId) => setExtraItems(prev => prev.filter(i => i.productId !== productId));
+  const removeExtra = (productId) => {
+    setExtraItems(prev => prev.filter(i => i.productId !== productId));
+    // 一併清掉該加購品項殘留的調整數量/單價，避免同 productId 重加時帶到舊值
+    setAdjQtyMap(prev => { const { [productId]: _, ...rest } = prev; return rest; });
+    setAdjPriceMap(prev => { const { [productId]: _, ...rest } = prev; return rest; });
+  };
 
   const { salesConfirmCols, editCols, itemCols } = useOrderDetailColumns({
     adjQtyMap, setAdjQtyMap,
@@ -224,6 +229,8 @@ export default function OrderDetail({ order, open, onClose, onStatusChange, onRe
   const displayItems = getConfirmedItems(order);
   // pending_sales 用「原訂單品項 + 業務新增品項」一起算、一起確認
   const pendingItems = [...order.items, ...extraItems];
+  // 訂單限同溫層：一張訂單只會有一個溫層，加購品項也只能挑相同溫層的商品
+  const orderZones = new Set(order.items.map(i => productMap[i.productId]?.category).filter(Boolean));
 
   const { revenue, cost, profit, margin } = order.status === 'pending_sales'
     ? calcProfitFromMaps(pendingItems, adjQtyMap, adjPriceMap)
@@ -779,7 +786,12 @@ export default function OrderDetail({ order, open, onClose, onStatusChange, onRe
       <AddItemModal
         open={addItemOpen}
         onClose={() => setAddItemOpen(false)}
-        availableProducts={products.filter(p => p.isListed !== false && !pendingItems.some(pi => pi.productId === p.id))}
+        availableProducts={products.filter(p =>
+          p.isListed !== false &&
+          p.stockMode !== 'out_of_stock' &&        // 缺貨商品不可加購
+          orderZones.has(p.category) &&            // 限同溫層
+          !pendingItems.some(pi => pi.productId === p.id)
+        )}
         onAdd={addExtra}
       />
     </>

@@ -20,6 +20,8 @@ const CATALOG = [
           diffs: [
             { productId: 'p1', productName: '常溫燉飯-蒜香甘藍豬肉', originalQty: 20, adjustedQty: 18 },
             { productId: 'p2', productName: '寶寶粥-鮭魚野菜', originalQty: 12, adjustedQty: 15 },
+            // 業務加購（原本未下訂）：沿用同一張異動表，原始下訂 0 → 實際出貨 N
+            { productId: 'p3', productName: '中寶-玉米雞肉粥', originalQty: 0, adjustedQty: 10 },
           ] } },
       { key: 'order_voided', code: '—', label: '訂單作廢通知',
         data: { channelName: '好自然健康館', orderId: 'b2b-00020', reason: '通路臨時取消本次採購，改下月再訂', recreatedOrderId: 'b2b-00021' } },
