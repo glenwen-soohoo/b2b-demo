@@ -59,7 +59,8 @@ export function getNotificationContent(type, data) {
                 style={{ marginTop: 8 }}
                 columns={[
                   { title: '品項', dataIndex: 'productName' },
-                  { title: '原始下訂', dataIndex: 'originalQty', width: 90, align: 'center' },
+                  { title: '原始下訂', dataIndex: 'originalQty', width: 90, align: 'center',
+                    render: v => v === 0 ? <Text type="secondary">無</Text> : v },
                   { title: '實際出貨', dataIndex: 'adjustedQty', width: 90, align: 'center',
                     render: v => <Text style={{ color: '#fa8c16' }} strong>{v}</Text> },
                   { title: '差異', width: 70, align: 'center',
