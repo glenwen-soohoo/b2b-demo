@@ -4,7 +4,7 @@ import { Layout, Menu, Button, Space, Tag } from 'antd'
 import {
   FormOutlined, HistoryOutlined, AccountBookOutlined,
   LogoutOutlined, UserOutlined,
-  NotificationOutlined,
+  NotificationOutlined, FileProtectOutlined,
 } from '@ant-design/icons'
 import { useVendor } from '../context/VendorContext'
 import { announcements } from '../data/fakeData'
@@ -13,6 +13,9 @@ import {
   addAckedId, markRead, subscribeReadUpdates,
 } from '../utils/announcementUtils'
 import AnnouncementModal from '../components/AnnouncementModal'
+import ContractModal from '../components/ContractModal'
+import { getCurrentContractVersion } from '../data/contractData'
+import { needsConsent, getConsentState, subscribeContractUpdates } from '../utils/contractStore'
 
 const { Header, Sider, Content } = Layout
 
@@ -23,6 +26,7 @@ export default function VendorLayout() {
   const [annOpen,    setAnnOpen]    = useState(false)
   const [popupAnn,   setPopupAnn]   = useState(null)   // 強制彈窗的那一則
   const [ackVersion, setAckVersion] = useState(0)      // 強制重算未讀
+  const [contractTick, setContractTick] = useState(0)  // 同意合約後重算 gating
 
   if (!channel) return <Navigate to="/login" replace />
 
@@ -44,8 +48,19 @@ export default function VendorLayout() {
     return unsub
   }, [])
 
+  // ── 訂閱合約同意變更（同意後 gating 立即重算） ──
+  useEffect(() => subscribeContractUpdates(() => setContractTick(t => t + 1)), [])
+
+  // ── 合約 gating：未同意（或需重簽）就硬擋，同意才能使用 ──
+  const contractVersion = getCurrentContractVersion()
+  const mustConsent  = needsConsent(channel.id)          // 依 contractTick 重算
+  const consentState = getConsentState(channel.id)
+  void contractTick
+
   // ── 進入廠商端 0.8 秒後，若有重要+未讀公告 → 強制彈窗（只彈第一則，避免連續轟炸） ──
+  //    合約未同意時先讓合約 gating 擋著，公告等同意後再彈。
   useEffect(() => {
+    if (needsConsent(channel.id)) return
     const next = getNextForcePopup(announcements, channel.id)
     if (next) {
       const t = setTimeout(() => {
@@ -54,7 +69,7 @@ export default function VendorLayout() {
       }, 800)
       return () => clearTimeout(t)
     }
-  }, [channel.id])
+  }, [channel.id, contractTick])
 
   const handleAcknowledge = () => {
     if (popupAnn) {
@@ -85,6 +100,7 @@ export default function VendorLayout() {
     { key: 'orders',        icon: <HistoryOutlined />,       label: 'B2B訂單紀錄' },
     { key: 'settlements',   icon: <AccountBookOutlined />,   label: '結算紀錄' },
     { key: 'profile',       icon: <UserOutlined />,          label: '通路資料' },
+    { key: 'contract',      icon: <FileProtectOutlined />,   label: '通路合約' },
   ]
 
   return (
@@ -138,6 +154,16 @@ export default function VendorLayout() {
         open={annOpen}
         onClose={() => setAnnOpen(false)}
         onAcknowledge={handleAcknowledge}
+      />
+
+      {/* 合約 gating：未同意（或需重簽）時硬擋，同意才能使用 */}
+      <ContractModal
+        open={mustConsent}
+        channel={channel}
+        version={contractVersion}
+        closable={false}
+        reconsent={consentState === 'need_reconsent'}
+        onAgreed={() => setContractTick(t => t + 1)}
       />
     </Layout>
   )

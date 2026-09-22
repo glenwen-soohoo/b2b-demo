@@ -10,6 +10,7 @@ import VendorOrders        from './pages/vendor/VendorOrders'
 import VendorSettlements   from './pages/vendor/VendorSettlements'
 import VendorProfile       from './pages/vendor/VendorProfile'
 import VendorAnnouncements from './pages/vendor/VendorAnnouncements'
+import VendorContract      from './pages/vendor/VendorContract'
 import AdminOrders       from './pages/admin/AdminOrders'
 import AdminSettlements  from './pages/admin/AdminSettlements'
 import AdminProducts     from './pages/admin/AdminProducts'
@@ -18,6 +19,7 @@ import AdminChannels     from './pages/admin/AdminChannels'
 import AdminTemplates    from './pages/admin/AdminTemplates'
 import AdminShipping       from './pages/admin/AdminShipping'
 import AdminAnnouncements from './pages/admin/AdminAnnouncements'
+import AdminContracts    from './pages/admin/AdminContracts'
 import AnalyticsPage       from './pages/AnalyticsPage'
 import NotificationsPreviewPage from './pages/NotificationsPreviewPage'
 
@@ -36,6 +38,7 @@ export default function App() {
         <Route path="/orders"         element={<VendorOrders />} />
         <Route path="/settlements"    element={<VendorSettlements />} />
         <Route path="/announcements"  element={<VendorAnnouncements />} />
+        <Route path="/contract"       element={<VendorContract />} />
         <Route path="/profile"        element={<VendorProfile />} />
         <Route path="/history"        element={<Navigate to="/orders" replace />} />
       </Route>
@@ -49,6 +52,7 @@ export default function App() {
         <Route path="categories"  element={<AdminCategories />} />
         <Route path="shipping"    element={<AdminShipping />} />
         <Route path="channels"    element={<AdminChannels />} />
+        <Route path="contracts"   element={<AdminContracts />} />
         <Route path="templates"   element={<AdminTemplates />} />
         <Route path="analytics"      element={<AnalyticsPage />} />
         <Route path="announcements"  element={<AdminAnnouncements />} />

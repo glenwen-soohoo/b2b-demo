@@ -14,6 +14,7 @@ const PAGE_NAMES = {
   shipping:       '運費設定',
   templates:      '品項表模板',
   channels:       '通路名單',
+  contracts:      '合約同意紀錄',
   analytics:      '損益分析',
   announcements:  '公告管理',
 }
@@ -31,6 +32,7 @@ const MENU_ITEMS = [
       { key: 'shipping',      label: '運費設定' },
       { key: 'announcements', label: '公告管理' },
       { key: 'channels',      label: '通路名單' },
+      { key: 'contracts',     label: '合約同意紀錄' },
       { key: 'analytics',     label: '損益分析' },
     ],
   },
