@@ -44,15 +44,27 @@ export default function ContractDocument({ channel, version, agreement }) {
       </div>
       <div style={{ marginBottom: 16 }}>{CONTRACT_DOC.intro[3]}</div>
 
-      {/* 條款 */}
+      {/* 條款（保留原合約編號、層級縮排與紅字） */}
       {CONTRACT_DOC.clauses.map(c => (
         <div key={c.no} style={{ marginBottom: 14 }}>
           <div style={{ fontWeight: 700, color: GREEN, marginBottom: 4 }}>
             {c.no}　{c.title}
           </div>
-          {c.paras.map((p, i) => (
-            <div key={i} style={{ marginBottom: 3, textAlign: 'justify' }}>{p}</div>
-          ))}
+          {c.paras.map((p, i) => {
+            const base = (p.ilvl || 0) * 20
+            const paddingLeft = p.num ? base + 22 : base
+            return (
+              <div key={i} style={{
+                marginBottom: 3, textAlign: 'justify',
+                paddingLeft, textIndent: p.num ? -22 : 0,
+              }}>
+                {p.num && <span>{p.num}</span>}
+                {p.runs.map((r, j) => (
+                  <span key={j} style={r.red ? { color: '#cf1322' } : undefined}>{r.text}</span>
+                ))}
+              </div>
+            )
+          })}
         </div>
       ))}
 
