@@ -7,10 +7,20 @@ import { CONTRACT_DOC, CONTRACT_PARTY_A, CONTRACT_AGREE_LABEL } from '../data/co
 const GREEN = '#389e0d'
 
 export default function ContractDocument({ channel, version, agreement }) {
-  const partyB = channel?.name ?? '乙方'
+  const partyB = channel?.name ?? '〔系統代入〕'
+  // 發票抬頭 / 統編顯示規則（以「有無統編」為準，不看發票聯式）：
+  //   1) 有統編（含二聯式但仍有統編者）→ 顯示「發票抬頭／統編」
+  //   2) 沒統編（二聯式且無統編）        → 顯示「發票抬頭（二聯式發票，無須統一編號）」
+  //   3) 無通路（後台範本檢視）          → 顯示〔系統代入…〕說明字
+  const invoiceTitle = channel ? (channel.title ?? channel.name) : null
+  const invoiceCell = !channel
+    ? '〔系統代入，若為二聯式發票且無統編則顯示「二聯式發票，無須統一編號」〕'
+    : channel.taxId
+    ? `${invoiceTitle}／${channel.taxId}`
+    : `${invoiceTitle}（二聯式發票，無須統一編號）`
   const signRows = [
     ['通路名稱', partyB],
-    ['發票抬頭 / 統一編號', channel ? `${channel.title ?? channel.name}／${channel.taxId ?? '—'}` : '〔系統代入〕'],
+    ['發票抬頭 / 統一編號', invoiceCell],
     ['同意時間', agreement?.agreedAt ?? '〔勾選同意後由系統記錄〕'],
     ['合約版本', version?.version ?? '—'],
     ['IP／裝置識別', agreement?.ip ?? '〔勾選同意後由系統記錄〕'],
