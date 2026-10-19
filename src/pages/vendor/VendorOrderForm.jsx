@@ -180,7 +180,9 @@ export default function VendorOrderForm() {
             background: '#f6ffed', border: '1px solid #b7eb8f', borderRadius: 8,
             padding: '5px 14px', fontSize: 14, fontWeight: 600, color: '#389e0d',
           }}>
-            月結日：{settlementDayLabel(channel.settlementDay)}
+            {(channel.channelType ?? 'enterprise') === 'groupmom'
+              ? '付款方式：逐筆刷卡'
+              : `月結日：${settlementDayLabel(channel.settlementDay)}`}
           </div>
         </Space>
       </div>

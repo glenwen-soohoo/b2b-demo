@@ -11,6 +11,7 @@ export default function ChannelDetail({ channel, open, onClose }) {
   const tpl = templates.find(t => t.id === channel.templateId);
   // 依門市分別統編（per_store）時，每個收件地址各自帶抬頭 / 統編
   const isPerStore = channel.invoiceTaxScope === 'per_store';
+  const isGroupMom = (channel.channelType ?? 'enterprise') === 'groupmom';
 
   const addressCols = [
     { title: '門市/倉別', dataIndex: 'label', width: 100 },
@@ -47,15 +48,22 @@ export default function ChannelDetail({ channel, open, onClose }) {
             : <Text type="secondary">—</Text>
           }
         </Descriptions.Item>
+        <Descriptions.Item label="通路類型">
+          {isGroupMom ? <Tag color="magenta">團媽</Tag> : <Tag color="blue">企業</Tag>}
+        </Descriptions.Item>
         <Descriptions.Item label="通路名稱">{channel.name}</Descriptions.Item>
         <Descriptions.Item label="聯絡信箱">{channel.contactEmail}</Descriptions.Item>
         <Descriptions.Item label="聯繫窗口">{channel.contactName}</Descriptions.Item>
         <Descriptions.Item label="聯繫電話">{channel.contactPhone}</Descriptions.Item>
         <Descriptions.Item label="預設公司抬頭">{channel.title}</Descriptions.Item>
         <Descriptions.Item label="預設統一編號">{channel.taxId}</Descriptions.Item>
-        <Descriptions.Item label="結算日">{settlementDayLabel(channel.settlementDay)}</Descriptions.Item>
+        <Descriptions.Item label={isGroupMom ? '收款方式' : '結算日'}>
+          {isGroupMom ? '逐筆刷卡（信用卡）' : settlementDayLabel(channel.settlementDay)}
+        </Descriptions.Item>
         <Descriptions.Item label="發票模式">
-          {channel.invoicePeriod && channel.invoiceTaxScope ? (
+          {isGroupMom ? (
+            channel.issueInvoice === 'on' ? <Tag color="cyan">開發票</Tag> : <Tag>不開發票</Tag>
+          ) : channel.invoicePeriod && channel.invoiceTaxScope ? (
             <Tag color={invoiceModeColor(channel.invoicePeriod, channel.invoiceTaxScope)}>
               {invoiceModeLabel(channel.invoicePeriod, channel.invoiceTaxScope)}
             </Tag>
@@ -147,7 +155,9 @@ export default function ChannelDetail({ channel, open, onClose }) {
                 <Descriptions.Item label="金融機構代碼">兆豐 0170077</Descriptions.Item>
                 <Descriptions.Item label="帳號">00709001170</Descriptions.Item>
                 <Descriptions.Item label="合作方式">買斷</Descriptions.Item>
-                <Descriptions.Item label="付款方式">次月付款（{settlementDayLabel(channel.settlementDay)}結算）</Descriptions.Item>
+                <Descriptions.Item label="付款方式">
+                  {isGroupMom ? '逐筆刷卡（信用卡）即時付款' : `次月付款（${settlementDayLabel(channel.settlementDay)}結算）`}
+                </Descriptions.Item>
                 {channel.default_bank_last5 && (
                   <Descriptions.Item label="廠商常用匯款末五碼">
                     {channel.default_bank_last5}

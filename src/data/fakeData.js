@@ -290,6 +290,74 @@ export const channels = [
     ],
     volumeDiscount: '無',
   },
+  // 團媽通路（逐筆刷卡、預設不開發票）——身分 / 損益 / 付款 demo 用
+  {
+    id: 'c009',
+    memberId: 'v8009',
+    memberAccount: 'mama.chen',
+    memberName: '陳美玲',
+    name: '美玲團購',
+    channelType: 'groupmom',
+    taxId: '—',
+    title: '陳美玲',
+    contactEmail: 'mama.chen@example.com',
+    contactName: '陳美玲',
+    contactPhone: '0922-135-790',
+    issueInvoice: 'off',           // 團媽預設不開發票
+    invoiceMode: null,
+    deliveryType: 'self_pickup',
+    default_bank_last5: null,
+    discount_note: '',
+    internal_note: '團媽，逐筆刷卡付清。',
+    cs_note_default: '',
+    default_vendor_note: '',
+    templateId: 't001',
+    addresses: [
+      {
+        storeId: 's901',
+        label: '自取',
+        recipient: '陳美玲',
+        phone: '0922-135-790',
+        address: '台中市西屯區台灣大道三段100號',
+      },
+    ],
+    pricingNote: '',
+    volumeDiscount: '',
+  },
+  // 第二個團媽通路
+  {
+    id: 'c010',
+    memberId: 'v8010',
+    memberAccount: 'ting.group',
+    memberName: '林雅婷',
+    name: '雅婷揪團',
+    channelType: 'groupmom',
+    taxId: '—',
+    title: '林雅婷',
+    contactEmail: 'ting.group@example.com',
+    contactName: '林雅婷',
+    contactPhone: '0933-246-810',
+    issueInvoice: 'off',
+    invoiceMode: null,
+    deliveryType: 'self_pickup',
+    default_bank_last5: null,
+    discount_note: '',
+    internal_note: '團媽，逐筆刷卡付清。',
+    cs_note_default: '',
+    default_vendor_note: '',
+    templateId: 't001',
+    addresses: [
+      {
+        storeId: 's902',
+        label: '自取',
+        recipient: '林雅婷',
+        phone: '0933-246-810',
+        address: '新北市板橋區文化路一段50號',
+      },
+    ],
+    pricingNote: '',
+    volumeDiscount: '',
+  },
 ];
 
 export const channelMap = Object.fromEntries(channels.map(c => [c.id, c]));
@@ -300,7 +368,8 @@ export const channelMap = Object.fromEntries(channels.map(c => [c.id, c]));
 
 // B2B訂單狀態（preOrders 使用）
 export const PRE_ORDER_STATUS = {
-  pending_sales: { label: '待業務確認',   color: 'blue',   step: 0 },
+  pending_sales:   { label: '待業務確認',   color: 'blue',    step: 0 },
+  pending_payment: { label: '待付款',       color: 'magenta', step: 1 },  // 團媽：已確認匯單、等刷卡付款
   ordered:       { label: '已成立訂單',   color: 'cyan',   step: 1 },
   arrived:       { label: '到貨等待結算', color: 'orange', step: 2 },
   settling:      { label: '結算中',       color: 'gold',   step: 3 },
@@ -323,6 +392,165 @@ export const ORDER_STATUS = { ...PRE_ORDER_STATUS, ...SETTLEMENT_STATUS };
 // B2B訂單（廠商提交，等待業務/倉庫確認）
 // ─────────────────────────────────────────────
 export const preOrders = [
+  // ── 團媽（美玲團購 c009）：身分 / 損益 / 付款 demo 用 ──
+  // 待付款：業務已確認匯單、等團媽刷卡
+  {
+    id: 'b2b-gm001',
+    channelId: 'c009',
+    channelName: '美玲團購',
+    items: [
+      { productId:'p901', productName:'常溫燉飯-金瓜玉米雞肉', unit:'包', qty:12, price:88, cost:50 },
+      { productId:'pa03', productName:'拌醬-茄汁高湯燉牛肉',   unit:'包', qty:6,  price:85, cost:41 },
+    ],
+    status: 'pending_payment',
+    salesAdjustedItems: null,
+    adjustedItems: null,
+    vendorNote: '',
+    warehouse_note: null, shipping_note: null,
+    backendOrderId: 'GB-202610-77001',
+    settlementId: null,
+    b2b_order_no: 'B2B-202610-GM01',
+    discount_amount: 0,
+    discount_note: null,
+    cs_note: null, b2b_note: null,
+    invoicePeriodSnapshot: 'per_order',
+    invoiceTaxScopeSnapshot: 'per_store',
+    settlementMonth: '2026-10',
+    createdAt: dayjs('2026-10-12').format('YYYY-MM-DD'),
+  },
+  // 已結算完畢（已付款）
+  {
+    id: 'b2b-gm002',
+    channelId: 'c009',
+    channelName: '美玲團購',
+    items: [
+      { productId:'p901', productName:'常溫燉飯-金瓜玉米雞肉', unit:'包', qty:20, price:88, cost:50 },
+      { productId:'p902', productName:'常溫燉飯-蒜香甘藍豬肉', unit:'包', qty:18, price:88, cost:50 },
+    ],
+    status: 'settled_done',
+    salesAdjustedItems: null,
+    adjustedItems: null,
+    vendorNote: '',
+    warehouse_note: null, shipping_note: null,
+    backendOrderId: 'GB-202609-66012',
+    settlementId: null,
+    b2b_order_no: 'B2B-202609-GM02',
+    discount_amount: 0,
+    discount_note: null,
+    cs_note: null, b2b_note: null,
+    invoicePeriodSnapshot: 'per_order',
+    invoiceTaxScopeSnapshot: 'per_store',
+    settlementMonth: '2026-09',
+    createdAt: dayjs('2026-09-20').format('YYYY-MM-DD'),
+  },
+  // 到貨等待結算（已付款）
+  {
+    id: 'b2b-gm003',
+    channelId: 'c009',
+    channelName: '美玲團購',
+    items: [
+      { productId:'pa03', productName:'拌醬-茄汁高湯燉牛肉', unit:'包', qty:14, price:85, cost:41 },
+    ],
+    status: 'arrived',
+    salesAdjustedItems: null,
+    adjustedItems: null,
+    vendorNote: '',
+    warehouse_note: null, shipping_note: null,
+    backendOrderId: 'GB-202610-66033',
+    settlementId: null,
+    b2b_order_no: 'B2B-202610-GM03',
+    discount_amount: 0,
+    discount_note: null,
+    cs_note: null, b2b_note: null,
+    invoicePeriodSnapshot: 'per_order',
+    invoiceTaxScopeSnapshot: 'per_store',
+    settlementMonth: '2026-10',
+    createdAt: dayjs('2026-10-06').format('YYYY-MM-DD'),
+  },
+  // 美玲團購 — 更多歷史 / 另一筆待付款
+  {
+    id: 'b2b-gm004', channelId: 'c009', channelName: '美玲團購',
+    items: [
+      { productId:'p902', productName:'常溫燉飯-蒜香甘藍豬肉', unit:'包', qty:24, price:88, cost:50 },
+    ],
+    status: 'settled_done', salesAdjustedItems: null, adjustedItems: null,
+    vendorNote: '', warehouse_note: null, shipping_note: null,
+    backendOrderId: 'GB-202608-55021', settlementId: null,
+    b2b_order_no: 'B2B-202608-GM04', discount_amount: 0, discount_note: null,
+    cs_note: null, b2b_note: null,
+    invoicePeriodSnapshot: 'per_order', invoiceTaxScopeSnapshot: 'per_store',
+    settlementMonth: '2026-08', createdAt: dayjs('2026-08-18').format('YYYY-MM-DD'),
+  },
+  {
+    id: 'b2b-gm005', channelId: 'c009', channelName: '美玲團購',
+    items: [
+      { productId:'p901', productName:'常溫燉飯-金瓜玉米雞肉', unit:'包', qty:8,  price:88, cost:50 },
+      { productId:'pa03', productName:'拌醬-茄汁高湯燉牛肉',   unit:'包', qty:10, price:85, cost:41 },
+    ],
+    status: 'pending_payment', salesAdjustedItems: null, adjustedItems: null,
+    vendorNote: '', warehouse_note: null, shipping_note: null,
+    backendOrderId: 'GB-202610-77045', settlementId: null,
+    b2b_order_no: 'B2B-202610-GM05', discount_amount: 0, discount_note: null,
+    cs_note: null, b2b_note: null,
+    invoicePeriodSnapshot: 'per_order', invoiceTaxScopeSnapshot: 'per_store',
+    settlementMonth: '2026-10', createdAt: dayjs('2026-10-14').format('YYYY-MM-DD'),
+  },
+  // 雅婷揪團（c010）
+  {
+    id: 'b2b-gm006', channelId: 'c010', channelName: '雅婷揪團',
+    items: [
+      { productId:'p901', productName:'常溫燉飯-金瓜玉米雞肉', unit:'包', qty:16, price:88, cost:50 },
+      { productId:'p902', productName:'常溫燉飯-蒜香甘藍豬肉', unit:'包', qty:12, price:88, cost:50 },
+    ],
+    status: 'settled_done', salesAdjustedItems: null, adjustedItems: null,
+    vendorNote: '', warehouse_note: null, shipping_note: null,
+    backendOrderId: 'GB-202609-66088', settlementId: null,
+    b2b_order_no: 'B2B-202609-GM06', discount_amount: 0, discount_note: null,
+    cs_note: null, b2b_note: null,
+    invoicePeriodSnapshot: 'per_order', invoiceTaxScopeSnapshot: 'per_store',
+    settlementMonth: '2026-09', createdAt: dayjs('2026-09-25').format('YYYY-MM-DD'),
+  },
+  {
+    id: 'b2b-gm007', channelId: 'c010', channelName: '雅婷揪團',
+    items: [
+      { productId:'pa03', productName:'拌醬-茄汁高湯燉牛肉', unit:'包', qty:20, price:85, cost:41 },
+    ],
+    status: 'arrived', salesAdjustedItems: null, adjustedItems: null,
+    vendorNote: '', warehouse_note: null, shipping_note: null,
+    backendOrderId: 'GB-202610-66090', settlementId: null,
+    b2b_order_no: 'B2B-202610-GM07', discount_amount: 0, discount_note: null,
+    cs_note: null, b2b_note: null,
+    invoicePeriodSnapshot: 'per_order', invoiceTaxScopeSnapshot: 'per_store',
+    settlementMonth: '2026-10', createdAt: dayjs('2026-10-08').format('YYYY-MM-DD'),
+  },
+  {
+    id: 'b2b-gm008', channelId: 'c010', channelName: '雅婷揪團',
+    items: [
+      { productId:'p901', productName:'常溫燉飯-金瓜玉米雞肉', unit:'包', qty:10, price:88, cost:50 },
+    ],
+    status: 'pending_payment', salesAdjustedItems: null, adjustedItems: null,
+    vendorNote: '', warehouse_note: null, shipping_note: null,
+    backendOrderId: 'GB-202610-77050', settlementId: null,
+    b2b_order_no: 'B2B-202610-GM08', discount_amount: 0, discount_note: null,
+    cs_note: null, b2b_note: null,
+    invoicePeriodSnapshot: 'per_order', invoiceTaxScopeSnapshot: 'per_store',
+    settlementMonth: '2026-10', createdAt: dayjs('2026-10-13').format('YYYY-MM-DD'),
+  },
+  // 團媽新下單、待業務確認（確認後才會匯單＋產付款碼）
+  {
+    id: 'b2b-gm009', channelId: 'c009', channelName: '美玲團購',
+    items: [
+      { productId:'p901', productName:'常溫燉飯-金瓜玉米雞肉', unit:'包', qty:6,  price:88, cost:50 },
+      { productId:'p902', productName:'常溫燉飯-蒜香甘藍豬肉', unit:'包', qty:6,  price:88, cost:50 },
+    ],
+    status: 'pending_sales', salesAdjustedItems: null, adjustedItems: null,
+    vendorNote: '想問這批能不能提早到貨，謝謝', warehouse_note: null, shipping_note: null,
+    backendOrderId: null, settlementId: null,
+    b2b_order_no: 'B2B-202610-GM09', discount_amount: 0, discount_note: null,
+    cs_note: null, b2b_note: null,
+    invoicePeriodSnapshot: 'per_order', invoiceTaxScopeSnapshot: 'per_store',
+    settlementMonth: '2026-10', createdAt: dayjs('2026-10-15').format('YYYY-MM-DD'),
+  },
   // 好自然健康館 — 待業務確認
   {
     id: 'b2b-00001',
@@ -1531,6 +1759,40 @@ export const b2bReservedInventory = [
 //   - relatedId: type='settlement' 時對應 formalOrders.id（結算單編號）
 // ─────────────────────────────────────────────
 export const announcements = [
+  // ── 一般公告（含圖片 + 檔案附件）：公告三區塊 demo 用 ──
+  {
+    id: 'ann-demo-attach',
+    type: 'general',
+    title: '雙十一檔期開跑：主視覺與品項價目表',
+    content: `## 雙十一檔期開跑
+
+本檔期自 **11/1 至 11/11**，詳細品項與優惠價請見下方附件。
+
+- 主打：常溫粥系列 9 折
+- 冷凍寶寶粥 買十送一`,
+    priority: 'important',
+    isVisible: true,
+    audience: 'all',
+    publishedAt: '2026-10-28 09:00',
+    imageLayout: 'full',
+    images: [
+      {
+        uid: 'img-demo-1',
+        name: '雙十一主視覺.png',
+        url: "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='320' height='180'><rect width='320' height='180' fill='rgb(75,168,59)'/><text x='160' y='98' font-size='24' fill='white' text-anchor='middle' font-family='sans-serif'>雙十一檔期主視覺</text></svg>",
+      },
+      {
+        uid: 'img-demo-2',
+        name: '檔期優惠一覽.png',
+        url: "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='320' height='180'><rect width='320' height='180' fill='rgb(251,134,0)'/><text x='160' y='98' font-size='24' fill='white' text-anchor='middle' font-family='sans-serif'>檔期優惠一覽</text></svg>",
+      },
+    ],
+    files: [
+      { uid: 'file-demo-1', name: '雙十一檔期品項與價格.xlsx', size: 32768, url: '#' },
+      { uid: 'file-demo-2', name: '檔期規格表.pdf', size: 1258291, url: '#' },
+    ],
+    readBy: [],
+  },
   // ── 結算通知（系統自動產生，audience 限定該通路）──
   {
     id: 'ann-settlement-FO-20260325-C001',

@@ -21,6 +21,7 @@ import AdminShipping       from './pages/admin/AdminShipping'
 import AdminAnnouncements from './pages/admin/AdminAnnouncements'
 import AdminContracts    from './pages/admin/AdminContracts'
 import AnalyticsPage       from './pages/AnalyticsPage'
+import PaymentPage         from './pages/PaymentPage'
 import NotificationsPreviewPage from './pages/NotificationsPreviewPage'
 
 export default function App() {
@@ -28,6 +29,8 @@ export default function App() {
     <Routes>
       <Route path="/"        element={<HomePage />} />
       <Route path="/notifications" element={<NotificationsPreviewPage />} />
+      {/* 團媽信用卡付款頁（免登入連結開啟，手機／桌機同一響應式頁） */}
+      <Route path="/pay"     element={<PaymentPage />} />
 
       {/* 廠商前台 */}
       <Route path="/login"            element={<VendorLogin />} />

@@ -1,6 +1,6 @@
 import { useNavigate } from 'react-router-dom'
 import { Button, Typography, Space } from 'antd'
-import { ShopOutlined, SettingOutlined, MailOutlined } from '@ant-design/icons'
+import { ShopOutlined, SettingOutlined, MailOutlined, CreditCardOutlined } from '@ant-design/icons'
 
 const { Title, Text } = Typography
 
@@ -45,6 +45,14 @@ export default function HomePage() {
           onClick={() => nav('/notifications')}
         >
           通知信預覽
+        </Button>
+        <Button
+          size="large"
+          icon={<CreditCardOutlined />}
+          style={{ height: 48, paddingInline: 32 }}
+          onClick={() => nav('/pay')}
+        >
+          團媽付款頁
         </Button>
       </Space>
     </div>

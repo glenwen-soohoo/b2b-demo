@@ -4,7 +4,7 @@ import {
   Table, Tag, Typography, Card, Space, Drawer,
   Button, Descriptions, Divider, InputNumber, message, DatePicker,
 } from 'antd'
-import { EyeOutlined, RedoOutlined, EditOutlined, SaveOutlined, CloseOutlined, FilePdfOutlined } from '@ant-design/icons'
+import { EyeOutlined, RedoOutlined, EditOutlined, SaveOutlined, CloseOutlined, FilePdfOutlined, CreditCardOutlined } from '@ant-design/icons'
 import { preOrders as initialOrders, productMap, systemSettings } from '../../data/fakeData'
 import { useVendor } from '../../context/VendorContext'
 import { exportOrderPdf } from '../../utils/exportOrderPdf'
@@ -22,7 +22,8 @@ function temperatureZoneTag(items) {
 }
 
 function vendorStatusTag(status) {
-  if (status === 'pending_sales') return <Tag color="blue">待確認</Tag>
+  if (status === 'pending_sales')   return <Tag color="blue">待確認</Tag>
+  if (status === 'pending_payment') return <Tag color="magenta">待付款</Tag>
   if (status === 'ordered')       return <Tag color="cyan">出貨中</Tag>
   if (status === 'arrived')       return <Tag color="orange">已送達，待結算</Tag>
   if (status === 'settling')      return <Tag color="gold">結算中</Tag>
@@ -327,9 +328,20 @@ export default function VendorOrders() {
       render: items => items.map(i => i.productName).join('、') },
     { title: '狀態', dataIndex: 'status', width: 130,
       render: s => vendorStatusTag(s) },
-    { title: '', width: 170, align: 'center',
+    { title: '', width: 200, align: 'center',
       render: (_, r) => (
         <Space size={4}>
+          {r.status === 'pending_payment' && (
+            <Button
+              size="small"
+              type="primary"
+              icon={<CreditCardOutlined />}
+              onClick={() => nav(`/pay?order=${r.id}`)}
+              style={{ background: '#389e0d', borderColor: '#389e0d' }}
+            >
+              前往付款
+            </Button>
+          )}
           <Button size="small" icon={<EyeOutlined />} onClick={() => setSelected(r)}>
             查看
           </Button>
@@ -337,7 +349,7 @@ export default function VendorOrders() {
             size="small"
             icon={<RedoOutlined />}
             onClick={() => handleReorder(r)}
-            disabled={r.status === 'voided'}
+            disabled={r.status === 'voided' || r.status === 'pending_payment'}
           >
             重複下單
           </Button>

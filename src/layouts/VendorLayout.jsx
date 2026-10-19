@@ -30,6 +30,9 @@ export default function VendorLayout() {
 
   if (!channel) return <Navigate to="/login" replace />
 
+  // 團媽不走合約流程（隱藏合約選單、跳過合約 gating）
+  const isGroupMom = (channel.channelType ?? 'enterprise') === 'groupmom'
+
   const current = loc.pathname.split('/')[1] ?? 'order'
 
   // ── 該通路看得到的公告（已讀統計用） ──
@@ -53,14 +56,14 @@ export default function VendorLayout() {
 
   // ── 合約 gating：未同意（或需重簽）就硬擋，同意才能使用 ──
   const contractVersion = getCurrentContractVersion()
-  const mustConsent  = needsConsent(channel.id)          // 依 contractTick 重算
+  const mustConsent  = !isGroupMom && needsConsent(channel.id)   // 團媽免合約；依 contractTick 重算
   const consentState = getConsentState(channel.id)
   void contractTick
 
   // ── 進入廠商端 0.8 秒後，若有重要+未讀公告 → 強制彈窗（只彈第一則，避免連續轟炸） ──
   //    合約未同意時先讓合約 gating 擋著，公告等同意後再彈。
   useEffect(() => {
-    if (needsConsent(channel.id)) return
+    if (!isGroupMom && needsConsent(channel.id)) return
     const next = getNextForcePopup(announcements, channel.id)
     if (next) {
       const t = setTimeout(() => {
@@ -100,7 +103,8 @@ export default function VendorLayout() {
     { key: 'orders',        icon: <HistoryOutlined />,       label: 'B2B訂單紀錄' },
     { key: 'settlements',   icon: <AccountBookOutlined />,   label: '結算紀錄' },
     { key: 'profile',       icon: <UserOutlined />,          label: '通路資料' },
-    { key: 'contract',      icon: <FileProtectOutlined />,   label: '通路合約' },
+    // 團媽不走合約流程，隱藏通路合約
+    ...(isGroupMom ? [] : [{ key: 'contract', icon: <FileProtectOutlined />, label: '通路合約' }]),
   ]
 
   return (

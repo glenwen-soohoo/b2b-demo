@@ -1,7 +1,7 @@
 import { useState, useMemo } from 'react'
 import {
   Table, Button, Typography, Badge, Space, Modal, Form, Input,
-  Select, Popconfirm, message, Divider, Row, Col, Tag, Alert,
+  Select, Popconfirm, message, Divider, Row, Col, Tag, Alert, Segmented,
 } from 'antd'
 import {
   EyeOutlined, EditOutlined, PlusOutlined, SearchOutlined,
@@ -44,10 +44,43 @@ const INVOICE_MODE_COLOR = {
   three_copy: 'cyan',
 }
 
+// 通路類型（做成可擴充的清單，之後要加「經銷商」等只是多一個值）
+const CHANNEL_TYPE_OPTIONS = [
+  { value: 'enterprise', label: '企業' },
+  { value: 'groupmom',   label: '團媽' },
+]
+const CHANNEL_TYPE_COLOR = { enterprise: 'blue', groupmom: 'magenta' }
+const channelTypeOf = (c) => c?.channelType ?? 'enterprise'   // 既有通路一律視為企業
+
+// 身分篩選（全部 / 企業 / 團媽）
+const IDENTITY_FILTERS = [
+  { label: '全部', value: 'all' },
+  { label: '企業', value: 'enterprise' },
+  { label: '團媽', value: 'groupmom' },
+]
+
+// 團媽是否開發票（預設不開）
+const GROUPMOM_INVOICE_OPTIONS = [
+  { value: 'off', label: '不開發票' },
+  { value: 'on',  label: '開發票' },
+]
+
+// 統一編號格式（8 位數字；空值交由 required 控制，對齊正式站 TAX_ID_RULE）
+const TAXID_RULE = {
+  validator: (_, v) =>
+    !v || /^\d{8}$/.test(v) ? Promise.resolve() : Promise.reject(new Error('統一編號為 8 位數字')),
+}
+
 function ChannelModal({ open, onClose, onSave, onResetPassword, onDisable, onEnable, initial }) {
   const [form] = Form.useForm()
   const isEdit = !!initial?.id
   const isDisabled = initial?.enabled === false
+  const channelType = Form.useWatch('channelType', form) ?? 'enterprise'
+  const isGroupMom = channelType === 'groupmom'
+  const groupmomIssueInvoice = Form.useWatch('issueInvoice', form) === 'on'
+  // 二聯式發票無統編，預設抬頭/統編改為非必填（對齊正式站）；團媽為個人亦不強制。
+  const invoiceMode = Form.useWatch('invoiceMode', form)
+  const invoiceRequired = isGroupMom ? false : invoiceMode !== 'two_copy'
 
   const handleOk = () => {
     form.validateFields().then(values => {
@@ -124,12 +157,18 @@ function ChannelModal({ open, onClose, onSave, onResetPassword, onDisable, onEna
       afterOpenChange={visible => {
         if (visible) {
           form.resetFields()
-          form.setFieldsValue(initial ?? {
-            invoiceMode: 'three_copy',
-            invoicePeriod: 'monthly',
-            invoiceTaxScope: 'per_store',
-            settlementDay: 25,
-          })
+          form.setFieldsValue(
+            initial
+              ? { channelType: 'enterprise', issueInvoice: 'off', ...initial }  // 既有通路預設企業
+              : {
+                  channelType: 'enterprise',
+                  invoiceMode: 'three_copy',
+                  invoicePeriod: 'monthly',
+                  invoiceTaxScope: 'per_store',
+                  settlementDay: 25,
+                  issueInvoice: 'off',
+                }
+          )
         }
       }}
     >
@@ -164,6 +203,13 @@ function ChannelModal({ open, onClose, onSave, onResetPassword, onDisable, onEna
         <Divider orientation="left" plain style={{ margin: '4px 0 12px' }}>基本資料</Divider>
         <Row gutter={12}>
           <Col span={12}>
+            <Form.Item label="通路類型" name="channelType" rules={[{ required: true }]}>
+              <Select options={CHANNEL_TYPE_OPTIONS} />
+            </Form.Item>
+          </Col>
+        </Row>
+        <Row gutter={12}>
+          <Col span={12}>
             <Form.Item label="通路名稱" name="name" rules={[{ required: true }]}>
               <Input />
             </Form.Item>
@@ -188,13 +234,13 @@ function ChannelModal({ open, onClose, onSave, onResetPassword, onDisable, onEna
         </Row>
         <Row gutter={12}>
           <Col span={12}>
-            <Form.Item label="預設公司抬頭" name="title" rules={[{ required: true }]}>
-              <Input />
+            <Form.Item label="預設公司抬頭" name="title" rules={[{ required: invoiceRequired, message: '請輸入公司抬頭' }]}>
+              <Input placeholder={invoiceRequired ? '' : '二聯式／個人可免填'} />
             </Form.Item>
           </Col>
           <Col span={12}>
-            <Form.Item label="預設統一編號" name="taxId" rules={[{ required: true }]}>
-              <Input />
+            <Form.Item label="預設統一編號" name="taxId" rules={[{ required: invoiceRequired, message: '請輸入統一編號' }, TAXID_RULE]}>
+              <Input placeholder={invoiceRequired ? '8 位數字' : '二聯式／個人可免填'} />
             </Form.Item>
           </Col>
         </Row>
@@ -212,24 +258,48 @@ function ChannelModal({ open, onClose, onSave, onResetPassword, onDisable, onEna
           </Col>
         </Row>
 
-        <Divider orientation="left" plain style={{ margin: '4px 0 12px' }}>結算 &amp; 發票設定</Divider>
-        <Row gutter={12}>
-          <Col span={10}>
-            <Form.Item label="結算日" name="settlementDay" rules={[{ required: true }]}>
-              <Select options={SETTLEMENT_DAY_OPTIONS} />
-            </Form.Item>
-          </Col>
-          <Col span={10}>
-            <Form.Item label="開發票頻率" name="invoicePeriod" rules={[{ required: true }]}>
-              <Select options={INVOICE_PERIOD_OPTIONS} />
-            </Form.Item>
-          </Col>
-          <Col span={4}>
-            <Form.Item label="發票類型" name="invoiceMode" rules={[{ required: true }]}>
-              <Select options={INVOICE_MODE_OPTIONS} />
-            </Form.Item>
-          </Col>
-        </Row>
+        <Divider orientation="left" plain style={{ margin: '4px 0 12px' }}>
+          {isGroupMom ? '收款 & 發票設定' : '結算 & 發票設定'}
+        </Divider>
+        {isGroupMom ? (
+          <Row gutter={12}>
+            <Col span={10}>
+              <Form.Item label="收款方式">
+                <Input value="逐筆刷卡（信用卡）" disabled />
+              </Form.Item>
+            </Col>
+            <Col span={8}>
+              <Form.Item label="是否開發票" name="issueInvoice" rules={[{ required: true }]}>
+                <Select options={GROUPMOM_INVOICE_OPTIONS} />
+              </Form.Item>
+            </Col>
+            {groupmomIssueInvoice && (
+              <Col span={6}>
+                <Form.Item label="發票類型" name="invoiceMode" rules={[{ required: true }]}>
+                  <Select options={INVOICE_MODE_OPTIONS} />
+                </Form.Item>
+              </Col>
+            )}
+          </Row>
+        ) : (
+          <Row gutter={12}>
+            <Col span={10}>
+              <Form.Item label="結算日" name="settlementDay" rules={[{ required: true }]}>
+                <Select options={SETTLEMENT_DAY_OPTIONS} />
+              </Form.Item>
+            </Col>
+            <Col span={10}>
+              <Form.Item label="開發票頻率" name="invoicePeriod" rules={[{ required: true }]}>
+                <Select options={INVOICE_PERIOD_OPTIONS} />
+              </Form.Item>
+            </Col>
+            <Col span={4}>
+              <Form.Item label="發票類型" name="invoiceMode" rules={[{ required: true }]}>
+                <Select options={INVOICE_MODE_OPTIONS} />
+              </Form.Item>
+            </Col>
+          </Row>
+        )}
 
         <Divider orientation="left" plain style={{ margin: '4px 0 12px' }}>備註</Divider>
         <Form.Item
@@ -272,6 +342,7 @@ function ChannelModal({ open, onClose, onSave, onResetPassword, onDisable, onEna
 export default function AdminChannels() {
   const [channelList, setChannelList] = useState(initialChannels)
   const [searchText,  setSearchText]  = useState('')
+  const [identityFilter, setIdentityFilter] = useState('all')
   const [viewing,   setViewing]   = useState(null)
   const [editing,   setEditing]   = useState(null)
   const [modalOpen, setModalOpen] = useState(false)
@@ -330,13 +401,16 @@ export default function AdminChannels() {
 
   const filteredList = useMemo(() => {
     const q = searchText.trim().toLowerCase()
-    if (!q) return channelList
-    return channelList.filter(c =>
-      c.name?.toLowerCase().includes(q) ||
-      c.taxId?.toLowerCase().includes(q) ||
-      c.contactEmail?.toLowerCase().includes(q)
-    )
-  }, [channelList, searchText])
+    return channelList.filter(c => {
+      if (identityFilter !== 'all' && channelTypeOf(c) !== identityFilter) return false
+      if (!q) return true
+      return (
+        c.name?.toLowerCase().includes(q) ||
+        c.taxId?.toLowerCase().includes(q) ||
+        c.contactEmail?.toLowerCase().includes(q)
+      )
+    })
+  }, [channelList, searchText, identityFilter])
 
   const columns = [
     { title: '通路名稱', dataIndex: 'name',
@@ -346,6 +420,10 @@ export default function AdminChannels() {
           {r.enabled === false && <Tag color="default" style={{ fontSize: 10, margin: 0 }}>已停用</Tag>}
         </Space>
       )},
+    { title: '類型', dataIndex: 'channelType', width: 70, align: 'center',
+      render: v => <Tag color={CHANNEL_TYPE_COLOR[v ?? 'enterprise']}>
+        {CHANNEL_TYPE_OPTIONS.find(o => o.value === (v ?? 'enterprise'))?.label}
+      </Tag> },
     { title: '預設統編', dataIndex: 'taxId', width: 110 },
     { title: '聯繫信箱', dataIndex: 'contactEmail' },
     { title: '聯繫窗口', dataIndex: 'contactName', width: 150,
@@ -368,7 +446,9 @@ export default function AdminChannels() {
         : <span style={{ color: '#bbb' }}>—</span>
     },
     { title: '結算日', dataIndex: 'settlementDay', width: 110,
-      render: v => settlementDayLabel(v) },
+      render: (v, r) => channelTypeOf(r) === 'groupmom'
+        ? <span style={{ color: '#bbb' }}>—</span>
+        : settlementDayLabel(v) },
     { title: '收件地址', dataIndex: 'addresses', width: 80, align: 'center',
       render: arr => <Badge count={arr?.length ?? 0} color="#1677ff" /> },
     { title: '操作', width: 130, align: 'center',
@@ -387,14 +467,17 @@ export default function AdminChannels() {
         <Button type="primary" icon={<PlusOutlined />} onClick={openAdd}>新增通路</Button>
       </div>
 
-      <Input
-        prefix={<SearchOutlined />}
-        placeholder="搜尋通路名稱 / 統一編號 / 信箱"
-        value={searchText}
-        onChange={e => setSearchText(e.target.value)}
-        allowClear
-        style={{ width: 280, marginBottom: 16 }}
-      />
+      <Space style={{ marginBottom: 16 }} wrap>
+        <Segmented options={IDENTITY_FILTERS} value={identityFilter} onChange={setIdentityFilter} />
+        <Input
+          prefix={<SearchOutlined />}
+          placeholder="搜尋通路名稱 / 統一編號 / 信箱"
+          value={searchText}
+          onChange={e => setSearchText(e.target.value)}
+          allowClear
+          style={{ width: 280 }}
+        />
+      </Space>
 
       <Table dataSource={filteredList} columns={columns} rowKey="id" size="small" pagination={false} />
 

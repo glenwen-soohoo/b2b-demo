@@ -16,9 +16,15 @@ const INVOICE_MODE_LABEL = {
   two_copy:   '二聯式',
 }
 
+// 統一編號格式（8 位數字；空值交由 required 控制，對齊正式站）
+const TAXID_RULE = {
+  validator: (_, v) =>
+    !v || /^\d{8}$/.test(v) ? Promise.resolve() : Promise.reject(new Error('統一編號為 8 位數字')),
+}
+
 const { Title, Text } = Typography
 
-function AddressModal({ open, onClose, onSave, initial, channelDefaults }) {
+function AddressModal({ open, onClose, onSave, initial, channelDefaults, isGroupMom }) {
   const [form] = Form.useForm()
   return (
     <Modal
@@ -30,30 +36,35 @@ function AddressModal({ open, onClose, onSave, initial, channelDefaults }) {
       afterOpenChange={vis => { if (vis) form.setFieldsValue(initial ?? { ...channelDefaults }) }}
     >
       <Form form={form} layout="vertical" style={{ marginTop: 8 }}>
-        <Form.Item label="門市/倉別名稱" name="label" rules={[{ required: true }]}>
+        <Form.Item label="門市/倉別名稱" name="label" rules={[{ required: true, message: '請填寫門市/倉別名稱' }]}>
           <Input placeholder="例：林口店、總倉" />
         </Form.Item>
-        <Form.Item label="收件人" name="recipient" rules={[{ required: true }]}>
+        <Form.Item label="收件人" name="recipient" rules={[{ required: true, message: '請填寫收件人' }]}>
           <Input />
         </Form.Item>
-        <Form.Item label="聯絡電話" name="phone" rules={[{ required: true }]}>
+        <Form.Item label="聯絡電話" name="phone" rules={[{ required: true, message: '請填寫聯絡電話' }]}>
           <Input />
         </Form.Item>
-        <Form.Item label="收件地址" name="address" rules={[{ required: true }]}>
+        <Form.Item label="收件地址" name="address" rules={[{ required: true, message: '請填寫收件地址' }]}>
           <Input />
         </Form.Item>
-        <Divider plain style={{ margin: '8px 0 12px', fontSize: 12, color: '#999' }}>
-          發票買受人
-        </Divider>
-        <div style={{ marginBottom: 12, fontSize: 11, color: '#999' }}>
-          每個門市各自開立發票，已自動帶入通路的預設抬頭與統編，可依此門市實際情況調整。
-        </div>
-        <Form.Item label="發票抬頭" name="buyerName" rules={[{ required: true, message: '請填寫發票抬頭' }]}>
-          <Input placeholder="例：分公司或加盟主名稱" />
-        </Form.Item>
-        <Form.Item label="統一編號" name="buyerTaxId" rules={[{ required: true, message: '請填寫統一編號' }]}>
-          <Input placeholder="8 碼" maxLength={8} />
-        </Form.Item>
+        {/* 團媽（個人、逐筆刷卡）不逐店開發票，不顯示發票買受人區 */}
+        {!isGroupMom && (
+          <>
+            <Divider plain style={{ margin: '8px 0 12px', fontSize: 12, color: '#999' }}>
+              發票買受人（選填）
+            </Divider>
+            <div style={{ marginBottom: 12, fontSize: 11, color: '#999' }}>
+              每個門市各自開立發票；留空則沿用通路的預設抬頭與統編。
+            </div>
+            <Form.Item label="發票抬頭" name="buyerName" rules={[{ required: false }]}>
+              <Input placeholder="留空沿用通路預設" />
+            </Form.Item>
+            <Form.Item label="統一編號" name="buyerTaxId" rules={[{ required: false }, TAXID_RULE]}>
+              <Input placeholder="留空沿用通路預設（8 碼）" maxLength={8} />
+            </Form.Item>
+          </>
+        )}
       </Form>
     </Modal>
   )
@@ -140,6 +151,10 @@ export default function VendorProfile() {
   const [info, setInfo]         = useState({ ...channel })
   const [editing, setEditing]   = useState(false)
   const [form]                  = Form.useForm()
+
+  const isGroupMom = (info.channelType ?? 'enterprise') === 'groupmom'
+  // 二聯式發票無統編、團媽為個人 → 預設抬頭/統編非必填（對齊正式站）
+  const invoiceRequired = isGroupMom ? false : info.invoiceMode !== 'two_copy'
 
   // 收件地址相關
   const [addrList, setAddrList]       = useState(channel.addresses ?? [])
@@ -252,15 +267,17 @@ export default function VendorProfile() {
               <Form.Item label="聯繫電話" name="contactPhone">
                 <Input />
               </Form.Item>
-              <Form.Item label="預設公司抬頭" name="title" rules={[{ required: true }]}>
-                <Input />
+              <Form.Item label="預設公司抬頭" name="title" rules={[{ required: invoiceRequired, message: '請輸入公司抬頭' }]}>
+                <Input placeholder={invoiceRequired ? '' : '二聯式／個人可免填'} />
               </Form.Item>
-              <Form.Item label="預設統一編號" name="taxId" rules={[{ required: true }]}>
-                <Input />
+              <Form.Item label="預設統一編號" name="taxId" rules={[{ required: invoiceRequired, message: '請輸入統一編號' }, TAXID_RULE]}>
+                <Input placeholder={invoiceRequired ? '8 位數字' : '二聯式／個人可免填'} />
               </Form.Item>
+              {!isGroupMom && (
               <Form.Item label="常用匯款末五碼（選填）" name="default_bank_last5">
                 <Input placeholder="5碼" maxLength={5} />
               </Form.Item>
+              )}
             </div>
             <Form.Item
               label="預設下單備註（下單時自動帶入，送出前可修改）"
@@ -285,7 +302,7 @@ export default function VendorProfile() {
               { label: '聯繫電話', value: info.contactPhone },
               { label: '預設公司抬頭', value: info.title },
               { label: '預設統一編號', value: info.taxId },
-              { label: '常用匯款末五碼', value: info.default_bank_last5 || null },
+              ...(isGroupMom ? [] : [{ label: '常用匯款末五碼', value: info.default_bank_last5 || null }]),
             ].map(f => (
               <div key={f.label}>
                 <div style={{ fontSize: 12, color: '#999', marginBottom: 2 }}>{f.label}</div>
@@ -318,15 +335,21 @@ export default function VendorProfile() {
         style={{ marginBottom: 20, background: '#fffbe6', border: '1px solid #ffe58f' }}
       >
         <div style={{ fontSize: 12, color: '#ad8b00', marginBottom: 10, fontWeight: 600 }}>
-          結算資訊（如需修改請聯繫業務窗口）
+          {isGroupMom ? '付款與發票資訊（如需修改請聯繫業務窗口）' : '結算資訊（如需修改請聯繫業務窗口）'}
         </div>
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px 24px' }}>
-          {[
-            { label: '結算日',  value: settlementDayLabel(info.settlementDay) },
-            { label: '匯款帳號', value: '00709001170（兆豐銀行）' },
-            { label: '發票模式', value: invoiceModeLabel(info.invoicePeriod, info.invoiceTaxScope) },
-            { label: '發票類型', value: INVOICE_MODE_LABEL[info.invoiceMode] ?? '—' },
-          ].map(f => (
+          {(isGroupMom
+            ? [
+                { label: '收款方式', value: '逐筆刷卡（信用卡）' },
+                { label: '發票', value: info.issueInvoice === 'on' ? '開立發票' : '不開立發票' },
+              ]
+            : [
+                { label: '結算日',  value: settlementDayLabel(info.settlementDay) },
+                { label: '匯款帳號', value: '00709001170（兆豐銀行）' },
+                { label: '發票模式', value: invoiceModeLabel(info.invoicePeriod, info.invoiceTaxScope) },
+                { label: '發票類型', value: INVOICE_MODE_LABEL[info.invoiceMode] ?? '—' },
+              ]
+          ).map(f => (
             <div key={f.label}>
               <div style={{ fontSize: 12, color: '#999', marginBottom: 2 }}>{f.label}</div>
               <div style={{ fontSize: 14 }}>{f.value}</div>
@@ -356,6 +379,7 @@ export default function VendorProfile() {
         onSave={saveAddr}
         initial={editingAddr}
         channelDefaults={{ buyerName: info.title, buyerTaxId: info.taxId }}
+        isGroupMom={isGroupMom}
       />
 
       <ChangePasswordModal

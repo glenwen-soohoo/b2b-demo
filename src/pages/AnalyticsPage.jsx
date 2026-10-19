@@ -4,15 +4,23 @@ import {
   Card, Row, Col, Statistic, Table, Segmented, Typography,
   Space, Tag, Empty, Divider, Button, DatePicker,
 } from 'antd'
-import { preOrders, productMap, channels } from '../data/fakeData'
+import { preOrders, productMap, channelMap } from '../data/fakeData'
 import { TEMP, COLOR, LAYOUT } from '../styles/tokens'
 
 const { Title, Text } = Typography
 
 // ── 狀態白名單：算入損益的訂單必須是「已成立」之後的狀態 ─────────
+// 注意：團媽「待付款(pending_payment)」未付，不列入損益。
 const VALID_STATUSES = new Set([
   'ordered', 'arrived', 'settling', 'settled_done',
 ])
+
+// ── 通路身分：依身分分群檢視，單選、兩者不混算 ─────────
+const IDENTITY_OPTIONS = [
+  { value: 'enterprise', label: '企業' },
+  { value: 'groupmom',   label: '團媽' },
+]
+const channelIdentity = (cid) => channelMap[cid]?.channelType ?? 'enterprise'
 
 // ── 時間範圍快捷選項 ─────────────────────────────
 // 注意：所有 range 都會被當成 [起, 迄] 處理，包含端點
@@ -293,6 +301,7 @@ function ProductRankTable({ items, sortBy }) {
 
 // ───────────── 主頁面 ─────────────
 export default function AnalyticsPage() {
+  const [identity,     setIdentity]     = useState('enterprise') // 'enterprise' | 'groupmom'（單選、不混算）
   const [view,         setView]         = useState('overall')   // 'overall' | 'channel'
   const [tempFilter,   setTempFilter]   = useState('all')       // 'all' | 'frozen' | 'ambient'
   const [selectedCid,  setSelectedCid]  = useState(null)
@@ -317,7 +326,10 @@ export default function AnalyticsPage() {
 
   // ── 1. 取「真正成立」的訂單，套用日期區間 + 溫層過濾 ──
   const validOrders = useMemo(() => {
-    let list = preOrders.filter(o => VALID_STATUSES.has(o.status))
+    // 先依身分分群（單選、不混算），再套日期 + 溫層
+    let list = preOrders.filter(
+      o => VALID_STATUSES.has(o.status) && channelIdentity(o.channelId) === identity
+    )
     if (effectiveRange?.[0] && effectiveRange?.[1]) {
       const startMs = effectiveRange[0].startOf('day').valueOf()
       const endMs   = effectiveRange[1].endOf('day').valueOf()
@@ -332,7 +344,7 @@ export default function AnalyticsPage() {
         items: filterItemsByTemp(realItems(o), tempFilter),
       }))
       .filter(o => o.items.length > 0)
-  }, [tempFilter, effectiveRange])
+  }, [tempFilter, effectiveRange, identity])
 
   // ── 2. 整體 KPI ──
   const overall = useMemo(
@@ -482,6 +494,12 @@ export default function AnalyticsPage() {
         </Col>
         <Col>
           <Space size={12}>
+            <Segmented
+              value={identity}
+              onChange={setIdentity}
+              options={IDENTITY_OPTIONS}
+            />
+            <Divider type="vertical" style={{ height: 28, margin: 0 }} />
             <Segmented
               value={tempFilter}
               onChange={setTempFilter}

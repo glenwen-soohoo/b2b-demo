@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react'
 import { Card, List, Tag, Typography, Empty, Badge, Button } from 'antd'
-import { ClockCircleOutlined } from '@ant-design/icons'
+import { ClockCircleOutlined, PaperClipOutlined, PictureOutlined } from '@ant-design/icons'
 import { useVendor } from '../../context/VendorContext'
 import { announcements } from '../../data/fakeData'
 import {
@@ -105,6 +105,12 @@ export default function VendorAnnouncements() {
                     <Text type="secondary" style={{ fontSize: 11 }}>
                       <ClockCircleOutlined style={{ marginRight: 4 }} />
                       {item.publishedAt?.slice(0, 10) ?? '—'}
+                      {item.images?.length > 0 && (
+                        <span style={{ marginLeft: 8 }}><PictureOutlined style={{ marginRight: 2 }} />{item.images.length}</span>
+                      )}
+                      {item.files?.length > 0 && (
+                        <span style={{ marginLeft: 8 }}><PaperClipOutlined style={{ marginRight: 2 }} />{item.files.length}</span>
+                      )}
                     </Text>
                   </div>
                 </div>

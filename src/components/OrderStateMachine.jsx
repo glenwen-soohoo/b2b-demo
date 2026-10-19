@@ -6,10 +6,11 @@ import {
   SyncOutlined,
   CheckSquareOutlined,
   StopOutlined,
+  CreditCardOutlined,
 } from '@ant-design/icons';
 
-// B2B訂單流程：待業務確認 → 已成立訂單 → 到貨等待結算 → 結算中 → 結算完畢
-const STEPS = [
+// 企業：待業務確認 → 已成立訂單 → 到貨等待結算 → 結算中 → 結算完畢
+const STEPS_ENTERPRISE = [
   { key: 'pending_sales', label: '待業務確認',   icon: <ClockCircleOutlined /> },
   { key: 'ordered',       label: '已成立訂單',   icon: <CheckCircleOutlined /> },
   { key: 'arrived',       label: '到貨等待結算', icon: <InboxOutlined /> },
@@ -17,15 +18,19 @@ const STEPS = [
   { key: 'settled_done',  label: '結算完畢',     icon: <CheckSquareOutlined /> },
 ];
 
-const STATUS_TO_STEP = {
-  pending_sales: 0,
-  ordered:       1,
-  arrived:       2,
-  settling:      3,
-  settled_done:  4,
-};
+// 團媽：待業務確認 → 待付款（刷卡）→ 已成立訂單 → …
+const STEPS_GROUPMOM = [
+  { key: 'pending_sales',   label: '待業務確認',   icon: <ClockCircleOutlined /> },
+  { key: 'pending_payment', label: '待付款',       icon: <CreditCardOutlined /> },
+  { key: 'ordered',         label: '已成立訂單',   icon: <CheckCircleOutlined /> },
+  { key: 'arrived',         label: '到貨等待結算', icon: <InboxOutlined /> },
+  { key: 'settling',        label: '結算中',       icon: <SyncOutlined /> },
+  { key: 'settled_done',    label: '結算完畢',     icon: <CheckSquareOutlined /> },
+];
 
-export default function OrderStateMachine({ status }) {
+export default function OrderStateMachine({ status, isGroupMom = false }) {
+  const STEPS = isGroupMom ? STEPS_GROUPMOM : STEPS_ENTERPRISE;
+  const STATUS_TO_STEP = Object.fromEntries(STEPS.map((s, i) => [s.key, i]));
   // 作廢狀態：不顯示 Steps，改用紅色標籤取代整條進度條
   if (status === 'voided') {
     return (

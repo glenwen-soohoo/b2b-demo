@@ -1,9 +1,9 @@
 import { useState, useEffect } from 'react';
 import {
   Drawer, Descriptions, Table, Timeline, Button, Space, Popconfirm, Tag,
-  Divider, Alert, Row, Col, InputNumber, Input, Typography, Tooltip, Select, Dropdown, message,
+  Divider, Alert, Row, Col, InputNumber, Input, Typography, Tooltip, Select, Dropdown, message, Modal,
 } from 'antd';
-import { SendOutlined, LockOutlined, SaveOutlined, EditOutlined, FilePdfOutlined, CloseOutlined, StopOutlined, DownOutlined, RedoOutlined, PlusOutlined } from '@ant-design/icons';
+import { SendOutlined, LockOutlined, SaveOutlined, EditOutlined, FilePdfOutlined, CloseOutlined, StopOutlined, DownOutlined, RedoOutlined, PlusOutlined, CreditCardOutlined, CopyOutlined } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import { exportOrderPdf } from '../utils/exportOrderPdf';
 import { generateB2bOrderNo, getConfirmedItems, buildVoidPatch, buildRecreatedOrder } from '../services/orderService';
@@ -187,6 +187,7 @@ export default function OrderDetail({ order, open, onClose, onStatusChange, onRe
   const [voidConfirm,    setVoidConfirm]    = useState({ open: false, mode: null }); // mode: 'void' | 'recreate'
   const [extraItems,     setExtraItems]     = useState([]);   // 業務臨時新增、原訂單沒有的品項
   const [addItemOpen,    setAddItemOpen]    = useState(false);
+  const [payLinkModal,   setPayLinkModal]   = useState(null);  // 團媽確認後的付款連結彈窗 {link} | null
 
   const removeExtra = (productId) => {
     setExtraItems(prev => prev.filter(i => i.productId !== productId));
@@ -225,6 +226,9 @@ export default function OrderDetail({ order, open, onClose, onStatusChange, onRe
   }, [order?.id]);
 
   if (!order) return null;
+
+  // 團媽：業務確認後先進「待付款」等刷卡，不直接成立訂單
+  const isGroupMom = (channelMap[order.channelId]?.channelType ?? 'enterprise') === 'groupmom';
 
   const displayItems = getConfirmedItems(order);
   // pending_sales 用「原訂單品項 + 業務新增品項」一起算、一起確認
@@ -289,13 +293,14 @@ export default function OrderDetail({ order, open, onClose, onStatusChange, onRe
     const priceChanges = order.items.filter(i => (adjPriceMap[i.productId] ?? i.price) !== i.price).map(i => `${i.productName}: 單價$${i.price}→$${adjPriceMap[i.productId]}`);
     const addedChanges = extraItems.map(i => `業務新增 ${i.productName} × ${adjQtyMap[i.productId] ?? 0}`);
     const allChanges   = [...qtyChanges, ...priceChanges, ...addedChanges];
+    const confirmVerb = isGroupMom ? '業務確認，轉為待付款（等待團媽刷卡）' : '業務確認完成，建立正式訂單';
     const logMsg       = allChanges.length > 0
-      ? `[手動操作] 業務確認完成，建立正式訂單（${allChanges.join('、')}）`
-      : '[手動操作] 業務確認完成，建立正式訂單（數量與單價無變動）';
+      ? `[手動操作] ${confirmVerb}（${allChanges.join('、')}）`
+      : `[手動操作] ${confirmVerb}（數量與單價無變動）`;
 
     const b2bOrderNo = order.b2b_order_no || generateB2bOrderNo();
 
-    onStatusChange(order.id, 'ordered', {
+    onStatusChange(order.id, isGroupMom ? 'pending_payment' : 'ordered', {
       time: new Date().toLocaleString('zh-TW', { hour12: false }).replace(',', ''),
       action: logMsg,
     }, {
@@ -309,7 +314,21 @@ export default function OrderDetail({ order, open, onClose, onStatusChange, onRe
       discount_note:   discountNote  || null,
       settlementMonth: localSettlementMonth || order.settlementMonth,
     });
+
+    // 團媽：確認後產生付款連結，跳彈窗讓業務快速複製傳給團媽
+    if (isGroupMom) {
+      setPayLinkModal({
+        link: `${window.location.origin}/b2b-demo/pay?order=${order.id}`,
+        orderNo: b2bOrderNo,
+      });
+    }
   };
+
+  // 待付款期間可再次開啟付款連結彈窗
+  const openPayLink = () => setPayLinkModal({
+    link: `${window.location.origin}/b2b-demo/pay?order=${order.id}`,
+    orderNo: order.b2b_order_no,
+  });
 
   const handleStartEdit = () => {
     setEditItems(displayItems.map(i => ({ ...i })));
@@ -439,7 +458,7 @@ export default function OrderDetail({ order, open, onClose, onStatusChange, onRe
       >
         <div style={{ marginBottom: 24 }}>
           <div style={{ fontWeight: 600, marginBottom: 12, color: '#555' }}>訂單進度</div>
-          <OrderStateMachine status={order.status} />
+          <OrderStateMachine status={order.status} isGroupMom={isGroupMom} />
         </div>
 
         {isSettled && (
@@ -721,17 +740,27 @@ export default function OrderDetail({ order, open, onClose, onStatusChange, onRe
             )}
           </Space>
           <Space>
+            {order.status === 'pending_payment' && isGroupMom && (
+              <Button icon={<CreditCardOutlined />} onClick={openPayLink}>開啟付款連結</Button>
+            )}
             {order.status === 'pending_sales' && (
               <>
                 <Button icon={<SaveOutlined />} onClick={handleSaveDraft}>儲存</Button>
                 <Popconfirm
-                  title="確認執行「業務確認完成，建立正式訂單」？"
+                  title={isGroupMom ? '確認執行「業務確認，轉為待付款」？' : '確認執行「業務確認完成，建立正式訂單」？'}
                   description={
-                    <span>
-                      建單會於無毒農後台建立 <strong>0 元訂單</strong>。<br />
-                      建單後，未來「建單後修改」調整細項<strong>不會</strong>連動正式訂單<br />
-                      僅 <strong>備註文字</strong> 會連動調整。
-                    </span>
+                    isGroupMom ? (
+                      <span>
+                        確認後訂單轉為 <strong>待付款</strong>，並產生信用卡付款連結給團媽。<br />
+                        團媽 <strong>刷卡付款成功後</strong>才成立訂單。
+                      </span>
+                    ) : (
+                      <span>
+                        建單會於無毒農後台建立 <strong>0 元訂單</strong>。<br />
+                        建單後，未來「建單後修改」調整細項<strong>不會</strong>連動正式訂單<br />
+                        僅 <strong>備註文字</strong> 會連動調整。
+                      </span>
+                    )
                   }
                   onConfirm={handleSalesConfirm}
                   okText="確認" cancelText="取消"
@@ -740,7 +769,7 @@ export default function OrderDetail({ order, open, onClose, onStatusChange, onRe
                   <Tooltip title={discountAmount > 0 && !discountNote.trim() ? '折扣金額大於0時，折扣備註為必填' : ''}>
                     <Button type="primary" icon={<SendOutlined />}
                       disabled={discountAmount > 0 && !discountNote.trim()}>
-                      業務確認完成，建立正式訂單
+                      {isGroupMom ? '業務確認，轉待付款' : '業務確認完成，建立正式訂單'}
                     </Button>
                   </Tooltip>
                 </Popconfirm>
@@ -772,7 +801,7 @@ export default function OrderDetail({ order, open, onClose, onStatusChange, onRe
         <Divider orientation="left" plain>操作紀錄</Divider>
         <Timeline
           style={{ marginBottom: 24 }}
-          items={order.logs.map(l => ({
+          items={(order.logs ?? []).map(l => ({
             children: (
               <div>
                 <Tag color="default" style={{ fontSize: 11 }}>{l.time}</Tag>
@@ -794,6 +823,43 @@ export default function OrderDetail({ order, open, onClose, onStatusChange, onRe
         )}
         onAdd={addExtra}
       />
+
+      {/* 團媽確認後：付款連結彈窗（快速複製傳給團媽）*/}
+      <Modal
+        open={!!payLinkModal}
+        onCancel={() => setPayLinkModal(null)}
+        centered
+        title={<Space><CreditCardOutlined style={{ color: '#389e0d' }} />團媽付款連結</Space>}
+        footer={<Button type="primary" onClick={() => setPayLinkModal(null)}>完成</Button>}
+        width={520}
+      >
+        <div style={{ fontSize: 13, color: '#595959', marginBottom: 12 }}>
+          <div style={{ marginBottom: 6 }}>
+            訂單 <Text code>{payLinkModal?.orderNo}</Text> 已轉為<Tag color="magenta" style={{ margin: '0 4px' }}>待付款</Tag>。
+          </div>
+          <div>請把下方付款連結傳給團媽，完成信用卡付款後訂單才成立。</div>
+        </div>
+        <Space.Compact style={{ width: '100%' }}>
+          <Input readOnly value={payLinkModal?.link} />
+          <Button
+            type="primary"
+            icon={<CopyOutlined />}
+            onClick={() => {
+              const link = payLinkModal?.link ?? '';
+              if (navigator.clipboard?.writeText) {
+                navigator.clipboard.writeText(link).then(
+                  () => message.success('已複製付款連結'),
+                  () => message.warning('複製失敗，請手動選取'),
+                );
+              } else {
+                message.warning('此環境不支援自動複製，請手動選取');
+              }
+            }}
+          >
+            複製
+          </Button>
+        </Space.Compact>
+      </Modal>
     </>
   );
 }

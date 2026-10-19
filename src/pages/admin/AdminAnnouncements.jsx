@@ -2,15 +2,25 @@ import { useRef, useState, useEffect } from 'react'
 import dayjs from 'dayjs'
 import {
   Card, Form, Input, Select, Radio, Switch, Button, Drawer, Table, Modal,
-  Divider, Typography, Row, Col, Space, Tag, Popconfirm, message, DatePicker, Empty,
+  Divider, Typography, Row, Col, Space, Tag, Popconfirm, message, DatePicker, Empty, Upload, Segmented,
 } from 'antd'
 import {
   BoldOutlined, UnorderedListOutlined, LinkOutlined,
   EyeOutlined, SaveOutlined, PlusOutlined, EditOutlined, DeleteOutlined,
-  NotificationOutlined, CloseOutlined,
+  NotificationOutlined, CloseOutlined, UploadOutlined, PaperClipOutlined,
+  DownloadOutlined, PlusOutlined as PlusThumb,
 } from '@ant-design/icons'
+
+// 附件型別白名單與大小 / 數量上限（demo 值，PM 定）
+const FILE_ACCEPT = '.pdf,.xls,.xlsx,.doc,.docx'
+const FILE_MAX_MB = 10
+const FILE_MAX_COUNT = 5
+const IMG_MAX_MB = 5
+const IMG_MAX_COUNT = 5
+const fmtSize = (n) => n == null ? '' : n < 1024 * 1024 ? `${Math.round(n / 1024)} KB` : `${(n / 1024 / 1024).toFixed(1)} MB`
 import { announcements as initialList, channels } from '../../data/fakeData'
 import { renderMarkdown } from '../../utils/announcementUtils'
+import { IMAGE_LAYOUT_OPTIONS, renderAnnouncementImages } from '../../utils/announcementImages'
 import { LAYOUT } from '../../styles/tokens'
 
 const { Title, Text } = Typography
@@ -51,7 +61,30 @@ function AnnouncementEditor({ open, draft, onClose, onSave }) {
   const [preview,      setPreview]      = useState('')
   const [previewOpen,  setPreviewOpen]  = useState(false)
   const [audienceMode, setAudienceMode] = useState('all')
+  const [imageList,    setImageList]    = useState([])   // [{uid,name,url}]
+  const [imageLayout,  setImageLayout]  = useState('full')  // full | inline | natural
+  const [fileList,     setFileList]     = useState([])   // [{uid,name,size,url}]
   const textareaRef = useRef(null)
+
+  // 圖片上傳：驗型別 / 大小 / 數量，讀成 dataURL 以便預覽與前台顯示（demo；正式版上傳壓縮後存雲端）
+  const handleImageBefore = (file) => {
+    if (!file.type.startsWith('image/')) { message.error('只能上傳圖片'); return Upload.LIST_IGNORE }
+    if (file.size > IMG_MAX_MB * 1024 * 1024) { message.error(`圖片不可超過 ${IMG_MAX_MB}MB`); return Upload.LIST_IGNORE }
+    if (imageList.length >= IMG_MAX_COUNT) { message.error(`最多 ${IMG_MAX_COUNT} 張圖片`); return Upload.LIST_IGNORE }
+    const reader = new FileReader()
+    reader.onload = e => setImageList(prev => [...prev, { uid: file.uid, name: file.name, status: 'done', url: e.target.result }])
+    reader.readAsDataURL(file)
+    return Upload.LIST_IGNORE
+  }
+
+  // 附件上傳：PDF / Excel / Word，單檔 10MB，最多 5 個
+  const handleFileBefore = (file) => {
+    if (!/\.(pdf|xls|xlsx|doc|docx)$/i.test(file.name)) { message.error('只接受 PDF / Excel / Word'); return Upload.LIST_IGNORE }
+    if (file.size > FILE_MAX_MB * 1024 * 1024) { message.error(`檔案不可超過 ${FILE_MAX_MB}MB`); return Upload.LIST_IGNORE }
+    if (fileList.length >= FILE_MAX_COUNT) { message.error(`最多 ${FILE_MAX_COUNT} 個附件`); return Upload.LIST_IGNORE }
+    setFileList(prev => [...prev, { uid: file.uid, name: file.name, size: file.size, url: URL.createObjectURL(file) }])
+    return Upload.LIST_IGNORE
+  }
 
   // 開啟時把 draft 灌到 form
   useEffect(() => {
@@ -65,6 +98,9 @@ function AnnouncementEditor({ open, draft, onClose, onSave }) {
         publishedAt:      draft.publishedAt ? dayjs(draft.publishedAt) : dayjs(),
       })
       setAudienceMode(draft.audience === 'all' ? 'all' : 'specific')
+      setImageList((draft.images ?? []).map((im, i) => ({ uid: im.uid ?? `img-${i}`, name: im.name, status: 'done', url: im.url })))
+      setImageLayout(draft.imageLayout ?? 'full')
+      setFileList((draft.files ?? []).map((f, i) => ({ uid: f.uid ?? `file-${i}`, name: f.name, size: f.size, url: f.url })))
       setPreview(renderMarkdown(draft.content ?? ''))
       setPreviewOpen(false)
     }
@@ -84,6 +120,9 @@ function AnnouncementEditor({ open, draft, onClose, onSave }) {
         priority:    values.priority,
         isVisible:   values.isVisible,
         audience,
+        images:      imageList.map(im => ({ uid: im.uid, name: im.name, url: im.url })),
+        imageLayout,
+        files:       fileList.map(f => ({ uid: f.uid, name: f.name, size: f.size, url: f.url })),
         publishedAt: values.publishedAt
           ? values.publishedAt.format('YYYY-MM-DD HH:mm')
           : dayjs().format('YYYY-MM-DD HH:mm'),
@@ -207,6 +246,64 @@ function AnnouncementEditor({ open, draft, onClose, onSave }) {
           </div>
         </Form.Item>
 
+        {/* ── 圖片區塊 ── */}
+        <Form.Item
+          label={
+            <Space size={10}>
+              圖片
+              <Segmented size="small" value={imageLayout} onChange={setImageLayout} options={IMAGE_LAYOUT_OPTIONS} />
+            </Space>
+          }
+          style={{ marginBottom: 12 }}
+        >
+          <Upload
+            listType="picture-card"
+            accept="image/*"
+            fileList={imageList}
+            beforeUpload={handleImageBefore}
+            onRemove={file => setImageList(prev => prev.filter(f => f.uid !== file.uid))}
+            onPreview={file => Modal.info({
+              icon: null, title: file.name, width: 600, okText: '關閉',
+              content: <img src={file.url} alt={file.name} style={{ width: '100%', marginTop: 8 }} />,
+            })}
+          >
+            {imageList.length >= IMG_MAX_COUNT ? null : (
+              <div><PlusThumb /><div style={{ marginTop: 6, fontSize: 12 }}>上傳圖片</div></div>
+            )}
+          </Upload>
+        </Form.Item>
+
+        {/* ── 檔案附件區塊 ── */}
+        <Form.Item label="檔案附件" style={{ marginBottom: 12 }}>
+          <Upload
+            accept={FILE_ACCEPT}
+            fileList={fileList}
+            beforeUpload={handleFileBefore}
+            showUploadList={false}
+            multiple
+          >
+            <Button icon={<UploadOutlined />} disabled={fileList.length >= FILE_MAX_COUNT}>
+              上傳檔案（PDF / Excel / Word）
+            </Button>
+          </Upload>
+          {fileList.length > 0 && (
+            <div style={{ marginTop: 8 }}>
+              {fileList.map(f => (
+                <div key={f.uid} style={{
+                  display: 'flex', alignItems: 'center', gap: 8,
+                  padding: '5px 10px', border: '1px solid #f0f0f0', borderRadius: 4, marginBottom: 4,
+                }}>
+                  <PaperClipOutlined style={{ color: '#888' }} />
+                  <span style={{ flex: 1, fontSize: 13 }}>{f.name}</span>
+                  <span style={{ fontSize: 12, color: '#999' }}>{fmtSize(f.size)}</span>
+                  <Button type="text" size="small" danger icon={<DeleteOutlined />}
+                    onClick={() => setFileList(prev => prev.filter(x => x.uid !== f.uid))} />
+                </div>
+              ))}
+            </div>
+          )}
+        </Form.Item>
+
         {/* ── 預覽按鈕 ── */}
         <div style={{ marginTop: 4 }}>
           <Button
@@ -254,6 +351,27 @@ function AnnouncementEditor({ open, draft, onClose, onSave }) {
               __html: preview || '<span style="color:#ccc;font-size:12px;">內文未填...</span>',
             }}
           />
+          {/* 圖片（依呈現方式） */}
+          {imageList.length > 0 && (
+            <div style={{ padding: '0 20px 12px' }}>
+              {renderAnnouncementImages(imageList, imageLayout)}
+            </div>
+          )}
+          {/* 附件 */}
+          {fileList.length > 0 && (
+            <div style={{ padding: '0 20px 14px' }}>
+              {fileList.map(f => (
+                <a key={f.uid} href={f.url} download={f.name}
+                  style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '6px 10px',
+                    border: '1px solid #f0f0f0', borderRadius: 4, marginBottom: 4 }}>
+                  <PaperClipOutlined style={{ color: '#888' }} />
+                  <span style={{ flex: 1, color: '#333', fontSize: 13 }}>{f.name}</span>
+                  <span style={{ fontSize: 12, color: '#999' }}>{fmtSize(f.size)}</span>
+                  <DownloadOutlined style={{ color: '#1677ff' }} />
+                </a>
+              ))}
+            </div>
+          )}
           {/* 底列 */}
           <div style={{
             padding: '10px 20px',

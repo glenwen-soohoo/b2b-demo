@@ -1,7 +1,7 @@
 import { useState, useMemo } from 'react'
 import {
   Table, Button, Space, Input, Card, Col, Row,
-  Statistic, Tag, Typography, DatePicker, Select, Divider, Tooltip, message,
+  Statistic, Tag, Typography, DatePicker, Select, Divider, Tooltip, message, Segmented,
 } from 'antd'
 import { SearchOutlined, EyeOutlined } from '@ant-design/icons'
 import dayjs from 'dayjs'
@@ -22,8 +22,17 @@ function temperatureZoneTag(items) {
   )
 }
 
+// 身分篩選（全部 / 企業 / 團媽）；訂單依通路身分判斷
+const IDENTITY_FILTERS = [
+  { label: '全部', value: 'all' },
+  { label: '企業', value: 'enterprise' },
+  { label: '團媽', value: 'groupmom' },
+]
+const identityOfOrder = (o) => channelMap[o.channelId]?.channelType ?? 'enterprise'
+
 const STATUS_FILTERS = [
-  { key: 'pending_sales', label: '待業務確認'   },
+  { key: 'pending_sales',   label: '待業務確認' },
+  { key: 'pending_payment', label: '待付款'     },
   { key: 'ordered',       label: '已成立訂單'   },
   { key: 'arrived',       label: '到貨等待結算' },
   { key: 'settling',      label: '結算中'       },
@@ -39,6 +48,7 @@ function getSettlementMonthOptions(orders) {
 export default function AdminOrders() {
   const [preOrderList, setPreOrderList]       = useState(initPreOrders)
   const [filterText, setFilterText]           = useState('')
+  const [identityFilter, setIdentityFilter]   = useState('all')
   const [activeStatuses, setActiveStatuses]   = useState([])
   const [tempFilter, setTempFilter]           = useState('all')         // 'all' | 'frozen' | 'ambient'
   const [dateMode, setDateMode]               = useState('createdAt')   // 'createdAt' | 'settlementMonth'
@@ -59,6 +69,7 @@ export default function AdminOrders() {
       .filter(o => {
         const q = filterText.trim()
         const matchText   = !q || o.id.includes(q) || o.channelName.includes(q) || (o.b2b_order_no ?? '').includes(q)
+        const matchIdentity = identityFilter === 'all' || identityOfOrder(o) === identityFilter
         const matchStatus = activeStatuses.length === 0 || activeStatuses.includes(o.status)
         const matchTemp   = (() => {
           if (tempFilter === 'all') return true
@@ -75,10 +86,10 @@ export default function AdminOrders() {
           }
           return true
         })()
-        return matchText && matchStatus && matchTemp && matchDate
+        return matchText && matchIdentity && matchStatus && matchTemp && matchDate
       })
       .sort((a, b) => b.createdAt.localeCompare(a.createdAt)),
-  [preOrderList, filterText, activeStatuses, tempFilter, dateMode, dateRange, settlementMonth])
+  [preOrderList, filterText, identityFilter, activeStatuses, tempFilter, dateMode, dateRange, settlementMonth])
 
   const toggleStatus = (key, checked) => {
     const next = checked
@@ -93,7 +104,7 @@ export default function AdminOrders() {
       const updated = {
         ...o,
         status: next,
-        logs: log ? [...o.logs, log] : o.logs,
+        logs: log ? [...(o.logs ?? []), log] : (o.logs ?? []),
         ...(extra?.salesAdjustedItems !== undefined ? { salesAdjustedItems: extra.salesAdjustedItems } : {}),
         ...(extra?.adjustedItems      !== undefined ? { adjustedItems: extra.adjustedItems }           : {}),
         ...(extra?.shipping_note      !== undefined ? { shipping_note: extra.shipping_note }           : {}),
@@ -194,6 +205,7 @@ export default function AdminOrders() {
       </Row>
 
       <Space style={{ marginBottom: 16 }} wrap>
+        <Segmented options={IDENTITY_FILTERS} value={identityFilter} onChange={setIdentityFilter} />
         <Input
           prefix={<SearchOutlined />} placeholder="搜尋訂單號 / B2B編號 / 通路名稱"
           value={filterText} onChange={e => setFilterText(e.target.value)}

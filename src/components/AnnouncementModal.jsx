@@ -1,7 +1,10 @@
 import { useEffect, useRef, useState } from 'react'
 import { Button } from 'antd'
-import { CloseOutlined, NotificationOutlined } from '@ant-design/icons'
+import { CloseOutlined, NotificationOutlined, PaperClipOutlined, DownloadOutlined } from '@ant-design/icons'
 import { renderMarkdown } from '../utils/announcementUtils'
+import { renderAnnouncementImages } from '../utils/announcementImages'
+
+const fmtSize = (n) => n == null ? '' : n < 1024 * 1024 ? `${Math.round(n / 1024)} KB` : `${(n / 1024 / 1024).toFixed(1)} MB`
 
 /**
  * 廠商端公告 modal
@@ -102,11 +105,32 @@ export default function AnnouncementModal({ announcement, open, onClose, onAckno
           />
         </div>
 
-        {/* ── 內文 ── */}
-        <div
-          style={{ flex: 1, overflowY: 'auto', padding: '16px 20px', fontSize: 13, color: '#333' }}
-          dangerouslySetInnerHTML={{ __html: renderMarkdown(announcement.content) }}
-        />
+        {/* ── 內文 + 圖片 + 附件 ── */}
+        <div style={{ flex: 1, overflowY: 'auto', padding: '16px 20px', fontSize: 13, color: '#333' }}>
+          <div dangerouslySetInnerHTML={{ __html: renderMarkdown(announcement.content) }} />
+
+          {announcement.images?.length > 0 && (
+            <div style={{ marginTop: 12 }}>
+              {renderAnnouncementImages(announcement.images, announcement.imageLayout)}
+            </div>
+          )}
+
+          {announcement.files?.length > 0 && (
+            <div style={{ marginTop: 12 }}>
+              <div style={{ fontSize: 12, color: '#999', marginBottom: 4 }}>附件</div>
+              {announcement.files.map((f, i) => (
+                <a key={f.uid ?? i} href={f.url} download={f.name}
+                  style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '7px 10px',
+                    border: '1px solid #f0f0f0', borderRadius: 4, marginBottom: 4 }}>
+                  <PaperClipOutlined style={{ color: '#888' }} />
+                  <span style={{ flex: 1, color: '#333' }}>{f.name}</span>
+                  <span style={{ fontSize: 12, color: '#999' }}>{fmtSize(f.size)}</span>
+                  <DownloadOutlined style={{ color: '#1677ff' }} />
+                </a>
+              ))}
+            </div>
+          )}
+        </div>
 
         {/* ── 底列 ── */}
         <div style={{
