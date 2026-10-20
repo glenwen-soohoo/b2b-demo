@@ -305,6 +305,7 @@ export const channels = [
     contactPhone: '0922-135-790',
     issueInvoice: 'off',           // 團媽預設不開發票
     invoiceMode: null,
+    invoiceTaxScope: 'per_store',  // 統編一律依門市分別開立（需開發票的團媽可設門市買受人）
     deliveryType: 'self_pickup',
     default_bank_last5: null,
     discount_note: '',
@@ -339,6 +340,7 @@ export const channels = [
     contactPhone: '0933-246-810',
     issueInvoice: 'off',
     invoiceMode: null,
+    invoiceTaxScope: 'per_store',  // 統編一律依門市分別開立（需開發票的團媽可設門市買受人）
     deliveryType: 'self_pickup',
     default_bank_last5: null,
     discount_note: '',
@@ -550,6 +552,23 @@ export const preOrders = [
     cs_note: null, b2b_note: null,
     invoicePeriodSnapshot: 'per_order', invoiceTaxScopeSnapshot: 'per_store',
     settlementMonth: '2026-10', createdAt: dayjs('2026-10-15').format('YYYY-MM-DD'),
+  },
+  // 後台代客建單（業務代建、帶業務確認）— 建單來源 demo
+  {
+    id: 'b2b-adm001', channelId: 'c002', channelName: '綠色小農超市',
+    items: [
+      { productId:'p201', productName:'中寶-玉米雞肉粥', unit:'包', qty:30, price:45, cost:14 },
+      { productId:'p501', productName:'雞高湯',           unit:'包', qty:40, price:22, cost:12 },
+    ],
+    status: 'pending_sales', salesAdjustedItems: null, adjustedItems: null,
+    vendorNote: '電話訂購，業務代為建單', warehouse_note: null, shipping_note: null,
+    backendOrderId: null, settlementId: null,
+    b2b_order_no: 'B2B-202610-A001', discount_amount: 0, discount_note: null,
+    cs_note: null, b2b_note: null,
+    invoicePeriodSnapshot: 'monthly', invoiceTaxScopeSnapshot: 'per_store',
+    settlementMonth: '2026-10', createdAt: dayjs('2026-10-16').format('YYYY-MM-DD'),
+    orderSource: 'admin', createdBy: '業務 · 王小明',
+    logs: [{ time: '2026-10-16 10:20', action: '後台業務代為建單（帶業務確認）' }],
   },
   // 好自然健康館 — 待業務確認
   {

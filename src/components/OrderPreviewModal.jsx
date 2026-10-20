@@ -114,7 +114,9 @@ export default function OrderPreviewModal({ open, onClose, items, channel, onCon
           <Text strong>{settlementMonth}</Text>
         </Descriptions.Item>
         <Descriptions.Item label="付款方式">
-          {settlementDayLabel(channel.settlementDay)}收到結算單後匯款
+          {(channel.channelType ?? 'enterprise') === 'groupmom'
+            ? '逐筆刷卡（信用卡）'
+            : `${settlementDayLabel(channel.settlementDay)}收到結算單後匯款`}
         </Descriptions.Item>
       </Descriptions>
 

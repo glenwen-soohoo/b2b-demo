@@ -12,6 +12,7 @@ import VendorProfile       from './pages/vendor/VendorProfile'
 import VendorAnnouncements from './pages/vendor/VendorAnnouncements'
 import VendorContract      from './pages/vendor/VendorContract'
 import AdminOrders       from './pages/admin/AdminOrders'
+import AdminOrderCreate  from './pages/admin/AdminOrderCreate'
 import AdminSettlements  from './pages/admin/AdminSettlements'
 import AdminProducts     from './pages/admin/AdminProducts'
 import AdminCategories  from './pages/admin/AdminCategories'
@@ -50,6 +51,7 @@ export default function App() {
       <Route path="/admin/*"       element={<AdminLayout />}>
         <Route index              element={<Navigate to="orders" replace />} />
         <Route path="orders"      element={<AdminOrders />} />
+        <Route path="orders/new"  element={<AdminOrderCreate />} />
         <Route path="settlements" element={<AdminSettlements />} />
         <Route path="products"    element={<AdminProducts />} />
         <Route path="categories"  element={<AdminCategories />} />

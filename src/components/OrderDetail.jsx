@@ -508,6 +508,11 @@ export default function OrderDetail({ order, open, onClose, onStatusChange, onRe
               : <Text type="secondary">—</Text>
             }
           </Descriptions.Item>
+          <Descriptions.Item label="建單來源" span={2}>
+            {order.orderSource === 'admin'
+              ? <Space size={6}><Tag color="orange">後台代建</Tag><Text type="secondary">{order.createdBy}</Text></Space>
+              : <Tag>廠商自建</Tag>}
+          </Descriptions.Item>
           <Descriptions.Item label="通路名稱">{order.channelName}</Descriptions.Item>
           <Descriptions.Item label="結算月份">
             {!isSettled && !isVoided

@@ -24,7 +24,7 @@ const TAXID_RULE = {
 
 const { Title, Text } = Typography
 
-function AddressModal({ open, onClose, onSave, initial, channelDefaults, isGroupMom }) {
+function AddressModal({ open, onClose, onSave, initial, channelDefaults }) {
   const [form] = Form.useForm()
   return (
     <Modal
@@ -48,23 +48,19 @@ function AddressModal({ open, onClose, onSave, initial, channelDefaults, isGroup
         <Form.Item label="收件地址" name="address" rules={[{ required: true, message: '請填寫收件地址' }]}>
           <Input />
         </Form.Item>
-        {/* 團媽（個人、逐筆刷卡）不逐店開發票，不顯示發票買受人區 */}
-        {!isGroupMom && (
-          <>
-            <Divider plain style={{ margin: '8px 0 12px', fontSize: 12, color: '#999' }}>
-              發票買受人（選填）
-            </Divider>
-            <div style={{ marginBottom: 12, fontSize: 11, color: '#999' }}>
-              每個門市各自開立發票；留空則沿用通路的預設抬頭與統編。
-            </div>
-            <Form.Item label="發票抬頭" name="buyerName" rules={[{ required: false }]}>
-              <Input placeholder="留空沿用通路預設" />
-            </Form.Item>
-            <Form.Item label="統一編號" name="buyerTaxId" rules={[{ required: false }, TAXID_RULE]}>
-              <Input placeholder="留空沿用通路預設（8 碼）" maxLength={8} />
-            </Form.Item>
-          </>
-        )}
+        {/* 發票買受人（選填）：企業與團媽皆可設定，供需要開發票者填寫 */}
+        <Divider plain style={{ margin: '8px 0 12px', fontSize: 12, color: '#999' }}>
+          發票買受人（選填）
+        </Divider>
+        <div style={{ marginBottom: 12, fontSize: 11, color: '#999' }}>
+          需要開發票才需填寫；留空則沿用通路的預設抬頭與統編。
+        </div>
+        <Form.Item label="發票抬頭" name="buyerName" rules={[{ required: false }]}>
+          <Input placeholder="留空沿用通路預設" />
+        </Form.Item>
+        <Form.Item label="統一編號" name="buyerTaxId" rules={[{ required: false }, TAXID_RULE]}>
+          <Input placeholder="留空沿用通路預設（8 碼）" maxLength={8} />
+        </Form.Item>
       </Form>
     </Modal>
   )
@@ -379,7 +375,6 @@ export default function VendorProfile() {
         onSave={saveAddr}
         initial={editingAddr}
         channelDefaults={{ buyerName: info.title, buyerTaxId: info.taxId }}
-        isGroupMom={isGroupMom}
       />
 
       <ChangePasswordModal

@@ -311,6 +311,37 @@ export function getNotificationContent(type, data) {
     };
   }
 
+  // 後台代客建單通知（→ 業務）：業務在後台替廠商代建訂單後，通知業務確認
+  if (type === 'admin_created_order') {
+    return {
+      title: '後台代建訂單通知',
+      to: '業務',
+      subject: `【無毒農 B2B】後台代建新訂單 ${data.b2bOrderNo ?? ''}，待確認`,
+      body: (
+        <div style={{ fontSize: 13, lineHeight: 2 }}>
+          <div>業務您好，</div>
+          <div style={{ marginTop: 8 }}>
+            <Text strong>{data.createdBy}</Text> 已於後台為通路{' '}
+            <Text strong>{data.channelName}</Text> 代建一筆 B2B 訂單，詳情如下：
+          </div>
+          <div style={{ marginTop: 8, padding: '10px 14px', background: '#f5f5f5', borderRadius: 6 }}>
+            <div>訂單編號：<Text code>{data.b2bOrderNo}</Text></div>
+            <div>結算月份：<Text strong>{data.settlementMonth}</Text></div>
+            <div>品項數：<Text strong>{data.itemCount}</Text> 項</div>
+            <div>訂購總金額：<Text strong style={{ color: '#1677ff' }}>${(data.total ?? 0).toLocaleString()}</Text></div>
+            {data.vendorNote && (
+              <div>備註：<Text style={{ color: '#595959' }}>{data.vendorNote}</Text></div>
+            )}
+          </div>
+          <div style={{ marginTop: 8 }}>
+            此訂單目前為「待業務確認」，請至後台【B2B訂單管理】確認此筆訂單。
+          </div>
+          <div style={{ marginTop: 4, color: '#888' }}>建單時間：{data.submittedAt}</div>
+        </div>
+      ),
+    };
+  }
+
   // E-08 廠商回報匯款（→ 財務 / 業務）
   if (type === 'vendor_payment_report') {
     return {

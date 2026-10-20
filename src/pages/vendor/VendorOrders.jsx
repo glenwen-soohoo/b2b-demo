@@ -328,33 +328,37 @@ export default function VendorOrders() {
       render: items => items.map(i => i.productName).join('、') },
     { title: '狀態', dataIndex: 'status', width: 130,
       render: s => vendorStatusTag(s) },
-    { title: '', width: 200, align: 'center',
-      render: (_, r) => (
-        <Space size={4}>
-          {r.status === 'pending_payment' && (
-            <Button
-              size="small"
-              type="primary"
-              icon={<CreditCardOutlined />}
-              onClick={() => nav(`/pay?order=${r.id}`)}
-              style={{ background: '#389e0d', borderColor: '#389e0d' }}
-            >
-              前往付款
+    { title: '', width: 220, align: 'center',
+      render: (_, r) => {
+        const canReorder = r.status !== 'voided' && r.status !== 'pending_payment'
+        return (
+          <Space size={4} style={{ justifyContent: 'flex-end', width: '100%' }}>
+            {r.status === 'pending_payment' && (
+              <Button
+                size="small"
+                type="primary"
+                icon={<CreditCardOutlined />}
+                onClick={() => nav(`/pay?order=${r.id}`)}
+                style={{ background: '#389e0d', borderColor: '#389e0d' }}
+              >
+                前往付款
+              </Button>
+            )}
+            <Button size="small" icon={<EyeOutlined />} onClick={() => setSelected(r)}>
+              查看
             </Button>
-          )}
-          <Button size="small" icon={<EyeOutlined />} onClick={() => setSelected(r)}>
-            查看
-          </Button>
-          <Button
-            size="small"
-            icon={<RedoOutlined />}
-            onClick={() => handleReorder(r)}
-            disabled={r.status === 'voided' || r.status === 'pending_payment'}
-          >
-            重複下單
-          </Button>
-        </Space>
-      )},
+            {canReorder && (
+              <Button
+                size="small"
+                icon={<RedoOutlined />}
+                onClick={() => handleReorder(r)}
+              >
+                重複下單
+              </Button>
+            )}
+          </Space>
+        )
+      }},
   ]
 
   return (

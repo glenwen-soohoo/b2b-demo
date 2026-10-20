@@ -3,7 +3,8 @@ import {
   Table, Button, Space, Input, Card, Col, Row,
   Statistic, Tag, Typography, DatePicker, Select, Divider, Tooltip, message, Segmented,
 } from 'antd'
-import { SearchOutlined, EyeOutlined } from '@ant-design/icons'
+import { SearchOutlined, EyeOutlined, PlusOutlined } from '@ant-design/icons'
+import { useNavigate } from 'react-router-dom'
 import dayjs from 'dayjs'
 import StatusTag from '../../components/StatusTag'
 import OrderDetail from '../../components/OrderDetail'
@@ -46,6 +47,7 @@ function getSettlementMonthOptions(orders) {
 }
 
 export default function AdminOrders() {
+  const nav = useNavigate()
   const [preOrderList, setPreOrderList]       = useState(initPreOrders)
   const [filterText, setFilterText]           = useState('')
   const [identityFilter, setIdentityFilter]   = useState('all')
@@ -153,6 +155,10 @@ export default function AdminOrders() {
         )
       }},
     { title: '通路', dataIndex: 'channelName', width: 140 },
+    { title: '建單來源', width: 100,
+      render: (_, r) => r.orderSource === 'admin'
+        ? <Tag color="orange" style={{ margin: 0 }}>後台代建</Tag>
+        : <Tag style={{ margin: 0 }}>廠商自建</Tag> },
     { title: '下單日', dataIndex: 'createdAt', width: 100 },
     { title: '溫層', dataIndex: 'items', width: 110,
       render: items => temperatureZoneTag(items) },
@@ -204,44 +210,54 @@ export default function AdminOrders() {
         ))}
       </Row>
 
-      <Space style={{ marginBottom: 16 }} wrap>
-        <Segmented options={IDENTITY_FILTERS} value={identityFilter} onChange={setIdentityFilter} />
-        <Input
-          prefix={<SearchOutlined />} placeholder="搜尋訂單號 / B2B編號 / 通路名稱"
-          value={filterText} onChange={e => setFilterText(e.target.value)}
-          style={{ width: 240 }} allowClear
-        />
-
-        {/* 日期篩選 */}
-        <Space.Compact>
-          <Select
-            value={dateMode}
-            onChange={v => { setDateMode(v); setDateRange(null); setSettlementMonth(null) }}
-            style={{ width: 100 }}
-            options={[
-              { value: 'createdAt',      label: '建單日期' },
-              { value: 'settlementMonth', label: '結算月份' },
-            ]}
+      {/* 第一排：身分 / 搜尋 / 日期 + 後台建單（靠右） */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12, flexWrap: 'wrap', marginBottom: 12 }}>
+        <Space wrap>
+          <Segmented options={IDENTITY_FILTERS} value={identityFilter} onChange={setIdentityFilter} />
+          <Input
+            prefix={<SearchOutlined />} placeholder="搜尋訂單號 / B2B編號 / 通路名稱"
+            value={filterText} onChange={e => setFilterText(e.target.value)}
+            style={{ width: 240 }} allowClear
           />
-          {dateMode === 'createdAt' ? (
-            <RangePicker
-              value={dateRange}
-              onChange={setDateRange}
-              allowClear
-              style={{ width: 230 }}
-            />
-          ) : (
-            <Select
-              value={settlementMonth}
-              onChange={setSettlementMonth}
-              placeholder="選擇月份"
-              allowClear
-              style={{ width: 140 }}
-              options={settlementMonthOptions}
-            />
-          )}
-        </Space.Compact>
 
+          {/* 日期篩選 */}
+          <Space.Compact>
+            <Select
+              value={dateMode}
+              onChange={v => { setDateMode(v); setDateRange(null); setSettlementMonth(null) }}
+              style={{ width: 100 }}
+              options={[
+                { value: 'createdAt',      label: '建單日期' },
+                { value: 'settlementMonth', label: '結算月份' },
+              ]}
+            />
+            {dateMode === 'createdAt' ? (
+              <RangePicker
+                value={dateRange}
+                onChange={setDateRange}
+                allowClear
+                style={{ width: 230 }}
+              />
+            ) : (
+              <Select
+                value={settlementMonth}
+                onChange={setSettlementMonth}
+                placeholder="選擇月份"
+                allowClear
+                style={{ width: 140 }}
+                options={settlementMonthOptions}
+              />
+            )}
+          </Space.Compact>
+        </Space>
+
+        <Button type="primary" icon={<PlusOutlined />} onClick={() => nav('/admin/orders/new')}>
+          後台代客建單
+        </Button>
+      </div>
+
+      {/* 第二排：溫層 + 狀態篩選 */}
+      <Space style={{ marginBottom: 16 }} wrap>
         {/* 溫層篩選 */}
         <Space size={4}>
           {[
@@ -261,7 +277,7 @@ export default function AdminOrders() {
         <Divider type="vertical" style={{ height: 20, margin: '0 4px' }} />
 
         {/* 狀態篩選 */}
-        <Space size={4}>
+        <Space size={4} wrap>
           <Button size="small" type={isAll ? 'primary' : 'default'} onClick={() => setActiveStatuses([])}>
             全部狀態
           </Button>
