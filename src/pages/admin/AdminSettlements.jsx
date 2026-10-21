@@ -3,7 +3,7 @@ import dayjs from 'dayjs'
 import {
   Table, Button, Space, Select, Drawer, Input,
   Statistic, Row, Col, Card, Typography, Tag, Descriptions,
-  Timeline, Divider, Alert, message, Popconfirm, Modal, Form, Segmented,
+  Timeline, Divider, Alert, message, Popconfirm, Modal, Form,
 } from 'antd'
 import { EyeOutlined, PlusOutlined, CheckOutlined, SearchOutlined, FilePdfOutlined, MailOutlined } from '@ant-design/icons'
 import { exportSettlementPdf } from '../../utils/exportSettlementPdf'
@@ -24,7 +24,8 @@ function GenerateSettlementModal({ open, onClose, preOrderList, onGenerate }) {
     const cids = new Set(preOrderList
       .filter(o => o.status === 'arrived' && !o.settlementId)
       .map(o => o.channelId))
-    return channels.filter(c => cids.has(c.id))
+    // 團媽逐筆刷卡、不進結算流程，一律排除
+    return channels.filter(c => cids.has(c.id) && (c.channelType ?? 'enterprise') !== 'groupmom')
   }, [preOrderList])
 
   const eligibleOrders = useMemo(() => {
@@ -430,13 +431,7 @@ function SettlementDrawer({ settlement, preOrderList, open, onClose, onStatusCha
   )
 }
 
-// 身分篩選（全部 / 企業 / 團媽）；結算單依通路身分判斷
-const IDENTITY_FILTERS = [
-  { label: '全部', value: 'all' },
-  { label: '企業', value: 'enterprise' },
-  { label: '團媽', value: 'groupmom' },
-]
-const identityOfSettlement = (s) => channelMap[s.channelId]?.channelType ?? 'enterprise'
+// 結算單一律為企業（團媽逐筆刷卡、不進結算流程），故不提供身分篩選
 
 const SETTLEMENT_STATUS_FILTERS = [
   { key: 'pending_settlement', label: '尚未結算' },
@@ -454,7 +449,6 @@ export default function AdminSettlements() {
   const [notifOpen,      setNotifOpen]      = useState(false)
   const [notifData,      setNotifData]      = useState(null)
   const [filterText,     setFilterText]     = useState('')
-  const [identityFilter, setIdentityFilter] = useState('all')
   const [activeStatuses, setActiveStatuses] = useState([])   // 空 = 全部
 
   // 方案 B：尚未結算（本月已到貨、還沒納入結算單的訂單，依通路彙整成虛擬列）
@@ -479,9 +473,8 @@ export default function AdminSettlements() {
     const q = filterText.trim()
     const matchFn = o => {
       const matchText   = !q || o.id.includes(q) || o.channelName.includes(q)
-      const matchIdentity = identityFilter === 'all' || identityOfSettlement(o) === identityFilter
       const matchStatus = activeStatuses.length === 0 || activeStatuses.includes(o.status)
-      return matchText && matchIdentity && matchStatus
+      return matchText && matchStatus
     }
     const pending = pendingSettlements.filter(matchFn)
     const real = settlementList.filter(matchFn)
@@ -491,7 +484,7 @@ export default function AdminSettlements() {
         return cmp !== 0 ? cmp : (b.id ?? '').localeCompare(a.id ?? '')
       })
     return [...pending, ...real]   // 尚未結算固定排最上面
-  }, [settlementList, pendingSettlements, filterText, identityFilter, activeStatuses])
+  }, [settlementList, pendingSettlements, filterText, activeStatuses])
 
   const toggleStatus = (key, checked) => {
     setActiveStatuses(prev =>
@@ -602,7 +595,6 @@ export default function AdminSettlements() {
       </Row>
 
       <Space style={{ marginBottom: 16 }} wrap>
-        <Segmented options={IDENTITY_FILTERS} value={identityFilter} onChange={setIdentityFilter} />
         <Input
           prefix={<SearchOutlined />} placeholder="搜尋結算單號 / 通路名稱"
           value={filterText} onChange={e => setFilterText(e.target.value)}

@@ -30,6 +30,13 @@ const PRIORITY_TAG = {
   normal:    { color: 'default', label: '一般' },
 }
 
+// 顯示狀態篩選（預設選「顯示中」）
+const VISIBLE_FILTERS = [
+  { label: '全部',   value: 'all' },
+  { label: '顯示中', value: 'visible' },
+  { label: '已隱藏', value: 'hidden' },
+]
+
 // ── Markdown 工具列：在游標位置插入語法 ──────
 function insertSyntax(textareaRef, form, syntax, setPreview) {
   const el = textareaRef.current?.resizableTextArea?.textArea
@@ -394,6 +401,13 @@ function AnnouncementEditor({ open, draft, onClose, onSave }) {
 export default function AdminAnnouncements() {
   const [list,    setList]    = useState(() => [...initialList])
   const [editing, setEditing] = useState(null)   // null=未開、{id?, ...}=編輯/新增中
+  const [visibleFilter, setVisibleFilter] = useState('visible')   // 顯示狀態篩選，預設顯示中
+
+  const filteredList = list.filter(a =>
+    visibleFilter === 'all' ? true :
+    visibleFilter === 'visible' ? a.isVisible :
+    !a.isVisible
+  )
 
   // 同步回 fakeData，讓廠商端立即看到
   const syncFake = (next) => {
@@ -531,14 +545,22 @@ export default function AdminAnnouncements() {
         </Col>
       </Row>
 
+      <Space style={{ marginBottom: 12 }}>
+        <Text type="secondary" style={{ fontSize: 13 }}>顯示狀態</Text>
+        <Segmented options={VISIBLE_FILTERS} value={visibleFilter} onChange={setVisibleFilter} />
+      </Space>
+
       <Card size="small" styles={{ body: { padding: 0 } }}>
-        {list.length === 0 ? (
+        {filteredList.length === 0 ? (
           <div style={{ padding: 32 }}>
-            <Empty description="尚未建立任何公告" image={Empty.PRESENTED_IMAGE_SIMPLE} />
+            <Empty
+              description={list.length === 0 ? '尚未建立任何公告' : '無符合此顯示狀態的公告'}
+              image={Empty.PRESENTED_IMAGE_SIMPLE}
+            />
           </div>
         ) : (
           <Table
-            dataSource={list}
+            dataSource={filteredList}
             columns={cols}
             rowKey="id"
             size="small"

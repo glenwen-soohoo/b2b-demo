@@ -62,7 +62,7 @@ export default function ChannelDetail({ channel, open, onClose }) {
         </Descriptions.Item>
         <Descriptions.Item label="發票模式">
           {isGroupMom ? (
-            channel.issueInvoice === 'on' ? <Tag color="cyan">開發票</Tag> : <Tag>不開發票</Tag>
+            channel.invoiceMode && channel.invoiceMode !== 'no_invoice' ? <Tag color="cyan">開發票</Tag> : <Tag>不開發票</Tag>
           ) : channel.invoicePeriod && channel.invoiceTaxScope ? (
             <Tag color={invoiceModeColor(channel.invoicePeriod, channel.invoiceTaxScope)}>
               {invoiceModeLabel(channel.invoicePeriod, channel.invoiceTaxScope)}
@@ -74,6 +74,8 @@ export default function ChannelDetail({ channel, open, onClose }) {
             ? <Tag color="cyan">三聯式</Tag>
             : channel.invoiceMode === 'two_copy'
             ? <Tag>二聯式</Tag>
+            : channel.invoiceMode === 'no_invoice'
+            ? <Tag>不開發票</Tag>
             : <Text type="secondary">—</Text>
           }
         </Descriptions.Item>

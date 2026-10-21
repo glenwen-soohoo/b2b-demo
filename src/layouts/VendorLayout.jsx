@@ -101,7 +101,8 @@ export default function VendorLayout() {
     },
     { key: 'order',         icon: <FormOutlined />,         label: '商品採購' },
     { key: 'orders',        icon: <HistoryOutlined />,       label: 'B2B訂單紀錄' },
-    { key: 'settlements',   icon: <AccountBookOutlined />,   label: '結算紀錄' },
+    // 團媽逐筆刷卡、不進結算流程，隱藏結算紀錄
+    ...(isGroupMom ? [] : [{ key: 'settlements', icon: <AccountBookOutlined />, label: '結算紀錄' }]),
     { key: 'profile',       icon: <UserOutlined />,          label: '通路資料' },
     // 團媽不走合約流程，隱藏通路合約
     ...(isGroupMom ? [] : [{ key: 'contract', icon: <FileProtectOutlined />, label: '通路合約' }]),

@@ -14,13 +14,29 @@ import { invoiceModeLabel, allowsStoreTaxId, settlementDayLabel } from '../../ut
 const INVOICE_MODE_LABEL = {
   three_copy: '三聯式',
   two_copy:   '二聯式',
+  no_invoice: '不開發票',
 }
 
-// 統一編號格式（8 位數字；空值交由 required 控制，對齊正式站）
+// 統一編號格式：
+//   TAXID_RULE（選填欄位用）：可留空、填「-」表示無統編，或 8 位數字。
+//   makeTaxIdRule(invoiceMode)：三聯式必填 8 碼不接受「-」；其餘同 TAXID_RULE。
 const TAXID_RULE = {
   validator: (_, v) =>
-    !v || /^\d{8}$/.test(v) ? Promise.resolve() : Promise.reject(new Error('統一編號為 8 位數字')),
+    !v || v === '-' || /^\d{8}$/.test(v)
+      ? Promise.resolve()
+      : Promise.reject(new Error('統一編號為 8 位數字')),
 }
+const makeTaxIdRule = (invoiceMode) => ({
+  validator: (_, v) => {
+    if (!v) return Promise.resolve()
+    if (v === '-') {
+      return invoiceMode === 'three_copy'
+        ? Promise.reject(new Error('三聯式需填 8 位數統一編號'))
+        : Promise.resolve()
+    }
+    return /^\d{8}$/.test(v) ? Promise.resolve() : Promise.reject(new Error('統一編號為 8 位數字'))
+  },
+})
 
 const { Title, Text } = Typography
 
@@ -149,8 +165,8 @@ export default function VendorProfile() {
   const [form]                  = Form.useForm()
 
   const isGroupMom = (info.channelType ?? 'enterprise') === 'groupmom'
-  // 二聯式發票無統編、團媽為個人 → 預設抬頭/統編非必填（對齊正式站）
-  const invoiceRequired = isGroupMom ? false : info.invoiceMode !== 'two_copy'
+  // 只有三聯式需要真實抬頭/統編；二聯式、不開發票皆可留空或填「-」
+  const invoiceRequired = info.invoiceMode === 'three_copy'
 
   // 收件地址相關
   const [addrList, setAddrList]       = useState(channel.addresses ?? [])
@@ -264,10 +280,10 @@ export default function VendorProfile() {
                 <Input />
               </Form.Item>
               <Form.Item label="預設公司抬頭" name="title" rules={[{ required: invoiceRequired, message: '請輸入公司抬頭' }]}>
-                <Input placeholder={invoiceRequired ? '' : '二聯式／個人可免填'} />
+                <Input placeholder={invoiceRequired ? '' : '免填，或填「-」表示無抬頭'} />
               </Form.Item>
-              <Form.Item label="預設統一編號" name="taxId" rules={[{ required: invoiceRequired, message: '請輸入統一編號' }, TAXID_RULE]}>
-                <Input placeholder={invoiceRequired ? '8 位數字' : '二聯式／個人可免填'} />
+              <Form.Item label="預設統一編號" name="taxId" rules={[{ required: invoiceRequired, message: '請輸入統一編號' }, makeTaxIdRule(info.invoiceMode)]}>
+                <Input placeholder={invoiceRequired ? '8 位數字' : '免填，或填「-」表示無統編'} />
               </Form.Item>
               {!isGroupMom && (
               <Form.Item label="常用匯款末五碼（選填）" name="default_bank_last5">
@@ -337,7 +353,7 @@ export default function VendorProfile() {
           {(isGroupMom
             ? [
                 { label: '收款方式', value: '逐筆刷卡（信用卡）' },
-                { label: '發票', value: info.issueInvoice === 'on' ? '開立發票' : '不開立發票' },
+                { label: '發票類型', value: INVOICE_MODE_LABEL[info.invoiceMode] ?? '不開發票' },
               ]
             : [
                 { label: '結算日',  value: settlementDayLabel(info.settlementDay) },

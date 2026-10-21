@@ -2,8 +2,9 @@ import { useState, useMemo } from 'react'
 import dayjs from 'dayjs'
 import {
   Card, Row, Col, Statistic, Table, Segmented, Typography,
-  Space, Tag, Empty, Divider, Button, DatePicker,
+  Space, Tag, Empty, Divider, Button, DatePicker, Input,
 } from 'antd'
+import { SearchOutlined } from '@ant-design/icons'
 import { preOrders, productMap, channelMap } from '../data/fakeData'
 import { TEMP, COLOR, LAYOUT } from '../styles/tokens'
 
@@ -219,12 +220,17 @@ function MonthlyTrendTable({ data }) {
 }
 
 // ───────────── 子元件：品項排名表 ─────────────
-function ProductRankTable({ items, sortBy }) {
+function ProductRankTable({ items, sortBy, keyword = '' }) {
   const sorted = useMemo(() => (
     [...items].sort((a, b) =>
       sortBy === 'qty' ? b.totalQty - a.totalQty : b.revenue - a.revenue
     )
   ), [items, sortBy])
+
+  const filtered = useMemo(() => {
+    const q = keyword.trim()
+    return q ? sorted.filter(r => r.name.includes(q)) : sorted
+  }, [sorted, keyword])
 
   const cols = [
     {
@@ -290,11 +296,27 @@ function ProductRankTable({ items, sortBy }) {
 
   return (
     <Table
-      dataSource={sorted}
+      dataSource={filtered}
       columns={cols}
       rowKey="productId"
       size="small"
       pagination={{ pageSize: 8, size: 'small', showSizeChanger: false }}
+      locale={{ emptyText: keyword ? '查無符合關鍵字的品項' : '無資料' }}
+    />
+  )
+}
+
+// 排名卡片標題列的搜尋框（放在「依金額 / 依銷量」左邊）
+function ProductKeywordSearch({ value, onChange }) {
+  return (
+    <Input
+      prefix={<SearchOutlined style={{ color: '#bbb' }} />}
+      placeholder="搜尋品項名稱"
+      value={value}
+      onChange={e => onChange(e.target.value)}
+      allowClear
+      size="small"
+      style={{ width: 180 }}
     />
   )
 }
@@ -307,6 +329,8 @@ export default function AnalyticsPage() {
   const [selectedCid,  setSelectedCid]  = useState(null)
   const [overallSort,  setOverallSort]  = useState('revenue')   // 'revenue' | 'qty'
   const [channelSort,  setChannelSort]  = useState('revenue')
+  const [overallKeyword, setOverallKeyword] = useState('')      // 整體品項排名關鍵字
+  const [channelKeyword, setChannelKeyword] = useState('')      // 各通路品項排名關鍵字
 
   // ── 時間範圍狀態 ──
   // preset: PRESETS 的 key，或 'custom'
@@ -584,18 +608,21 @@ export default function AnalyticsPage() {
                 title="各品項銷售排名"
                 size="small"
                 extra={
-                  <Segmented
-                    size="small"
-                    value={overallSort}
-                    onChange={setOverallSort}
-                    options={[
-                      { label: '依金額', value: 'revenue' },
-                      { label: '依銷量', value: 'qty' },
-                    ]}
-                  />
+                  <Space size={8}>
+                    <ProductKeywordSearch value={overallKeyword} onChange={setOverallKeyword} />
+                    <Segmented
+                      size="small"
+                      value={overallSort}
+                      onChange={setOverallSort}
+                      options={[
+                        { label: '依金額', value: 'revenue' },
+                        { label: '依銷量', value: 'qty' },
+                      ]}
+                    />
+                  </Space>
                 }
               >
-                <ProductRankTable items={overallProducts} sortBy={overallSort} />
+                <ProductRankTable items={overallProducts} sortBy={overallSort} keyword={overallKeyword} />
               </Card>
             </Col>
           </Row>
@@ -651,18 +678,21 @@ export default function AnalyticsPage() {
                     title="各品項銷售排名"
                     size="small"
                     extra={
-                      <Segmented
-                        size="small"
-                        value={channelSort}
-                        onChange={setChannelSort}
-                        options={[
-                          { label: '依金額', value: 'revenue' },
-                          { label: '依銷量', value: 'qty' },
-                        ]}
-                      />
+                      <Space size={8}>
+                        <ProductKeywordSearch value={channelKeyword} onChange={setChannelKeyword} />
+                        <Segmented
+                          size="small"
+                          value={channelSort}
+                          onChange={setChannelSort}
+                          options={[
+                            { label: '依金額', value: 'revenue' },
+                            { label: '依銷量', value: 'qty' },
+                          ]}
+                        />
+                      </Space>
                     }
                   >
-                    <ProductRankTable items={channelProducts} sortBy={channelSort} />
+                    <ProductRankTable items={channelProducts} sortBy={channelSort} keyword={channelKeyword} />
                   </Card>
                 </Col>
               </Row>

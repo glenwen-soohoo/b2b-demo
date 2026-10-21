@@ -303,9 +303,9 @@ export const channels = [
     contactEmail: 'mama.chen@example.com',
     contactName: '陳美玲',
     contactPhone: '0922-135-790',
-    issueInvoice: 'off',           // 團媽預設不開發票
-    invoiceMode: null,
+    invoiceMode: 'no_invoice',     // 團媽預設不開發票（發票類型三選一之一）
     invoiceTaxScope: 'per_store',  // 統編一律依門市分別開立（需開發票的團媽可設門市買受人）
+    // 團媽逐筆刷卡＋不開發票，完全不進結算流程，故無 settlementDay
     deliveryType: 'self_pickup',
     default_bank_last5: null,
     discount_note: '',
@@ -338,9 +338,9 @@ export const channels = [
     contactEmail: 'ting.group@example.com',
     contactName: '林雅婷',
     contactPhone: '0933-246-810',
-    issueInvoice: 'off',
-    invoiceMode: null,
+    invoiceMode: 'no_invoice',     // 團媽預設不開發票（發票類型三選一之一）
     invoiceTaxScope: 'per_store',  // 統編一律依門市分別開立（需開發票的團媽可設門市買受人）
+    // 團媽逐筆刷卡＋不開發票，完全不進結算流程，故無 settlementDay
     deliveryType: 'self_pickup',
     default_bank_last5: null,
     discount_note: '',
@@ -420,7 +420,7 @@ export const preOrders = [
     settlementMonth: '2026-10',
     createdAt: dayjs('2026-10-12').format('YYYY-MM-DD'),
   },
-  // 已結算完畢（已付款）
+  // 已成立（已付款完成；團媽逐筆刷卡、不進結算流程，已成立即為終態）
   {
     id: 'b2b-gm002',
     channelId: 'c009',
@@ -429,7 +429,7 @@ export const preOrders = [
       { productId:'p901', productName:'常溫燉飯-金瓜玉米雞肉', unit:'包', qty:20, price:88, cost:50 },
       { productId:'p902', productName:'常溫燉飯-蒜香甘藍豬肉', unit:'包', qty:18, price:88, cost:50 },
     ],
-    status: 'settled_done',
+    status: 'ordered',
     salesAdjustedItems: null,
     adjustedItems: null,
     vendorNote: '',
@@ -445,7 +445,7 @@ export const preOrders = [
     settlementMonth: '2026-09',
     createdAt: dayjs('2026-09-20').format('YYYY-MM-DD'),
   },
-  // 到貨等待結算（已付款）
+  // 已成立（已付款完成）
   {
     id: 'b2b-gm003',
     channelId: 'c009',
@@ -453,7 +453,7 @@ export const preOrders = [
     items: [
       { productId:'pa03', productName:'拌醬-茄汁高湯燉牛肉', unit:'包', qty:14, price:85, cost:41 },
     ],
-    status: 'arrived',
+    status: 'ordered',
     salesAdjustedItems: null,
     adjustedItems: null,
     vendorNote: '',
@@ -475,7 +475,7 @@ export const preOrders = [
     items: [
       { productId:'p902', productName:'常溫燉飯-蒜香甘藍豬肉', unit:'包', qty:24, price:88, cost:50 },
     ],
-    status: 'settled_done', salesAdjustedItems: null, adjustedItems: null,
+    status: 'ordered', salesAdjustedItems: null, adjustedItems: null,
     vendorNote: '', warehouse_note: null, shipping_note: null,
     backendOrderId: 'GB-202608-55021', settlementId: null,
     b2b_order_no: 'B2B-202608-GM04', discount_amount: 0, discount_note: null,
@@ -504,7 +504,7 @@ export const preOrders = [
       { productId:'p901', productName:'常溫燉飯-金瓜玉米雞肉', unit:'包', qty:16, price:88, cost:50 },
       { productId:'p902', productName:'常溫燉飯-蒜香甘藍豬肉', unit:'包', qty:12, price:88, cost:50 },
     ],
-    status: 'settled_done', salesAdjustedItems: null, adjustedItems: null,
+    status: 'ordered', salesAdjustedItems: null, adjustedItems: null,
     vendorNote: '', warehouse_note: null, shipping_note: null,
     backendOrderId: 'GB-202609-66088', settlementId: null,
     b2b_order_no: 'B2B-202609-GM06', discount_amount: 0, discount_note: null,
@@ -517,7 +517,7 @@ export const preOrders = [
     items: [
       { productId:'pa03', productName:'拌醬-茄汁高湯燉牛肉', unit:'包', qty:20, price:85, cost:41 },
     ],
-    status: 'arrived', salesAdjustedItems: null, adjustedItems: null,
+    status: 'ordered', salesAdjustedItems: null, adjustedItems: null,
     vendorNote: '', warehouse_note: null, shipping_note: null,
     backendOrderId: 'GB-202610-66090', settlementId: null,
     b2b_order_no: 'B2B-202610-GM07', discount_amount: 0, discount_note: null,

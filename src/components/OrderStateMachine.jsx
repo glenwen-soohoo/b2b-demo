@@ -18,14 +18,11 @@ const STEPS_ENTERPRISE = [
   { key: 'settled_done',  label: '結算完畢',     icon: <CheckSquareOutlined /> },
 ];
 
-// 團媽：待業務確認 → 待付款（刷卡）→ 已成立訂單 → …
+// 團媽：待業務確認 → 待付款（刷卡）→ 已成立訂單（終態；逐筆刷卡不進結算流程）
 const STEPS_GROUPMOM = [
   { key: 'pending_sales',   label: '待業務確認',   icon: <ClockCircleOutlined /> },
   { key: 'pending_payment', label: '待付款',       icon: <CreditCardOutlined /> },
   { key: 'ordered',         label: '已成立訂單',   icon: <CheckCircleOutlined /> },
-  { key: 'arrived',         label: '到貨等待結算', icon: <InboxOutlined /> },
-  { key: 'settling',        label: '結算中',       icon: <SyncOutlined /> },
-  { key: 'settled_done',    label: '結算完畢',     icon: <CheckSquareOutlined /> },
 ];
 
 export default function OrderStateMachine({ status, isGroupMom = false }) {

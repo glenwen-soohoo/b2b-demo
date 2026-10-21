@@ -35,13 +35,15 @@ const DELIVERY_TYPE_OPTIONS = [
 ]
 
 const INVOICE_MODE_OPTIONS = [
-  { value: 'two_copy',   label: '二聯式' },
   { value: 'three_copy', label: '三聯式' },
+  { value: 'two_copy',   label: '二聯式' },
+  { value: 'no_invoice', label: '不開發票' },
 ]
 
 const INVOICE_MODE_COLOR = {
-  two_copy:   'default',
   three_copy: 'cyan',
+  two_copy:   'default',
+  no_invoice: 'default',
 }
 
 // 通路類型（做成可擴充的清單，之後要加「經銷商」等只是多一個值）
@@ -59,17 +61,20 @@ const IDENTITY_FILTERS = [
   { label: '團媽', value: 'groupmom' },
 ]
 
-// 團媽是否開發票（預設不開）
-const GROUPMOM_INVOICE_OPTIONS = [
-  { value: 'off', label: '不開發票' },
-  { value: 'on',  label: '開發票' },
-]
-
-// 統一編號格式（8 位數字；空值交由 required 控制，對齊正式站 TAX_ID_RULE）
-const TAXID_RULE = {
-  validator: (_, v) =>
-    !v || /^\d{8}$/.test(v) ? Promise.resolve() : Promise.reject(new Error('統一編號為 8 位數字')),
-}
+// 統一編號格式：依發票類型決定。
+//   三聯式 → 必填 8 位數字（空值交由 required 控制）。
+//   二聯式 / 不開發票 → 可留空，或填「-」表示無抬頭統編，或填 8 位數字。
+const makeTaxIdRule = (invoiceMode) => ({
+  validator: (_, v) => {
+    if (!v) return Promise.resolve()
+    if (v === '-') {
+      return invoiceMode === 'three_copy'
+        ? Promise.reject(new Error('三聯式需填 8 位數統一編號'))
+        : Promise.resolve()
+    }
+    return /^\d{8}$/.test(v) ? Promise.resolve() : Promise.reject(new Error('統一編號為 8 位數字'))
+  },
+})
 
 function ChannelModal({ open, onClose, onSave, onResetPassword, onDisable, onEnable, initial }) {
   const [form] = Form.useForm()
@@ -77,10 +82,15 @@ function ChannelModal({ open, onClose, onSave, onResetPassword, onDisable, onEna
   const isDisabled = initial?.enabled === false
   const channelType = Form.useWatch('channelType', form) ?? 'enterprise'
   const isGroupMom = channelType === 'groupmom'
-  const groupmomIssueInvoice = Form.useWatch('issueInvoice', form) === 'on'
-  // 二聯式發票無統編，預設抬頭/統編改為非必填（對齊正式站）；團媽為個人亦不強制。
   const invoiceMode = Form.useWatch('invoiceMode', form)
-  const invoiceRequired = isGroupMom ? false : invoiceMode !== 'two_copy'
+  // 只有三聯式需要真實抬頭/統編；二聯式、不開發票皆可留空或填「-」。
+  const invoiceRequired = invoiceMode === 'three_copy'
+  const invoiceOptional = invoiceMode === 'two_copy' || invoiceMode === 'no_invoice'
+  const noInvoice = invoiceMode === 'no_invoice'
+  // 抬頭/統編標籤後的灰字提示（二聯式／不開發票時顯示）
+  const optionalHint = invoiceOptional
+    ? <span style={{ color: '#8c8c8c', fontWeight: 400, fontSize: 11, marginLeft: 4 }}>（若無可留白或填「-」）</span>
+    : null
 
   const handleOk = () => {
     form.validateFields().then(values => {
@@ -159,14 +169,13 @@ function ChannelModal({ open, onClose, onSave, onResetPassword, onDisable, onEna
           form.resetFields()
           form.setFieldsValue(
             initial
-              ? { channelType: 'enterprise', issueInvoice: 'off', ...initial }  // 既有通路預設企業
+              ? { channelType: 'enterprise', ...initial }  // 既有通路預設企業
               : {
                   channelType: 'enterprise',
                   invoiceMode: 'three_copy',
                   invoicePeriod: 'monthly',
                   invoiceTaxScope: 'per_store',
                   settlementDay: 25,
-                  issueInvoice: 'off',
                 }
           )
         }
@@ -204,7 +213,10 @@ function ChannelModal({ open, onClose, onSave, onResetPassword, onDisable, onEna
         <Row gutter={12}>
           <Col span={12}>
             <Form.Item label="通路類型" name="channelType" rules={[{ required: true }]}>
-              <Select options={CHANNEL_TYPE_OPTIONS} />
+              <Select
+                options={CHANNEL_TYPE_OPTIONS}
+                onChange={t => form.setFieldValue('invoiceMode', t === 'groupmom' ? 'no_invoice' : 'three_copy')}
+              />
             </Form.Item>
           </Col>
         </Row>
@@ -234,13 +246,13 @@ function ChannelModal({ open, onClose, onSave, onResetPassword, onDisable, onEna
         </Row>
         <Row gutter={12}>
           <Col span={12}>
-            <Form.Item label="預設公司抬頭" name="title" rules={[{ required: invoiceRequired, message: '請輸入公司抬頭' }]}>
-              <Input placeholder={invoiceRequired ? '' : '二聯式／個人可免填'} />
+            <Form.Item label={<span>預設公司抬頭{optionalHint}</span>} name="title" rules={[{ required: invoiceRequired, message: '請輸入公司抬頭' }]}>
+              <Input placeholder={invoiceRequired ? '' : '免填，或填「-」表示無抬頭'} />
             </Form.Item>
           </Col>
           <Col span={12}>
-            <Form.Item label="預設統一編號" name="taxId" rules={[{ required: invoiceRequired, message: '請輸入統一編號' }, TAXID_RULE]}>
-              <Input placeholder={invoiceRequired ? '8 位數字' : '二聯式／個人可免填'} />
+            <Form.Item label={<span>預設統一編號{optionalHint}</span>} name="taxId" rules={[{ required: invoiceRequired, message: '請輸入統一編號' }, makeTaxIdRule(invoiceMode)]}>
+              <Input placeholder={invoiceRequired ? '8 位數字' : '免填，或填「-」表示無統編'} />
             </Form.Item>
           </Col>
         </Row>
@@ -263,41 +275,38 @@ function ChannelModal({ open, onClose, onSave, onResetPassword, onDisable, onEna
         </Divider>
         {isGroupMom ? (
           <Row gutter={12}>
-            <Col span={10}>
-              <Form.Item label="收款方式">
-                <Input value="逐筆刷卡（信用卡）" disabled />
-              </Form.Item>
-            </Col>
-            <Col span={8}>
-              <Form.Item label="是否開發票" name="issueInvoice" rules={[{ required: true }]}>
-                <Select options={GROUPMOM_INVOICE_OPTIONS} />
-              </Form.Item>
-            </Col>
-            {groupmomIssueInvoice && (
-              <Col span={6}>
-                <Form.Item label="發票類型" name="invoiceMode" rules={[{ required: true }]}>
-                  <Select options={INVOICE_MODE_OPTIONS} />
-                </Form.Item>
-              </Col>
-            )}
-          </Row>
-        ) : (
-          <Row gutter={12}>
-            <Col span={10}>
-              <Form.Item label="結算日" name="settlementDay" rules={[{ required: true }]}>
-                <Select options={SETTLEMENT_DAY_OPTIONS} />
-              </Form.Item>
-            </Col>
-            <Col span={10}>
-              <Form.Item label="開發票頻率" name="invoicePeriod" rules={[{ required: true }]}>
-                <Select options={INVOICE_PERIOD_OPTIONS} />
-              </Form.Item>
-            </Col>
-            <Col span={4}>
+            <Col span={12}>
               <Form.Item label="發票類型" name="invoiceMode" rules={[{ required: true }]}>
                 <Select options={INVOICE_MODE_OPTIONS} />
               </Form.Item>
             </Col>
+            {/* 團媽逐筆刷卡＋不開發票可選，完全不進結算流程，故無結算日 */}
+            <Col span={12}>
+              <Form.Item label="收款方式">
+                <Input value="逐筆刷卡（信用卡）" disabled />
+              </Form.Item>
+            </Col>
+          </Row>
+        ) : (
+          <Row gutter={12}>
+            <Col span={8}>
+              <Form.Item label="發票類型" name="invoiceMode" rules={[{ required: true }]}>
+                <Select options={INVOICE_MODE_OPTIONS} />
+              </Form.Item>
+            </Col>
+            {/* 結算日一律保留（每月仍要開結算單）；開發票頻率僅開發票時才有 */}
+            <Col span={8}>
+              <Form.Item label="結算日" name="settlementDay" rules={[{ required: true }]}>
+                <Select options={SETTLEMENT_DAY_OPTIONS} />
+              </Form.Item>
+            </Col>
+            {!noInvoice && (
+              <Col span={8}>
+                <Form.Item label="開發票頻率" name="invoicePeriod" rules={[{ required: true }]}>
+                  <Select options={INVOICE_PERIOD_OPTIONS} />
+                </Form.Item>
+              </Col>
+            )}
           </Row>
         )}
 
@@ -446,9 +455,7 @@ export default function AdminChannels() {
         : <span style={{ color: '#bbb' }}>—</span>
     },
     { title: '結算日', dataIndex: 'settlementDay', width: 110,
-      render: (v, r) => channelTypeOf(r) === 'groupmom'
-        ? <span style={{ color: '#bbb' }}>—</span>
-        : settlementDayLabel(v) },
+      render: v => v ? settlementDayLabel(v) : <span style={{ color: '#bbb' }}>—</span> },
     { title: '收件地址', dataIndex: 'addresses', width: 80, align: 'center',
       render: arr => <Badge count={arr?.length ?? 0} color="#1677ff" /> },
     { title: '操作', width: 130, align: 'center',
