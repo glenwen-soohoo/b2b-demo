@@ -229,6 +229,8 @@ export default function OrderDetail({ order, open, onClose, onStatusChange, onRe
 
   // 團媽：業務確認後先進「待付款」等刷卡，不直接成立訂單
   const isGroupMom = (channelMap[order.channelId]?.channelType ?? 'enterprise') === 'groupmom';
+  // 不開發票 → 不進結算流程（團媽不開發票終態已成立；開發票的團媽走到貨單筆開票）
+  const noInvoice = channelMap[order.channelId]?.invoiceMode === 'no_invoice';
 
   const displayItems = getConfirmedItems(order);
   // pending_sales 用「原訂單品項 + 業務新增品項」一起算、一起確認
@@ -458,7 +460,7 @@ export default function OrderDetail({ order, open, onClose, onStatusChange, onRe
       >
         <div style={{ marginBottom: 24 }}>
           <div style={{ fontWeight: 600, marginBottom: 12, color: '#555' }}>訂單進度</div>
-          <OrderStateMachine status={order.status} isGroupMom={isGroupMom} />
+          <OrderStateMachine status={order.status} isGroupMom={isGroupMom} noInvoice={noInvoice} />
         </div>
 
         {isSettled && (

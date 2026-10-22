@@ -12,8 +12,9 @@ const ACCOUNTS = {
   babeboss:    { channelId: 'c001', password: 'bb1234' },
   greenfarm:   { channelId: 'c002', password: 'gf5678' },
   healthroot:  { channelId: 'c003', password: 'hr9012' },
-  mama:        { channelId: 'c009', password: 'mm1234' },   // 團媽：美玲團購
-  ting:        { channelId: 'c010', password: 'tt1234' },   // 團媽：雅婷揪團
+  mama:        { channelId: 'c009', password: 'mm1234' },   // 團媽（不開發票）：美玲團購
+  ting:        { channelId: 'c010', password: 'tt1234' },   // 團媽（不開發票）：雅婷揪團
+  hui:         { channelId: 'c011', password: 'hh1234' },   // 團媽（開發票、單筆）：惠如嚴選
 }
 
 export default function VendorLogin() {
@@ -103,8 +104,9 @@ export default function VendorLogin() {
           <div><Text code>babeboss</Text> / <Text code>bb1234</Text> — 貝比波士</div>
           <div><Text code>greenfarm</Text> / <Text code>gf5678</Text> — 綠色小農</div>
           <div><Text code>healthroot</Text> / <Text code>hr9012</Text> — 好自然健康館</div>
-          <div><Text code>mama</Text> / <Text code>mm1234</Text> — 美玲團購（團媽）</div>
-          <div><Text code>ting</Text> / <Text code>tt1234</Text> — 雅婷揪團（團媽）</div>
+          <div><Text code>mama</Text> / <Text code>mm1234</Text> — 美玲團購（團媽・不開發票）</div>
+          <div><Text code>ting</Text> / <Text code>tt1234</Text> — 雅婷揪團（團媽・不開發票）</div>
+          <div><Text code>hui</Text> / <Text code>hh1234</Text> — 惠如嚴選（團媽・開發票單筆）</div>
         </div>
         <Text type="secondary" style={{ fontSize: 11, display: 'block', marginTop: 8 }}>
           正式上線後此區塊將移除，改接後端認證

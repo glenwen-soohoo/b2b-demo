@@ -274,14 +274,21 @@ function ChannelModal({ open, onClose, onSave, onResetPassword, onDisable, onEna
           {isGroupMom ? '收款 & 發票設定' : '結算 & 發票設定'}
         </Divider>
         {isGroupMom ? (
+          // 團媽一律無結算日；開發票時固定「單筆開票」，不開發票則退出結算流程
           <Row gutter={12}>
-            <Col span={12}>
+            <Col span={8}>
               <Form.Item label="發票類型" name="invoiceMode" rules={[{ required: true }]}>
                 <Select options={INVOICE_MODE_OPTIONS} />
               </Form.Item>
             </Col>
-            {/* 團媽逐筆刷卡＋不開發票可選，完全不進結算流程，故無結算日 */}
-            <Col span={12}>
+            {!noInvoice && (
+              <Col span={8}>
+                <Form.Item label="開發票頻率">
+                  <Input value="單筆開票（固定）" disabled />
+                </Form.Item>
+              </Col>
+            )}
+            <Col span={8}>
               <Form.Item label="收款方式">
                 <Input value="逐筆刷卡（信用卡）" disabled />
               </Form.Item>
@@ -366,6 +373,11 @@ export default function AdminChannels() {
 
   const handleSave = (values) => {
     values = { ...values, invoiceTaxScope: 'per_store' }   // 統編一律依門市分別開立，不再提供選項
+    // 團媽正規化：一律無結算日；開發票固定單筆、不開發票無開票頻率
+    if ((values.channelType ?? 'enterprise') === 'groupmom') {
+      values.settlementDay = undefined
+      values.invoicePeriod = values.invoiceMode === 'no_invoice' ? undefined : 'per_order'
+    }
     if (values.id) {
       setChannelList(prev => prev.map(c => c.id === values.id ? { ...c, ...values } : c))
       message.success('通路資料已更新')

@@ -32,6 +32,8 @@ export default function VendorLayout() {
 
   // 團媽不走合約流程（隱藏合約選單、跳過合約 gating）
   const isGroupMom = (channel.channelType ?? 'enterprise') === 'groupmom'
+  // 團媽＋不開發票才完全退出結算流程；團媽開發票（單筆）仍有結算/開票紀錄
+  const noSettlement = isGroupMom && channel.invoiceMode === 'no_invoice'
 
   const current = loc.pathname.split('/')[1] ?? 'order'
 
@@ -101,8 +103,8 @@ export default function VendorLayout() {
     },
     { key: 'order',         icon: <FormOutlined />,         label: '商品採購' },
     { key: 'orders',        icon: <HistoryOutlined />,       label: 'B2B訂單紀錄' },
-    // 團媽逐筆刷卡、不進結算流程，隱藏結算紀錄
-    ...(isGroupMom ? [] : [{ key: 'settlements', icon: <AccountBookOutlined />, label: '結算紀錄' }]),
+    // 只有「團媽＋不開發票」才隱藏結算紀錄；團媽開發票（單筆）仍可看
+    ...(noSettlement ? [] : [{ key: 'settlements', icon: <AccountBookOutlined />, label: '結算紀錄' }]),
     { key: 'profile',       icon: <UserOutlined />,          label: '通路資料' },
     // 團媽不走合約流程，隱藏通路合約
     ...(isGroupMom ? [] : [{ key: 'contract', icon: <FileProtectOutlined />, label: '通路合約' }]),
