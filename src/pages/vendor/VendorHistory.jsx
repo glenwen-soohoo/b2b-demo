@@ -33,9 +33,9 @@ function PreOrdersPane({ channelId }) {
       }},
     { title: '建立日期', dataIndex: 'createdAt', width: 110 },
     { title: '狀態', dataIndex: 'status', width: 140,
-      render: (s) => (
+      render: (s, r) => (
         <Space size={4}>
-          <StatusTag status={s} />
+          <StatusTag status={s} order={r} />
           {s === 'ordered' && <Tag color="cyan" style={{ fontSize: 11 }}>已出貨</Tag>}
         </Space>
       )},

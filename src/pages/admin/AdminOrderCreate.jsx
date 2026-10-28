@@ -94,7 +94,8 @@ export default function AdminOrderCreate() {
       b2b_order_no: b2bOrderNo,
       discount_amount: 0, discount_note: null,
       cs_note: null, b2b_note: null,
-      invoicePeriodSnapshot: 'per_order',
+      // 團媽＝單筆開票(per_order)、企業＝月結(monthly)；決定訂單是否帶發票欄位
+      invoicePeriodSnapshot: isGroupMom ? 'per_order' : 'monthly',
       invoiceTaxScopeSnapshot: 'per_store',
       settlementMonth,
       createdAt: dayjs().format('YYYY-MM-DD'),

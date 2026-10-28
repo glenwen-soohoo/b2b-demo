@@ -61,7 +61,12 @@ export default function AdminOrders() {
   const stats = useMemo(() => ({
     pendingSales: preOrderList.filter(o => o.status === 'pending_sales').length,
     ordered:      preOrderList.filter(o => o.status === 'ordered').length,
-    unsettled:    preOrderList.filter(o => ['ordered', 'arrived'].includes(o.status) && !o.settlementId).length,
+    // 2026-10-27 翻盤：團媽一律不進結算，不計入「尚未結算訂單」
+    unsettled:    preOrderList.filter(o =>
+      ['ordered', 'arrived'].includes(o.status)
+      && !o.settlementId
+      && identityOfOrder(o) !== 'groupmom'
+    ).length,
   }), [preOrderList])
 
   const settlementMonthOptions = useMemo(() => getSettlementMonthOptions(preOrderList), [preOrderList])
@@ -184,7 +189,7 @@ export default function AdminOrders() {
     { title: '品項摘要', dataIndex: 'items', ellipsis: true,
       render: items => items.map(i => i.productName).join('、') },
     { title: '狀態', dataIndex: 'status', width: 130,
-      render: s => <StatusTag status={s} /> },
+      render: (s, r) => <StatusTag status={s} order={r} /> },
     { title: '操作', width: 80, align: 'center',
       render: (_, r) => (
         <Button size="small" icon={<EyeOutlined />} onClick={() => setSelected(r)}>查看</Button>

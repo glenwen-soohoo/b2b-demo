@@ -21,11 +21,15 @@ function temperatureZoneTag(items) {
   )
 }
 
-function vendorStatusTag(status) {
+// 2026-10-27 翻盤：團媽一律不進結算，到貨＝單筆開票終態，
+// 不能顯示「待結算」字樣（會誤導成要月結）。
+function vendorStatusTag(status, isGroupMom = false) {
   if (status === 'pending_sales')   return <Tag color="blue">待確認</Tag>
   if (status === 'pending_payment') return <Tag color="magenta">待付款</Tag>
   if (status === 'ordered')       return <Tag color="cyan">出貨中</Tag>
-  if (status === 'arrived')       return <Tag color="orange">已送達，待結算</Tag>
+  if (status === 'arrived')       return isGroupMom
+    ? <Tag color="green">已送達・已開票</Tag>
+    : <Tag color="orange">已送達，待結算</Tag>
   if (status === 'settling')      return <Tag color="gold">結算中</Tag>
   if (status === 'settled_done')  return <Tag color="purple">已結算</Tag>
   if (status === 'voided')        return <Tag color="red">已作廢</Tag>
@@ -38,6 +42,10 @@ function OrderDetailDrawer({ order, open, onClose, onReorder, onSaveItems, chann
 
   if (!order) return null
 
+  const isGroupMom = (channel?.channelType ?? 'enterprise') === 'groupmom'
+  // 開發票（單筆）訂單：發票欄位從建單起固定存在，到貨開立前顯示「尚未開立發票」
+  const showPerOrderInvoice = order.invoicePeriodSnapshot === 'per_order' && (channel?.invoiceMode !== 'no_invoice')
+  const isVoided = order.status === 'voided'
   const displayItems = order.adjustedItems ?? order.items
   const editedItems  = editing
     ? displayItems.map(i => ({ ...i, qty: editQtys[i.productId] ?? i.qty }))
@@ -84,7 +92,7 @@ function OrderDetailDrawer({ order, open, onClose, onReorder, onSaveItems, chann
       title={
         <Space>
           <Text strong style={{ fontSize: 14 }}>{order.id}</Text>
-          {vendorStatusTag(order.status)}
+          {vendorStatusTag(order.status, isGroupMom)}
           {temperatureZoneTag(order.items)}
         </Space>
       }
@@ -113,7 +121,10 @@ function OrderDetailDrawer({ order, open, onClose, onReorder, onSaveItems, chann
       }
     >
       <Descriptions bordered size="small" column={2} style={{ marginBottom: 20 }}>
-        <Descriptions.Item label="結算月份">{order.settlementMonth}</Descriptions.Item>
+        {/* 2026-10-27 翻盤：團媽不進結算，不顯示結算月份，改顯示付款方式 */}
+        {isGroupMom
+          ? <Descriptions.Item label="付款方式"><Tag color="magenta">逐筆刷卡</Tag></Descriptions.Item>
+          : <Descriptions.Item label="結算月份">{order.settlementMonth}</Descriptions.Item>}
         <Descriptions.Item label="下單日期">{order.createdAt}</Descriptions.Item>
         <Descriptions.Item label="收貨地址" span={2}>{order.shippingAddress}</Descriptions.Item>
         <Descriptions.Item label="後台正式訂單號" span={2}>
@@ -122,6 +133,27 @@ function OrderDetailDrawer({ order, open, onClose, onReorder, onSaveItems, chann
             : <Text type="secondary">尚未建立正式訂單</Text>
           }
         </Descriptions.Item>
+        {/* per_order 單筆開票：發票欄位從建單起固定存在，團媽在自己的訂單上就看得到
+            到貨開立前顯示「尚未開立發票」，開立後顯示發票號碼 */}
+        {showPerOrderInvoice && (
+          <Descriptions.Item label="發票號碼" span={2}>
+            {order.invoiceNumber && order.invoiceNumber !== '發票月結' ? (
+              <Space size={6} wrap>
+                <Text code>{order.invoiceNumber}</Text>
+                {order.invoiceStatus === 'issued' && (
+                  <Tag color="green" style={{ fontSize: 10 }}>已開立</Tag>
+                )}
+                {order.invoiceDate && (
+                  <Text type="secondary" style={{ fontSize: 11 }}>{order.invoiceDate}</Text>
+                )}
+              </Space>
+            ) : isVoided ? (
+              <Text type="secondary">未開立（訂單已作廢）</Text>
+            ) : (
+              <Tag color="default">尚未開立發票</Tag>
+            )}
+          </Descriptions.Item>
+        )}
         <Descriptions.Item label="我的備註" span={2}>
           {order.vendorNote
             ? <Text style={{ whiteSpace: 'pre-line' }}>{order.vendorNote}</Text>
@@ -269,6 +301,8 @@ export default function VendorOrders() {
 
   if (!channel) { nav('/login'); return null }
 
+  const isGroupMom = (channel.channelType ?? 'enterprise') === 'groupmom'
+
   const myOrders = orders
     .filter(o => o.channelId === channel.id)
     .sort((a, b) => b.createdAt.localeCompare(a.createdAt) || b.id.localeCompare(a.id))
@@ -327,7 +361,7 @@ export default function VendorOrders() {
     { title: '品項摘要', dataIndex: 'items', ellipsis: true,
       render: items => items.map(i => i.productName).join('、') },
     { title: '狀態', dataIndex: 'status', width: 130,
-      render: s => vendorStatusTag(s) },
+      render: s => vendorStatusTag(s, isGroupMom) },
     { title: '', width: 220, align: 'center',
       render: (_, r) => {
         const canReorder = r.status !== 'voided' && r.status !== 'pending_payment'

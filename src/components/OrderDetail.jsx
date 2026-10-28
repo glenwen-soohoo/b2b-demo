@@ -231,6 +231,8 @@ export default function OrderDetail({ order, open, onClose, onStatusChange, onRe
   const isGroupMom = (channelMap[order.channelId]?.channelType ?? 'enterprise') === 'groupmom';
   // 不開發票 → 不進結算流程（團媽不開發票終態已成立；開發票的團媽走到貨單筆開票）
   const noInvoice = channelMap[order.channelId]?.invoiceMode === 'no_invoice';
+  // 開發票（單筆）訂單：從建單起就固定帶發票欄位，到貨開立前顯示「尚未開立發票」
+  const showPerOrderInvoice = order.invoicePeriodSnapshot === 'per_order' && !noInvoice;
 
   const displayItems = getConfirmedItems(order);
   // pending_sales 用「原訂單品項 + 業務新增品項」一起算、一起確認
@@ -447,7 +449,7 @@ export default function OrderDetail({ order, open, onClose, onStatusChange, onRe
         title={
           <Space>
             <span style={{ fontWeight: 700 }}>{order.id}</span>
-            <StatusTag status={order.status} />
+            <StatusTag status={order.status} order={order} />
             {temperatureZoneTag(order.items)}
             {isSettled && <LockOutlined style={{ color: '#722ed1' }} />}
             {isVoided && <StopOutlined style={{ color: '#cf1322' }} />}
@@ -516,18 +518,25 @@ export default function OrderDetail({ order, open, onClose, onStatusChange, onRe
               : <Tag>廠商自建</Tag>}
           </Descriptions.Item>
           <Descriptions.Item label="通路名稱">{order.channelName}</Descriptions.Item>
-          <Descriptions.Item label="結算月份">
-            {!isSettled && !isVoided
-              ? <Select
-                  size="small"
-                  value={localSettlementMonth || order.settlementMonth}
-                  onChange={handleSettlementMonthChange}
-                  options={getSettlementMonthOptions(channelMap[order.channelId]?.settlementDay ?? 25, localSettlementMonth || order.settlementMonth)}
-                  style={{ width: 180 }}
-                />
-              : (order.settlementMonth || <Text type="secondary">—</Text>)
-            }
-          </Descriptions.Item>
+          {/* 2026-10-27 翻盤：團媽一律不進結算，不顯示結算月份（改顯示付款方式：逐筆刷卡） */}
+          {isGroupMom ? (
+            <Descriptions.Item label="付款方式">
+              <Tag color="magenta">逐筆刷卡（不進結算）</Tag>
+            </Descriptions.Item>
+          ) : (
+            <Descriptions.Item label="結算月份">
+              {!isSettled && !isVoided
+                ? <Select
+                    size="small"
+                    value={localSettlementMonth || order.settlementMonth}
+                    onChange={handleSettlementMonthChange}
+                    options={getSettlementMonthOptions(channelMap[order.channelId]?.settlementDay ?? 25, localSettlementMonth || order.settlementMonth)}
+                    style={{ width: 180 }}
+                  />
+                : (order.settlementMonth || <Text type="secondary">—</Text>)
+              }
+            </Descriptions.Item>
+          )}
           <Descriptions.Item label="建立日期">{order.createdAt}</Descriptions.Item>
           <Descriptions.Item label="出貨地址">{order.shippingAddress}</Descriptions.Item>
           <Descriptions.Item label="後台正式訂單號">
@@ -546,6 +555,27 @@ export default function OrderDetail({ order, open, onClose, onStatusChange, onRe
                   <Tag style={{ fontSize: 10 }}>{order.invoiceTypeSnapshot}</Tag>
                 )}
               </Space>
+            </Descriptions.Item>
+          )}
+          {/* per_order 單筆開票：發票欄位從建單起就固定存在（團媽開發票；2026-10-27 翻盤）
+              到貨開立前顯示「尚未開立發票」，開立後顯示發票號碼 */}
+          {showPerOrderInvoice && (
+            <Descriptions.Item label="發票號碼" span={2}>
+              {order.invoiceNumber && order.invoiceNumber !== '發票月結' ? (
+                <Space size={6} wrap>
+                  <Text code>{order.invoiceNumber}</Text>
+                  {order.invoiceStatus === 'issued' && (
+                    <Tag color="green" style={{ fontSize: 10 }}>已開立</Tag>
+                  )}
+                  {order.invoiceDate && (
+                    <Text type="secondary" style={{ fontSize: 11 }}>{order.invoiceDate}</Text>
+                  )}
+                </Space>
+              ) : isVoided ? (
+                <Text type="secondary">未開立（訂單已作廢）</Text>
+              ) : (
+                <Tag color="default">尚未開立發票</Tag>
+              )}
             </Descriptions.Item>
           )}
         </Descriptions>

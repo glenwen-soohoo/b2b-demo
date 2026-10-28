@@ -290,7 +290,7 @@ export const channels = [
     ],
     volumeDiscount: '無',
   },
-  // 團媽通路（逐筆刷卡）——c009/c010 不開發票（終態已成立、不進結算）、c011 開發票單筆（進結算）；身分 / 損益 / 付款 demo 用
+  // 團媽通路（逐筆刷卡）——c009/c010 不開發票（終態已成立）、c011 開發票 per_order（發票掛訂單）；團媽一律不進結算（2026-10-27 翻盤）；身分 / 損益 / 付款 demo 用
   {
     id: 'c009',
     memberId: 'v8009',
@@ -589,8 +589,8 @@ export const preOrders = [
     invoicePeriodSnapshot: 'per_order', invoiceTaxScopeSnapshot: 'per_store',
     settlementMonth: '2026-10', createdAt: dayjs('2026-10-15').format('YYYY-MM-DD'),
   },
-  // ── 團媽（惠如嚴選 c011）：要開發票 → 進結算流程（單筆開票），流程比不開發票的多走到貨開票 ──
-  // 已到貨（單筆開票）：付款完成、已成立、黑貓送達 → 單筆開票（per_order），會出現在後台結算頁
+  // ── 團媽（惠如嚴選 c011）：要開發票 → per_order 單筆開票、發票直接掛訂單（2026-10-27 翻盤：不進結算） ──
+  // 已到貨：付款完成、已成立、黑貓送達 → per_order 開票，發票號碼直接顯示在訂單管理（不碰結算頁）
   {
     id: 'b2b-gm101', channelId: 'c011', channelName: '惠如嚴選',
     items: [
@@ -603,6 +603,8 @@ export const preOrders = [
     b2b_order_no: 'B2B-202610-GM101', discount_amount: 0, discount_note: null,
     cs_note: null, b2b_note: null,
     invoicePeriodSnapshot: 'per_order', invoiceTaxScopeSnapshot: 'per_store',
+    // per_order 發票掛訂單：到貨後開立，發票資訊直接顯示在訂單
+    invoiceNumber: 'IV-20261015-0007', invoiceStatus: 'issued', invoiceDate: '2026-10-15',
     settlementMonth: '2026-10', createdAt: dayjs('2026-10-09').format('YYYY-MM-DD'),
   },
   // 已成立（已付款完成、尚未到貨）
@@ -632,6 +634,41 @@ export const preOrders = [
     cs_note: null, b2b_note: null,
     invoicePeriodSnapshot: 'per_order', invoiceTaxScopeSnapshot: 'per_store',
     settlementMonth: '2026-10', createdAt: dayjs('2026-10-16').format('YYYY-MM-DD'),
+  },
+  // 待業務確認（惠如剛下單、尚未給 B2B 編號、等業務確認匯單）
+  {
+    id: 'b2b-gm104', channelId: 'c011', channelName: '惠如嚴選',
+    items: [
+      { productId:'p901', productName:'常溫燉飯-金瓜玉米雞肉', unit:'包', qty:12, price:88, cost:50 },
+      { productId:'pa03', productName:'拌醬-茄汁高湯燉牛肉',   unit:'包', qty:6,  price:85, cost:41 },
+    ],
+    status: 'pending_sales', salesAdjustedItems: null, adjustedItems: null,
+    vendorNote: '麻煩盡快確認，這批趕週末團購', warehouse_note: null, shipping_note: null,
+    backendOrderId: null, settlementId: null,
+    b2b_order_no: null, discount_amount: 0, discount_note: null,
+    cs_note: null, b2b_note: null,
+    invoicePeriodSnapshot: 'per_order', invoiceTaxScopeSnapshot: 'per_store',
+    settlementMonth: '2026-10', createdAt: dayjs('2026-10-18').format('YYYY-MM-DD'),
+  },
+  // 作廢（已刷卡成立後取消、刷卡金額退刷）
+  {
+    id: 'b2b-gm105', channelId: 'c011', channelName: '惠如嚴選',
+    items: [
+      { productId:'p902', productName:'常溫燉飯-蒜香甘藍豬肉', unit:'包', qty:10, price:88, cost:50 },
+    ],
+    status: 'voided', salesAdjustedItems: null, adjustedItems: null,
+    vendorNote: '', warehouse_note: null, shipping_note: null,
+    backendOrderId: 'GB-202610-77095', settlementId: null,
+    b2b_order_no: 'B2B-202610-GM105', discount_amount: 0, discount_note: null,
+    cs_note: null, b2b_note: null,
+    invoicePeriodSnapshot: 'per_order', invoiceTaxScopeSnapshot: 'per_store',
+    voided_at: '2026-10-07 14:32:10', voided_reason: '團媽臨時取消，刷卡金額退刷',
+    logs: [
+      { time: '2026-10-05 10:12:03', action: '[手動操作] 業務確認，轉為待付款（等待團媽刷卡）' },
+      { time: '2026-10-05 15:40:21', action: '團媽信用卡付款成功，訂單成立' },
+      { time: '2026-10-07 14:32:10', action: '[手動操作] 作廢訂單（團媽臨時取消，刷卡金額退刷）' },
+    ],
+    settlementMonth: '2026-10', createdAt: dayjs('2026-10-05').format('YYYY-MM-DD'),
   },
   // 後台代客建單（業務代建、帶業務確認）— 建單來源 demo
   {

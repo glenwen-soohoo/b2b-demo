@@ -24,10 +24,10 @@ function GenerateSettlementModal({ open, onClose, preOrderList, onGenerate }) {
     const cids = new Set(preOrderList
       .filter(o => o.status === 'arrived' && !o.settlementId)
       .map(o => o.channelId))
-    // 只排除「團媽＋不開發票」（完全不進結算）；團媽開發票為單筆開票，仍可結算
+    // 2026-10-27 翻盤：團媽一律不進結算（開發票走 per_order、發票掛訂單，不碰結算）。排除所有團媽。
     return channels.filter(c =>
       cids.has(c.id)
-      && !((c.channelType ?? 'enterprise') === 'groupmom' && c.invoiceMode === 'no_invoice')
+      && (c.channelType ?? 'enterprise') !== 'groupmom'
     )
   }, [preOrderList])
 
@@ -434,8 +434,8 @@ function SettlementDrawer({ settlement, preOrderList, open, onClose, onStatusCha
   )
 }
 
-// 身分篩選（全部 / 企業 / 團媽）；結算單依通路身分判斷
-// 團媽開發票（單筆開票）會進結算，故恢復身分篩選
+// 身分篩選（全部 / 企業 / 團媽）；結算單依通路身分判斷。
+// 2026-10-27 翻盤：團媽一律不進結算，選「團媽」會是空的（示範團媽不出現在結算）。
 const IDENTITY_FILTERS = [
   { label: '全部', value: 'all' },
   { label: '企業', value: 'enterprise' },
@@ -463,10 +463,16 @@ export default function AdminSettlements() {
   const [activeStatuses, setActiveStatuses] = useState([])   // 空 = 全部
 
   // 方案 B：尚未結算（本月已到貨、還沒納入結算單的訂單，依通路彙整成虛擬列）
-  // 發票會比結算早開，先呈現這些單，方便看單筆開票的發票開立狀況
+  // 2026-10-27 翻盤：團媽一律不進結算（開發票走 per_order、發票掛訂單），故排除所有團媽訂單。
   const pendingSettlements = useMemo(() => {
     const groups = new Map()
-    preOrderList.filter(o => o.status === 'arrived' && !o.settlementId).forEach(o => {
+    preOrderList
+      .filter(o =>
+        o.status === 'arrived'
+        && !o.settlementId
+        && (channelMap[o.channelId]?.channelType ?? 'enterprise') !== 'groupmom',
+      )
+      .forEach(o => {
       if (!groups.has(o.channelId)) groups.set(o.channelId, { ids: [], total: 0, months: new Set(), channelName: o.channelName })
       const g = groups.get(o.channelId)
       g.ids.push(o.id); g.months.add(o.settlementMonth)
@@ -508,7 +514,11 @@ export default function AdminSettlements() {
     awaitingPayment: settlementList.filter(o => o.status === 'awaiting_payment').length,
     paid:            settlementList.filter(o => o.status === 'paid').length,
     completed:       settlementList.filter(o => o.status === 'completed').length,
-    arrivedCount:    preOrderList.filter(o => o.status === 'arrived' && !o.settlementId).length,
+    // 2026-10-27 翻盤：團媽一律不進結算，不計入「尚未結算訂單」（與下方清單、後台訂單頁一致）
+    arrivedCount:    preOrderList.filter(o =>
+      o.status === 'arrived' && !o.settlementId
+      && (channelMap[o.channelId]?.channelType ?? 'enterprise') !== 'groupmom'
+    ).length,
   }), [settlementList, preOrderList])
 
   const handleGenerate = (channelId, channelName, month, orders, totalAmount) => {
