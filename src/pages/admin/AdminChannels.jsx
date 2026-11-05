@@ -1,7 +1,7 @@
 import { useState, useMemo } from 'react'
 import {
   Table, Button, Typography, Badge, Space, Modal, Form, Input,
-  Select, Popconfirm, message, Divider, Row, Col, Tag, Alert,
+  Select, Popconfirm, message, Divider, Row, Col, Tag, Alert, Segmented,
 } from 'antd'
 import {
   EyeOutlined, EditOutlined, PlusOutlined, SearchOutlined,
@@ -487,14 +487,7 @@ export default function AdminChannels() {
       </div>
 
       <Space style={{ marginBottom: 16 }} wrap>
-        <Select
-          value={identityFilter === 'all' ? undefined : identityFilter}
-          onChange={v => setIdentityFilter(v ?? 'all')}
-          placeholder="身分"
-          allowClear
-          style={{ width: 120 }}
-          options={IDENTITY_FILTERS.filter(o => o.value !== 'all')}
-        />
+        <Segmented options={IDENTITY_FILTERS} value={identityFilter} onChange={setIdentityFilter} />
         <Input
           prefix={<SearchOutlined />}
           placeholder="搜尋通路名稱 / 統一編號 / 信箱"

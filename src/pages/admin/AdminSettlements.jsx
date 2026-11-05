@@ -3,7 +3,7 @@ import dayjs from 'dayjs'
 import {
   Table, Button, Space, Select, Drawer, Input,
   Statistic, Row, Col, Card, Typography, Tag, Descriptions,
-  Timeline, Divider, Alert, message, Popconfirm, Modal, Form,
+  Timeline, Divider, Alert, message, Popconfirm, Modal, Form, Segmented,
 } from 'antd'
 import { EyeOutlined, PlusOutlined, CheckOutlined, SearchOutlined, FilePdfOutlined, MailOutlined } from '@ant-design/icons'
 import { exportSettlementPdf } from '../../utils/exportSettlementPdf'
@@ -617,14 +617,7 @@ export default function AdminSettlements() {
       </Row>
 
       <Space style={{ marginBottom: 16 }} wrap>
-        <Select
-          value={identityFilter === 'all' ? undefined : identityFilter}
-          onChange={v => setIdentityFilter(v ?? 'all')}
-          placeholder="身分"
-          allowClear
-          style={{ width: 120 }}
-          options={IDENTITY_FILTERS.filter(o => o.value !== 'all')}
-        />
+        <Segmented options={IDENTITY_FILTERS} value={identityFilter} onChange={setIdentityFilter} />
         <Input
           prefix={<SearchOutlined />} placeholder="搜尋結算單號 / 通路名稱"
           value={filterText} onChange={e => setFilterText(e.target.value)}

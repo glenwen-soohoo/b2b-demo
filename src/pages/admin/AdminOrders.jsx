@@ -1,7 +1,7 @@
 import { useState, useMemo } from 'react'
 import {
   Table, Button, Space, Input, Card, Col, Row,
-  Statistic, Tag, Typography, DatePicker, Select, Divider, Tooltip, message,
+  Statistic, Tag, Typography, DatePicker, Select, Divider, Tooltip, message, Segmented,
 } from 'antd'
 import { SearchOutlined, EyeOutlined, PlusOutlined } from '@ant-design/icons'
 import { useNavigate } from 'react-router-dom'
@@ -218,14 +218,7 @@ export default function AdminOrders() {
       {/* 第一排：身分 / 搜尋 / 日期 + 後台建單（靠右） */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12, flexWrap: 'wrap', marginBottom: 12 }}>
         <Space wrap>
-          <Select
-            value={identityFilter === 'all' ? undefined : identityFilter}
-            onChange={v => setIdentityFilter(v ?? 'all')}
-            placeholder="身分"
-            allowClear
-            style={{ width: 120 }}
-            options={IDENTITY_FILTERS.filter(o => o.value !== 'all')}
-          />
+          <Segmented options={IDENTITY_FILTERS} value={identityFilter} onChange={setIdentityFilter} />
           <Input
             prefix={<SearchOutlined />} placeholder="搜尋訂單號 / B2B編號 / 通路名稱"
             value={filterText} onChange={e => setFilterText(e.target.value)}
