@@ -132,8 +132,8 @@ function temperatureZoneTag(items) {
   const zones = new Set(items.map(i => productMap[i.productId]?.category).filter(Boolean));
   return (
     <Space size={4}>
-      {zones.has('frozen')  && <Tag color="blue"  style={{ margin: 0 }}>❄️ 冷凍</Tag>}
-      {zones.has('ambient') && <Tag color="green" style={{ margin: 0 }}>🌿 常溫</Tag>}
+      {zones.has('frozen')  && <Tag color="blue"  style={{ margin: 0 }}>冷凍</Tag>}
+      {zones.has('ambient') && <Tag color="green" style={{ margin: 0 }}>常溫</Tag>}
     </Space>
   );
 }
@@ -439,7 +439,7 @@ export default function OrderDetail({ order, open, onClose, onStatusChange, onRe
     ? '建單後修改品項'
     : order.salesAdjustedItems
     ? '業務確認品項'
-    : '訂購品項';
+    : '品項明細';
 
   const displayDiscount = (order.status === 'pending_sales') ? discountAmount : (order.discount_amount ?? 0);
 
@@ -477,7 +477,7 @@ export default function OrderDetail({ order, open, onClose, onStatusChange, onRe
             message="此訂單已作廢"
             description={
               <Space direction="vertical" size={2} style={{ fontSize: 12 }}>
-                {order.backendOrderId && <span>後台正式訂單號 <Text code>{order.backendOrderId}</Text> 已同步刪除</span>}
+                {order.backendOrderId && <span>主站訂單編號 <Text code>{order.backendOrderId}</Text> 已同步刪除</span>}
                 {order.voided_at && <span>作廢時間：{order.voided_at}</span>}
                 {order.voided_reason && <span>作廢原因：{order.voided_reason}</span>}
               </Space>
@@ -539,10 +539,10 @@ export default function OrderDetail({ order, open, onClose, onStatusChange, onRe
           )}
           <Descriptions.Item label="建立日期">{order.createdAt}</Descriptions.Item>
           <Descriptions.Item label="出貨地址">{order.shippingAddress}</Descriptions.Item>
-          <Descriptions.Item label="後台正式訂單號">
+          <Descriptions.Item label="主站訂單編號">
             {order.backendOrderId || <Text type="secondary">—</Text>}
           </Descriptions.Item>
-          <Descriptions.Item label="物流單號">
+          <Descriptions.Item label="物流編號">
             <ShippingCell blackCatNum={order.blackCatNum} />
           </Descriptions.Item>
           {/* 訂單級開票模式：顯示寫入主站 Orders.CompanyName / TaxId 的快照值 */}
@@ -730,13 +730,13 @@ export default function OrderDetail({ order, open, onClose, onStatusChange, onRe
                 description={
                   voidConfirm.mode === 'recreate' ? (
                     <span>
-                      舊訂單後台正式訂單號 <Text code>{order.backendOrderId ?? '—'}</Text> 將<strong>同步刪除</strong>，<br />
+                      舊訂單主站訂單編號 <Text code>{order.backendOrderId ?? '—'}</Text> 將<strong>同步刪除</strong>，<br />
                       並建立一筆新的「待業務確認」訂單，<br />
                       給予新的 B2B 編號，原始品項會帶入。
                     </span>
                   ) : (
                     <span>
-                      後台正式訂單號 <Text code>{order.backendOrderId ?? '—'}</Text> 將<strong>同步刪除</strong>，<br />
+                      主站訂單編號 <Text code>{order.backendOrderId ?? '—'}</Text> 將<strong>同步刪除</strong>，<br />
                       作廢後此訂單<strong>無法</strong>再做任何修改。
                     </span>
                   )

@@ -3,7 +3,7 @@ import dayjs from 'dayjs'
 import {
   Table, Button, Space, Select, Drawer, Input,
   Statistic, Row, Col, Card, Typography, Tag, Descriptions,
-  Timeline, Divider, Alert, message, Popconfirm, Modal, Form, Segmented,
+  Timeline, Divider, Alert, message, Popconfirm, Modal, Form,
 } from 'antd'
 import { EyeOutlined, PlusOutlined, CheckOutlined, SearchOutlined, FilePdfOutlined, MailOutlined } from '@ant-design/icons'
 import { exportSettlementPdf } from '../../utils/exportSettlementPdf'
@@ -82,7 +82,7 @@ function GenerateSettlementModal({ open, onClose, preOrderList, onGenerate }) {
       okText="生成結算單"
       okButtonProps={{ disabled: selectedOrders.length === 0, type: 'primary' }}
       cancelText="取消"
-      title={<Space><PlusOutlined />手動生成結算單</Space>}
+      title={<Space><PlusOutlined />手動補產結算單</Space>}
       width={620}
     >
       <Form layout="vertical" style={{ marginTop: 8 }}>
@@ -227,7 +227,7 @@ function SettlementDrawer({ settlement, preOrderList, open, onClose, onStatusCha
             }
           </Descriptions.Item>
           <Descriptions.Item label="結算月份">{settlement.settlementMonth}</Descriptions.Item>
-          <Descriptions.Item label="結算日期">{settlement.createdAt}</Descriptions.Item>
+          <Descriptions.Item label="結算日">{settlement.createdAt}</Descriptions.Item>
           <Descriptions.Item label="結算總金額" span={2}>
             <Text strong style={{ color: '#1677ff', fontSize: 16 }}>
               ${(settlement.totalAmount ?? 0).toLocaleString()}
@@ -536,7 +536,7 @@ export default function AdminSettlements() {
       shippingAddress: orders[0]?.shippingAddress ?? '',
       logs: [{
         time: now,
-        action: `手動生成結算單，涵蓋 ${orders.length} 筆B2B訂單（${orders.map(o => o.id).join('、')}）`,
+        action: `手動補產結算單，涵蓋 ${orders.length} 筆B2B訂單（${orders.map(o => o.id).join('、')}）`,
       }, {
         time: now,
         action: '發結算匯款通知給廠商',
@@ -580,8 +580,8 @@ export default function AdminSettlements() {
     { title: '結算單號', dataIndex: 'id', width: 180,
       render: v => <Text code style={{ fontSize: 12 }}>{v}</Text> },
     { title: '通路', dataIndex: 'channelName', width: 150 },
-    { title: '結算日期', dataIndex: 'createdAt', width: 110 },
-    { title: '涵蓋B2B訂單', dataIndex: 'preOrderIds', width: 100,
+    { title: '結算日', dataIndex: 'createdAt', width: 110 },
+    { title: '訂單件數', dataIndex: 'preOrderIds', width: 100,
       render: ids => <Tag color="purple">{ids?.length ?? 0} 筆</Tag> },
     { title: '結算金額', dataIndex: 'totalAmount', width: 120,
       render: v => <Text strong style={{ color: '#1677ff' }}>${(v ?? 0).toLocaleString()}</Text> },
@@ -597,7 +597,7 @@ export default function AdminSettlements() {
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
         <div />
         <Button type="primary" icon={<PlusOutlined />} onClick={() => setGenModalOpen(true)}>
-          手動生成結算單
+          手動補產結算單
         </Button>
       </div>
 
@@ -617,7 +617,14 @@ export default function AdminSettlements() {
       </Row>
 
       <Space style={{ marginBottom: 16 }} wrap>
-        <Segmented options={IDENTITY_FILTERS} value={identityFilter} onChange={setIdentityFilter} />
+        <Select
+          value={identityFilter === 'all' ? undefined : identityFilter}
+          onChange={v => setIdentityFilter(v ?? 'all')}
+          placeholder="身分"
+          allowClear
+          style={{ width: 120 }}
+          options={IDENTITY_FILTERS.filter(o => o.value !== 'all')}
+        />
         <Input
           prefix={<SearchOutlined />} placeholder="搜尋結算單號 / 通路名稱"
           value={filterText} onChange={e => setFilterText(e.target.value)}

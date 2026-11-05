@@ -1,7 +1,7 @@
 import { useState, useMemo } from 'react'
 import {
   Table, Button, Space, Input, Card, Col, Row,
-  Statistic, Tag, Typography, DatePicker, Select, Divider, Tooltip, message, Segmented,
+  Statistic, Tag, Typography, DatePicker, Select, Divider, Tooltip, message,
 } from 'antd'
 import { SearchOutlined, EyeOutlined, PlusOutlined } from '@ant-design/icons'
 import { useNavigate } from 'react-router-dom'
@@ -17,8 +17,8 @@ function temperatureZoneTag(items) {
   const zones = new Set(items.map(i => productMap[i.productId]?.category).filter(Boolean))
   return (
     <Space size={4}>
-      {zones.has('frozen')  && <Tag color="blue"  style={{ margin: 0 }}>❄️ 冷凍</Tag>}
-      {zones.has('ambient') && <Tag color="green" style={{ margin: 0 }}>🌿 常溫</Tag>}
+      {zones.has('frozen')  && <Tag color="blue"  style={{ margin: 0 }}>冷凍</Tag>}
+      {zones.has('ambient') && <Tag color="green" style={{ margin: 0 }}>常溫</Tag>}
     </Space>
   )
 }
@@ -218,7 +218,14 @@ export default function AdminOrders() {
       {/* 第一排：身分 / 搜尋 / 日期 + 後台建單（靠右） */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12, flexWrap: 'wrap', marginBottom: 12 }}>
         <Space wrap>
-          <Segmented options={IDENTITY_FILTERS} value={identityFilter} onChange={setIdentityFilter} />
+          <Select
+            value={identityFilter === 'all' ? undefined : identityFilter}
+            onChange={v => setIdentityFilter(v ?? 'all')}
+            placeholder="身分"
+            allowClear
+            style={{ width: 120 }}
+            options={IDENTITY_FILTERS.filter(o => o.value !== 'all')}
+          />
           <Input
             prefix={<SearchOutlined />} placeholder="搜尋訂單號 / B2B編號 / 通路名稱"
             value={filterText} onChange={e => setFilterText(e.target.value)}
@@ -267,8 +274,8 @@ export default function AdminOrders() {
         <Space size={4}>
           {[
             { key: 'all',     label: '全部溫層' },
-            { key: 'frozen',  label: '❄️ 冷凍'  },
-            { key: 'ambient', label: '🌿 常溫'  },
+            { key: 'frozen',  label: '冷凍'  },
+            { key: 'ambient', label: '常溫'  },
           ].map(({ key, label }) => (
             <Button key={key} size="small"
               type={tempFilter === key ? 'primary' : 'default'}

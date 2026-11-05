@@ -27,7 +27,7 @@ export const INVOICE_TAX_SCOPE_LABEL = {
 // 完整中文 label（業務看到的描述）
 // 統編一律 per_store，發票模式只看頻率（不再加註「門市統編」）
 export function invoiceModeLabel(period) {
-  if (period === 'monthly')   return '整合月結'
+  if (period === 'monthly')   return '月結'
   if (period === 'per_order') return '單筆開票'
   return '—'
 }

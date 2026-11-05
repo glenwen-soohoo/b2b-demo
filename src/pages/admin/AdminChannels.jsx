@@ -1,7 +1,7 @@
 import { useState, useMemo } from 'react'
 import {
   Table, Button, Typography, Badge, Space, Modal, Form, Input,
-  Select, Popconfirm, message, Divider, Row, Col, Tag, Alert, Segmented,
+  Select, Popconfirm, message, Divider, Row, Col, Tag, Alert,
 } from 'antd'
 import {
   EyeOutlined, EditOutlined, PlusOutlined, SearchOutlined,
@@ -441,11 +441,11 @@ export default function AdminChannels() {
           {r.enabled === false && <Tag color="default" style={{ fontSize: 10, margin: 0 }}>已停用</Tag>}
         </Space>
       )},
-    { title: '類型', dataIndex: 'channelType', width: 70, align: 'center',
+    { title: '身分', dataIndex: 'channelType', width: 70, align: 'center',
       render: v => <Tag color={CHANNEL_TYPE_COLOR[v ?? 'enterprise']}>
         {CHANNEL_TYPE_OPTIONS.find(o => o.value === (v ?? 'enterprise'))?.label}
       </Tag> },
-    { title: '預設統編', dataIndex: 'taxId', width: 110 },
+    { title: '統一編號', dataIndex: 'taxId', width: 110 },
     { title: '聯繫信箱', dataIndex: 'contactEmail' },
     { title: '聯繫窗口', dataIndex: 'contactName', width: 150,
       render: (v, r) => <>{v ?? ''}<br />{r.contactPhone ?? ''}</> },
@@ -487,7 +487,14 @@ export default function AdminChannels() {
       </div>
 
       <Space style={{ marginBottom: 16 }} wrap>
-        <Segmented options={IDENTITY_FILTERS} value={identityFilter} onChange={setIdentityFilter} />
+        <Select
+          value={identityFilter === 'all' ? undefined : identityFilter}
+          onChange={v => setIdentityFilter(v ?? 'all')}
+          placeholder="身分"
+          allowClear
+          style={{ width: 120 }}
+          options={IDENTITY_FILTERS.filter(o => o.value !== 'all')}
+        />
         <Input
           prefix={<SearchOutlined />}
           placeholder="搜尋通路名稱 / 統一編號 / 信箱"
